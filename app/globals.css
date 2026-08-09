@@ -1,0 +1,27 @@
+/*
+ * Global stylesheet — Astryx design system + Tailwind v4 bridge
+ *
+ * กติกา (CLAUDE.md): Astryx = components / Tailwind = layout เท่านั้น
+ * Tailwind utility ทั้งหมดถูก map ไปที่ Astryx token ผ่าน tailwind-theme.css
+ * (@theme inline) → เปลี่ยน theme แล้ว utility เปลี่ยนตามอัตโนมัติ
+ *
+ * ⚠️ ลำดับ @import ด้านล่างห้ามสลับ และห้ามเพิ่ม @import ที่ไม่ระบุ layer()
+ */
+
+/* 1. ประกาศลำดับ layer ก่อนทุกอย่าง (ไฟล์แยก — ดูเหตุผลใน layers.css) */
+@import "./layers.css";
+
+/* 2. Tailwind: theme vars + preflight (preflight ต้องอยู่ layer(base) เหนือ reset) */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+
+/* 3. Astryx: reset → component styles → theme tokens (ประกาศ layer มาในตัวแล้ว) */
+@import "@astryxdesign/core/reset.css";
+@import "@astryxdesign/core/astryx.css";
+@import "@astryxdesign/theme-neutral/theme.css";
+
+/* 4. Bridge: map Tailwind theme vars → Astryx CSS custom properties */
+@import "@astryxdesign/core/tailwind-theme.css";
+
+/* 5. Tailwind utilities ท้ายสุด — className จึง override component default ได้ */
+@import "tailwindcss/utilities.css" layer(utilities);
