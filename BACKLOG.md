@@ -43,6 +43,40 @@
 
 ---
 
+## จาก WO-1.2 (Schema migrations)
+
+### 🔴 Environment — กระทบ WO-1.3 โดยตรง
+
+- [ ] **`supabase start` (local) ใช้ไม่ได้บนเครื่องนี้** — image `supabase/postgres:17.6.1.158`
+      ต้องการพื้นที่ว่างราว 20 GB (มี nix store พ่วง) เครื่องมี 228 GB แต่ใช้ไป ~197 GB
+      ⇒ WO-1.2 verify ผ่าน **Supabase cloud** (`db push` + Management API) แทน
+- [ ] **WO-1.3 concurrency tests ต้องการ local** — baseline §Verification บังคับให้รันผ่าน
+      **pooled port (transaction pooling)** และยิง request พร้อมกัน; ทำบน cloud free tier
+      ได้แต่ช้าและกิน quota ⇒ ต้องเคลียร์ดิสก์ก่อนเริ่ม WO-1.3 หรือหาเครื่องอื่น
+      (`config.toml` เปิด `[db.pooler]` ไว้ให้แล้ว — local pooler port คือ **54329** ไม่ใช่ 6543
+      ที่ baseline อ้าง ซึ่งเป็นพอร์ตของ cloud)
+- [ ] **Docker Desktop ล่มระหว่างทำ WO-1.2** (containerd meta.db I/O error ตอนดิสก์เต็ม)
+      กระทบ container ของโปรเจกต์อื่น (`qr-marco-postgres`, `qr-marco-redis`) — ต้องเคลียร์ดิสก์ถึงจะ boot กลับ
+
+### Tooling
+
+- [ ] **supabase CLI 2.112.0 `link` พัง** — API ส่ง `inserted_at` รูปแบบที่ schema validator
+      ของ CLI ไม่รับ (`LegacyLinkApiKeysNetworkError`) แต่เขียน `linked-project.json` สำเร็จ
+      **workaround**: เขียน `supabase/.temp/project-ref` เองแล้ว `db push --linked` ทำงานปกติ
+      ⇒ เช็คตอนอัป CLI ครั้งหน้าว่าแก้แล้วหรือยัง แล้วลบ workaround
+- [ ] **ไม่มี `psql` ในเครื่อง** — audit ใช้ Supabase Management API
+      (`POST /v1/projects/{ref}/database/query`) แทน; ถ้าจะทำ RLS/concurrency tests จริงจัง
+      ควรลง `libpq` หรือใช้ client ผ่าน `pg` ใน vitest
+
+### ตัดสินใจไว้ รอทบทวนเมื่อมีข้อมูลจริง
+
+- [ ] **40 index บนคอลัมน์ audit** (`created_by`/`updated_by`/`deleted_by`) เพิ่มใน migration `0007`
+      เพื่อทำตาม baseline "ทุก FK มี index" ตามตัวอักษร — index เหล่านี้แทบไม่มี query ใช้จริง
+      ⇒ ถ้าวัดแล้วพบว่ากระทบ write throughput ให้ลบออก (migration เดียว) ไม่ต้องผ่าน ADR
+      เพราะไม่ใช่การเปลี่ยนสถาปัตยกรรม
+
+---
+
 ## จาก baseline ที่ยังไม่มี WO (บันทึกกันลืม)
 
 - [ ] Phase 2 ยังไม่แตก WO — baseline สั่งให้แตกตอนจบ Phase 1 (อย่าแตกล่วงหน้า)
