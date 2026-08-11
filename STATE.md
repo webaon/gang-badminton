@@ -24,20 +24,22 @@ Phase 2 ยังไม่แตก WO — baseline สั่งให้แต�
 ## 2. Git
 
 ```
-branch: claude/badminton-group-system-4pfs7o   (ทำงานอยู่บนนี้)
+branch: claude/badminton-group-system-4pfs7o   (ทำงานอยู่บนนี้ — WO ทุกใบ commit ที่นี่)
         main                                    (มีแค่ commit เอกสาร baseline)
 ```
 
-🔴 **commit ทั้งหมดยังอยู่ local — push ไม่ได้**
+✅ **push ได้แล้ว — ทั้งสอง branch ขึ้น `webaon/gang-badminton` เรียบร้อย (11 ส.ค. 2026)**
 
-```
-remote: Permission to webaon/gang-badminton.git denied to triple-tgg (403)
-```
-บัญชี `triple-tgg` (active) และ `moosmall` มีสิทธิ์แค่ `pull` บน `webaon/gang-badminton`
+ปัญหา 403 เดิมแก้ด้วยการสลับบัญชี `gh` ที่ active มาเป็น **`webaon`** (เจ้าของ repo)
+ไม่ได้แก้ด้วยการเพิ่ม `triple-tgg` เป็น collaborator ⇒ ถ้าวันหนึ่ง push แล้วเจอ 403 อีก
+ให้เช็คก่อนว่า active account เป็นตัวไหน:
 
-**ต้องทำ:** ขอ `webaon` เพิ่ม `triple-tgg` เป็น collaborator
-(GitHub → repo → Settings → Collaborators) แล้วค่อย
-`git push -u origin main && git push -u origin claude/badminton-group-system-4pfs7o`
+```bash
+gh auth status                 # ดูว่าใคร active
+gh auth switch --user webaon   # สลับกลับถ้าไม่ใช่
+```
+
+ยังไม่ได้เปิด PR — `claude/...` กับ `main` แยกกันอยู่
 
 ---
 
