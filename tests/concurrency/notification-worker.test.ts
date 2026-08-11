@@ -27,6 +27,23 @@ async function seedNotifications(gangId: string, recipientId: string, n: number)
   );
 }
 
+/**
+ * ดันคิวของก๊วนอื่นออกไปให้พ้นทาง
+ *
+ * `claim_notifications()` หยิบจาก **คิวทั้งตาราง** โดยตั้งใจ — worker จริงไม่ได้
+ * แบ่งตามก๊วน ⇒ ถ้าไม่กันไว้ เทสต์จะไปหยิบงานค้างของก๊วนอื่น (เช่น
+ * `waitlist.promoted` ที่ promote_waitlist สร้างไว้ หรือของรอบรันก่อนหน้า)
+ * แล้วจำนวนที่นับได้จะไม่ตรงกับที่ seed ไว้
+ */
+async function quiesceOtherGangs(gangId: string) {
+  await pool.query(
+    `update public.notifications
+        set next_retry_at = now() + interval '10 years'
+      where status = 'pending' and gang_id <> $1`,
+    [gangId],
+  );
+}
+
 describe('DoD 3 — worker claim ด้วย SKIP LOCKED ไม่หยิบงานซ้ำ', () => {
   beforeAll(async () => {
     await reloadPostgrestSchema();
@@ -40,6 +57,7 @@ describe('DoD 3 — worker claim ด้วย SKIP LOCKED ไม่หยิบ�
     const owner = await createUser('owner-3a');
     const fx = await createFixture({ ownerId: owner, maxPlayers: 4 });
     await addGangMember(fx.gangId, owner);
+    await quiesceOtherGangs(fx.gangId);
     await seedNotifications(fx.gangId, owner, 20);
 
     const a = await pool.connect();
@@ -84,6 +102,7 @@ describe('DoD 3 — worker claim ด้วย SKIP LOCKED ไม่หยิบ�
     const owner = await createUser('owner-3b');
     const fx = await createFixture({ ownerId: owner, maxPlayers: 4 });
     await addGangMember(fx.gangId, owner);
+    await quiesceOtherGangs(fx.gangId);
     await seedNotifications(fx.gangId, owner, 40);
 
     const results = await runConcurrently(4, (client) =>
@@ -114,6 +133,7 @@ describe('DoD 3 — worker claim ด้วย SKIP LOCKED ไม่หยิบ�
     const fx = await createFixture({ ownerId: owner, maxPlayers: 4 });
     await addGangMember(fx.gangId, owner);
 
+    await quiesceOtherGangs(fx.gangId);
     await pool.query(
       `insert into public.notifications
          (gang_id, recipient_id, channel, event_type, next_retry_at)
