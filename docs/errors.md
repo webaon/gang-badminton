@@ -31,12 +31,18 @@ RAISE EXCEPTION USING
 
 | Code | HTTP | ความหมาย | raise จาก |
 |---|---|---|---|
-| `SESSION_FULL` | 409 | นัดเต็มแล้ว (`count(confirmed) >= max_players`) — ปกติจะถูกส่งเข้า waitlist แทน ไม่ใช่ error เว้นแต่ waitlist ปิด | `register_to_session()` |
-| `SESSION_NOT_OPEN` | 409 | นัดไม่ได้อยู่สถานะ `open` — ลงชื่อไม่ได้ | `register_to_session()` |
-| `ALREADY_REGISTERED` | 409 | คนนี้ลงชื่อในนัดนี้อยู่แล้ว (ชน partial unique index) | `register_to_session()` |
-| `REGISTRATION_NOT_FOUND` | 404 | ไม่พบ registration หรือถูก soft delete ไปแล้ว | ทุก function ที่รับ `registration_id` |
-| `CANCEL_CUTOFF_PASSED` | 409 | เลยเวลา cutoff ตาม cancellation policy ใน snapshot — ยกเลิกได้แต่โดน penalty (ใช้เป็น error เฉพาะกรณีก๊วนตั้งค่าห้ามยกเลิกหลัง cutoff) | `cancel_registration()` |
-| `INVALID_REGISTRATION_TRANSITION` | 409 | transition ที่ไม่อนุญาต เช่น `waitlist → checked_in` ตรง | `check_in_registration()` |
+| `SESSION_FULL` | 409 | นัดเต็มแล้ว (`count(confirmed) >= max_players`) — ปกติจะถูกส่งเข้า waitlist แทน ไม่ใช่ error เว้นแต่ waitlist ปิด | ⚠️ **ยังไม่มีที่ raise** (ดูหมายเหตุ WO-1.3) |
+| `SESSION_NOT_OPEN` | 409 | นัดไม่ได้อยู่สถานะ `open` — ลงชื่อไม่ได้ | `register_to_session()` ✅ |
+| `ALREADY_REGISTERED` | 409 | คนนี้ลงชื่อในนัดนี้อยู่แล้ว (ชน partial unique index) | `register_to_session()` ✅ |
+| `REGISTRATION_NOT_FOUND` | 404 | ไม่พบ registration หรือถูก soft delete ไปแล้ว | `cancel_registration()`, `check_in_registration()` ✅ |
+| `CANCEL_CUTOFF_PASSED` | 409 | เลยเวลา cutoff ตาม cancellation policy ใน snapshot — ยกเลิกได้แต่โดน penalty (ใช้เป็น error เฉพาะกรณีก๊วนตั้ง `allow_cancel_after_cutoff: false`) | `cancel_registration()` ✅ |
+| `INVALID_REGISTRATION_TRANSITION` | 409 | transition ที่ไม่อนุญาต เช่น `waitlist → checked_in` ตรง | `check_in_registration()`, `cancel_registration()` ✅ |
+| `NOT_FOUND` | 404 | ไม่พบ session (หรือถูก soft delete) | `register_to_session()`, `promote_waitlist()`, `transition_session()`, `close_session_with_charges()` ✅ |
+
+> **[WO-1.3] `SESSION_FULL` ยังไม่มีที่ raise จริง** — `register_to_session()` ส่งคนที่มาช้าเข้า
+> waitlist เสมอ ตามที่ baseline อธิบายไว้เอง เงื่อนไข "เว้นแต่ waitlist ปิด" ต้องมีสวิตช์ปิด
+> waitlist ต่อนัด ซึ่ง **ไม่มีในสคีมา** (ไม่มีคอลัมน์ไหนสื่อความนี้) ⇒ เก็บ code ไว้เฉยๆ
+> ยังไม่ลบ เพราะการเพิ่มสวิตช์เป็นเรื่องของ Phase 2 (บันทึกไว้ใน `BACKLOG.md` แล้ว)
 
 ## State machine
 
@@ -53,7 +59,7 @@ RAISE EXCEPTION USING
 | `PAYMENT_NOT_FOUND` | 404 | ไม่พบ payment | server action |
 | `ALLOCATION_EXCEEDS_PAYMENT` | 409 | `sum(allocations) > payment.amount` — ผิด invariant | CHECK/trigger บน `payment_allocations` |
 | `CHARGE_NOT_FOUND` | 404 | ไม่พบ `session_charge` ที่ adjustment อ้างถึง | `payment_adjustments` FK |
-| `CHARGES_ALREADY_COMMITTED` | 409 | session นี้ commit charges ไปแล้ว — เรียก `close_session_with_charges()` ซ้ำไม่ได้ | `close_session_with_charges()` |
+| `CHARGES_ALREADY_COMMITTED` | 409 | session นี้ commit charges ไปแล้ว — เรียก `close_session_with_charges()` ซ้ำไม่ได้ | `close_session_with_charges()` ✅ |
 | `MONTHLY_FEE_ALREADY_GENERATED` | 409 | สมาชิก+เดือนนี้ generate `monthly_fee` ไปแล้ว (idempotency guard) | MembershipBilling function |
 
 ## Guest / Invite token
@@ -94,4 +100,22 @@ RAISE EXCEPTION USING
   — ที่เหลือ**อนุมานจากพฤติกรรมที่ baseline กำหนด** (DB functions, state machines, invariants,
   security checklist) และจะถูกยืนยัน/ปรับตอน **WO-1.3** ที่เขียน DB functions จริง
 - ถ้า WO-1.3 พบว่าต้องเพิ่ม/ตัด code ใด → แก้ไฟล์นี้ในคอมมิตเดียวกับโค้ด และระบุใน PR description
+
+### ✅ ผลการยืนยันจาก WO-1.3 (11 ส.ค. 2026)
+
+เขียน DB functions จริงแล้ว code ที่ **ถูก raise จริงและมีเทสต์คุม** ทำเครื่องหมาย ✅ ไว้ในตารางด้านบน
+
+เพิ่มใหม่:
+- `NOT_FOUND` — ใช้กับ "ไม่พบ session" (ไม่ได้ตั้ง `SESSION_NOT_FOUND` แยก เพราะ
+  ตารางเดิมมี `NOT_FOUND` เป็น code ทั่วไปอยู่แล้ว การเพิ่ม code เฉพาะทางที่ frontend
+  ปฏิบัติเหมือนกันเป๊ะไม่ได้ทำให้ผู้ใช้เห็นอะไรต่างขึ้น)
+
+ยังไม่มีที่ raise (เก็บไว้ ไม่ลบ):
+- `SESSION_FULL` — เหตุผลตามหมายเหตุในหัวข้อ Registration ด้านบน
+- `PAYMENT_ALREADY_VERIFIED`, `MONTHLY_FEE_ALREADY_GENERATED` — เป็นของ Phase 2
+- `GUEST_ACCESS_DENIED` — `guest_access_token_hash` ยังไม่ถูก generate ที่ไหน (Phase 2)
+
+⚠️ **`DIRECT_STATUS_UPDATE_FORBIDDEN` ของ `payments` ยังไม่มีทางออก**: trigger ติดตั้งแล้ว
+ตาม baseline แต่ Phase 1 ไม่มี `transition_payment()` ในลิสต์ฟังก์ชัน ⇒ ตอนนี้ payment
+เปลี่ยน status ไม่ได้เลยทุกทาง ต้องทำใน Phase 2 (บันทึกใน `BACKLOG.md` แล้ว)
 - TypeScript `ErrorCode` union จะถูก generate/เขียนที่ `shared/` ตอน WO ที่ต้องใช้จริงครั้งแรก

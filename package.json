@@ -12,7 +12,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "astryx": "node node_modules/@astryxdesign/cli/clients/cli/bin/astryx.mjs",
-    "supabase": "supabase"
+    "supabase": "supabase",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "astryx": {
     "theme": "@astryxdesign/theme-neutral"
@@ -21,6 +23,7 @@
     "@astryxdesign/core": "0.3.0",
     "@astryxdesign/theme-neutral": "0.3.0",
     "@stylexjs/stylex": "0.19.0",
+    "@supabase/supabase-js": "^2.112.2",
     "next": "15.5.23",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -30,12 +33,15 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "^22",
+    "@types/pg": "^8.21.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.23",
+    "pg": "^8.23.0",
     "supabase": "2.112.0",
     "tailwindcss": "4.3.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

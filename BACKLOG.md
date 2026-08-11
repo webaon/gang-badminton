@@ -77,6 +77,54 @@
 
 ---
 
+## จาก WO-1.3 (DB functions + triggers)
+
+### 🔴 ช่องโหว่ที่เปิดค้างไว้ — ต้องปิดใน WO-1.4 / Phase 2
+
+- [ ] **`transition_payment()` ยังไม่มี ⇒ payment เปลี่ยน status ไม่ได้เลย**
+      baseline สั่งให้ติด GUC trigger บน `payments` ด้วย "pattern เดียวกัน" (§State Machines v3.2)
+      แต่ลิสต์ 6 ฟังก์ชันของ Phase 1 ไม่มีตัวที่ set GUC ให้ payments
+      ⇒ ตอนนี้ trigger บล็อกทุกทาง ซึ่ง**ถูกต้องตาม baseline** แต่ทำให้ payment flow
+      ใช้ไม่ได้จนกว่าจะเขียนฟังก์ชันใน Phase 2 — **ห้ามแก้ด้วยการถอด trigger**
+- [ ] **GUC guard คุมเฉพาะ UPDATE ไม่คุม INSERT** — `insert into sessions (status) values ('settled')`
+      ผ่านฉลุย (baseline ระบุ BEFORE UPDATE ตรงๆ) fixture ของเทสต์ใช้ช่องนี้อยู่
+      ⇒ WO-1.4 ควรปิดฝั่ง RLS (policy ยอมให้ insert ได้เฉพาะ `status = 'draft'`)
+- [ ] **EXECUTE grant ของ DB functions ยังเป็น default** — ฟังก์ชันทั้งหมดเป็น `security definer`
+      ⇒ ตอนนี้ `anon` เรียกได้หมด ต้องล็อกใน WO-1.4 พร้อม RLS (เหลือเฉพาะ path ที่ต้องใช้จริง)
+      `check_rate_limit()` revoke จาก public ไว้แล้วตัวเดียว
+- [ ] **`waitlist → confirmed` ยังบังคับได้แค่ตามกติกา** — ไม่มี trigger กัน UPDATE ตรงบน
+      `session_registrations` (baseline บังคับเฉพาะ sessions/payments) ⇒ พึ่ง RLS ใน WO-1.4
+
+### Phase 2 — ของที่ WO-1.3 จงใจไม่ทำ
+
+- [ ] **`guest_access_token_hash` ยังไม่ถูก generate** — `register_to_session()` ไม่สร้าง
+      guest access token ให้ (ไม่อยู่ใน scope WO-1.3) ⇒ หน้า guest ดู/ยกเลิกเองยังทำไม่ได้
+      ตอนทำต้องคืน plaintext ครั้งเดียวตอนสร้าง (เก็บแค่ hash) และ **ห้าม log**
+- [ ] **สวิตช์ปิด waitlist ต่อนัด** — `SESSION_FULL` ใน `docs/errors.md` ต้องมีสวิตช์นี้ถึงจะ
+      raise ได้จริง ตอนนี้คนมาช้าเข้า waitlist เสมอ ⇒ ถ้าก๊วนอยากปิด ต้องเพิ่มคอลัมน์/flag
+- [ ] **penalty เป็นตัวเงิน** — [D-9] `cancel_registration()` บันทึกแค่ `is_late_cancel` ลง event
+      ⇒ `domain/billing` (TS) ต้องอ่าน `cancelled_at` + snapshot มาคิดเงินเองตอนปิดรอบ
+      **ยังไม่มีใครเขียนฝั่ง TS** — ต้องทำพร้อม SessionBilling
+- [ ] **`cancellation_policy` schema ยังไม่นิ่ง** — WO-1.3 ใช้แค่ `cutoff_hours` +
+      `allow_cancel_after_cutoff` ส่วนคีย์ penalty (`penalty_type` / `penalty_value`)
+      ยังไม่ได้ตกลง ⇒ สรุปให้จบตอนทำ SessionBilling แล้วเขียนลง baseline/ADR
+- [ ] **`claim_notifications()` ยังไม่มี logic ส่ง/retry/sweep** — [D-11] ทำแค่ "หยิบงาน"
+      ให้ DoD ทดสอบ SKIP LOCKED ได้ ส่วน `next_retry_at` backoff + sweep แถวค้าง
+      `processing` เป็นงานของ WO-1.5 (pg_cron) + Phase 2 (worker จริง)
+- [ ] **`rate_limits` ยังไม่มีใครเรียก** — ตาราง + `check_rate_limit()` พร้อมแล้ว
+      แต่ route handler ของ guest/public ยังไม่มี (Phase 2) และต้องมี cron กวาดแถวเก่า (WO-1.5)
+
+### Environment / tooling
+
+- [ ] **Docker Desktop ได้ RAM แค่ 4 GB (เครื่องมี 8 GB)** — `supabase start` เต็มชุดไม่ขึ้น
+      (analytics/vector/storage/studio unhealthy พร้อมกัน) ⇒ ต้องรันแบบตัดบริการ:
+      `npm run supabase -- start -x studio,logflare,vector,edge-runtime,imgproxy,mailpit,realtime,storage-api,postgres-meta`
+      ถ้า Phase ต่อไปต้องใช้ storage (สลิป) หรือ realtime ต้องเพิ่ม RAM ให้ Docker ก่อน
+- [ ] **vitest ยังไม่ได้ต่อเข้า CI** — มี `npm test` แล้วแต่ GitHub Actions workflow ยังไม่มี
+      (อยู่ในลิสต์ CI/Tooling ด้านบน) เทสต์ชุดนี้ต้องมี Postgres จริงใน CI ถึงจะรันได้
+
+---
+
 ## จาก baseline ที่ยังไม่มี WO (บันทึกกันลืม)
 
 - [ ] Phase 2 ยังไม่แตก WO — baseline สั่งให้แตกตอนจบ Phase 1 (อย่าแตกล่วงหน้า)
