@@ -47,14 +47,18 @@ remote: Permission to webaon/gang-badminton.git denied to triple-tgg (403)
 
 ดิสก์ว่าง ~71 GB · Docker กลับมาปกติ · **pooler (supavisor) healthy บนพอร์ต 54329**
 
-🔴 **ต้องสตาร์ตแบบตัดบริการ — เต็มชุดไม่ขึ้นเพราะ Docker ได้ RAM แค่ 4 GB (เครื่องมี 8 GB)**
+🔴 **ต้องสตาร์ตแบบตัดบริการ — ตัวที่ขึ้นไม่ได้คือ analytics stack (logflare + vector) กับ studio**
 
 ```bash
-npm run supabase -- start -x studio,logflare,vector,edge-runtime,imgproxy,mailpit,realtime,storage-api,postgres-meta
+npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 ```
 
-เหลือไว้เท่าที่ WO-1.3/1.4 ต้องใช้: `db` · `pooler` · `kong` · `rest` · `auth`
-ถ้าจะเริ่มทำ storage (สลิปโอนเงิน) หรือ realtime **ต้องเพิ่ม RAM ให้ Docker ก่อน**
+ได้ครบทุกตัวที่ Phase 1–2 ต้องใช้: `db` · `pooler` · `kong` · `rest` · `auth` ·
+**`storage`** · `realtime` · `pg_meta` — ทั้งหมด healthy ใช้ RAM รวม **~1.2 GB จาก 3.8 GB**
+
+> ⚠️ **แก้ข้อสรุปที่เคยเขียนผิดไว้**: เคยบันทึกว่า "เต็มชุดไม่ขึ้นเพราะ Docker ได้ RAM แค่ 4 GB"
+> — **ไม่จริง** วัดแล้วเหลือ headroom เกินครึ่ง storage/realtime ขึ้นได้สบาย
+> สาเหตุจริงจำกัดอยู่ที่ logflare/vector/studio เท่านั้น ⇒ **ไม่ต้องไปเพิ่ม RAM ให้ Docker**
 
 | | |
 |---|---|
@@ -159,8 +163,7 @@ npm test          # vitest run — 28 tests, 5 files
 - ทุก policy ต้องกรอง `deleted_at IS NULL`
 - ปิด 4 ช่องโหว่ในหัวข้อ 6 ไปพร้อมกัน
 
-⚠️ storage bucket ต้องใช้ container `storage-api` ซึ่งตอนนี้ถูก `-x` ออกเพราะ RAM ไม่พอ
-⇒ **ต้องเพิ่ม RAM ให้ Docker ก่อนเริ่มส่วน storage ของ WO-1.4**
+✅ `storage` container ขึ้นได้แล้วด้วยคำสั่ง start ในหัวข้อ 3 — ส่วน storage bucket ของ WO-1.4 ทำได้เลย
 
 **Forbidden**: ห้ามเขียน UI/feature · ห้ามเพิ่มตารางนอก baseline · ห้ามแก้ state machine
 
@@ -175,7 +178,8 @@ npm test          # vitest run — 28 tests, 5 files
   แก้ด้วย `docker rmi -f public.ecr.aws/supabase/supavisor:2.9.7 && docker pull ...`
   ⇒ **อาการ "container ไม่ปล่อย log เลย" = สงสัย image เสียก่อนเสมอ** ทดสอบด้วย
   `docker run --rm --entrypoint /bin/sh <image> -c 'echo OK'`
-- **Docker RAM 4 GB ไม่พอ Supabase เต็มชุด** — BEAM สองตัว (logflare + supavisor) + Next.js studio
+- **Supabase เต็มชุดไม่ขึ้นเพราะ logflare/vector/studio ไม่ใช่เพราะ RAM** — วัดแล้วใช้แค่
+  ~1.2 GB จาก 3.8 GB ตอนเปิด storage/realtime ครบ (เคยสรุปผิดว่าเป็นเรื่อง RAM)
 - **Astryx × Tailwind ใช้ร่วมกันได้** ผ่าน bridge `@astryxdesign/core/tailwind-theme.css`
   StyleX เป็น optional ⇒ **ห้ามใช้ `xstyle`/`stylex.create()`**
 - **cascade layer order สำคัญมาก** อยู่ใน `app/layers.css` — ผิดแล้วพังเงียบไม่มี error
@@ -194,7 +198,7 @@ npm test          # vitest run — 28 tests, 5 files
 npm run dev / build / typecheck / lint
 npm test                                          # vitest — concurrency tests (ต้องมี local stack ขึ้นก่อน)
 npm run astryx -- <cmd>                           # docs/components/tokens ของ Astryx
-npm run supabase -- start -x studio,logflare,vector,edge-runtime,imgproxy,mailpit,realtime,storage-api,postgres-meta
+npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 npm run supabase -- db reset                      # apply migrations ใหม่ทั้งหมดบน local
 npm run supabase -- db push --linked --dry-run    # ดูว่าจะ push อะไรขึ้น cloud บ้าง
 npm run supabase -- migration list --linked       # เทียบ local vs remote

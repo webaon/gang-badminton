@@ -116,10 +116,12 @@
 
 ### Environment / tooling
 
-- [ ] **Docker Desktop ได้ RAM แค่ 4 GB (เครื่องมี 8 GB)** — `supabase start` เต็มชุดไม่ขึ้น
-      (analytics/vector/storage/studio unhealthy พร้อมกัน) ⇒ ต้องรันแบบตัดบริการ:
-      `npm run supabase -- start -x studio,logflare,vector,edge-runtime,imgproxy,mailpit,realtime,storage-api,postgres-meta`
-      ถ้า Phase ต่อไปต้องใช้ storage (สลิป) หรือ realtime ต้องเพิ่ม RAM ให้ Docker ก่อน
+- [ ] **`supabase start` เต็มชุดไม่ขึ้น — analytics stack (logflare + vector) กับ studio เท่านั้น**
+      ต้องรันแบบตัดบริการ: `npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit`
+      ได้ `db`/`pooler`/`kong`/`rest`/`auth`/`storage`/`realtime`/`pg_meta` ครบ healthy
+      ⇒ ไม่กระทบ WO-1.4 (storage ใช้ได้) แต่ยังไม่มี Studio UI กับ log drain ให้ดู
+      **ไม่ใช่ปัญหา RAM** — วัดแล้วใช้ ~1.2 GB จาก 3.8 GB (เคยสรุปผิดไว้ตอนแรก)
+      ยังไม่ได้หาสาเหตุจริงของ logflare/vector — ถ้าอยากได้ Studio ต้องไล่ต่อ
 - [ ] **vitest ยังไม่ได้ต่อเข้า CI** — มี `npm test` แล้วแต่ GitHub Actions workflow ยังไม่มี
       (อยู่ในลิสต์ CI/Tooling ด้านบน) เทสต์ชุดนี้ต้องมี Postgres จริงใน CI ถึงจะรันได้
 
