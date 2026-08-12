@@ -79,21 +79,23 @@
 
 ## จาก WO-1.3 (DB functions + triggers)
 
-### 🔴 ช่องโหว่ที่เปิดค้างไว้ — ต้องปิดใน WO-1.4 / Phase 2
+### ช่องโหว่ที่เปิดค้างไว้ — ✅ ปิดแล้วใน WO-1.4 (ยกเว้นข้อ transition_payment)
 
 - [ ] **`transition_payment()` ยังไม่มี ⇒ payment เปลี่ยน status ไม่ได้เลย**
       baseline สั่งให้ติด GUC trigger บน `payments` ด้วย "pattern เดียวกัน" (§State Machines v3.2)
       แต่ลิสต์ 6 ฟังก์ชันของ Phase 1 ไม่มีตัวที่ set GUC ให้ payments
       ⇒ ตอนนี้ trigger บล็อกทุกทาง ซึ่ง**ถูกต้องตาม baseline** แต่ทำให้ payment flow
       ใช้ไม่ได้จนกว่าจะเขียนฟังก์ชันใน Phase 2 — **ห้ามแก้ด้วยการถอด trigger**
-- [ ] **GUC guard คุมเฉพาะ UPDATE ไม่คุม INSERT** — `insert into sessions (status) values ('settled')`
-      ผ่านฉลุย (baseline ระบุ BEFORE UPDATE ตรงๆ) fixture ของเทสต์ใช้ช่องนี้อยู่
-      ⇒ WO-1.4 ควรปิดฝั่ง RLS (policy ยอมให้ insert ได้เฉพาะ `status = 'draft'`)
-- [ ] **EXECUTE grant ของ DB functions ยังเป็น default** — ฟังก์ชันทั้งหมดเป็น `security definer`
-      ⇒ ตอนนี้ `anon` เรียกได้หมด ต้องล็อกใน WO-1.4 พร้อม RLS (เหลือเฉพาะ path ที่ต้องใช้จริง)
-      `check_rate_limit()` revoke จาก public ไว้แล้วตัวเดียว
-- [ ] **`waitlist → confirmed` ยังบังคับได้แค่ตามกติกา** — ไม่มี trigger กัน UPDATE ตรงบน
-      `session_registrations` (baseline บังคับเฉพาะ sessions/payments) ⇒ พึ่ง RLS ใน WO-1.4
+      🔴 **ยังค้างอยู่หลัง WO-1.4** — เป็นข้อเดียวในกลุ่มนี้ที่ยังไม่ปิด
+- [x] ~~**GUC guard คุมเฉพาะ UPDATE ไม่คุม INSERT**~~ — ✅ ปิดแล้ว [D-14]
+      policy `sessions_insert_admin_draft_only` บังคับ `status = 'draft'` ตอน INSERT
+      (fixture ของเทสต์ยังใช้ช่องนี้ได้เพราะรันเป็น `postgres` ซึ่ง bypass RLS — ตั้งใจ)
+- [x] ~~**EXECUTE grant ของ DB functions ยังเป็น default**~~ — ✅ ปิดแล้วใน 0010 ส่วนที่ 5
+      revoke จาก public/anon/authenticated ครบทุกตัว เหลือ grant ให้ `service_role` เท่านั้น
+      ⇒ **ทุก DB function ต้องเรียกผ่าน server action ห้ามเรียกจาก browser**
+- [x] ~~**`waitlist → confirmed` ยังบังคับได้แค่ตามกติกา**~~ — ✅ ปิดแล้ว [D-13]
+      `session_registrations` มี policy เฉพาะ SELECT และ grant เฉพาะ `select`
+      ⇒ ไม่มีใครนอกจาก definer functions เขียนได้ แม้แต่แอดมินก๊วน
 
 ### Phase 2 — ของที่ WO-1.3 จงใจไม่ทำ
 
@@ -124,6 +126,36 @@
       ยังไม่ได้หาสาเหตุจริงของ logflare/vector — ถ้าอยากได้ Studio ต้องไล่ต่อ
 - [ ] **vitest ยังไม่ได้ต่อเข้า CI** — มี `npm test` แล้วแต่ GitHub Actions workflow ยังไม่มี
       (อยู่ในลิสต์ CI/Tooling ด้านบน) เทสต์ชุดนี้ต้องมี Postgres จริงใน CI ถึงจะรันได้
+
+---
+
+## จาก WO-1.4 (RLS + storage)
+
+### 🔴 กับดักที่ต้องรู้ก่อนเพิ่มตารางใหม่
+
+- [ ] **ตารางใหม่ทุกตารางต้อง `enable row level security` + `grant` + `create policy` ครบสามอย่าง**
+      โปรเจกต์นี้ default ACL ของ schema `public` ให้ anon/authenticated/service_role
+      แค่ `Dxtm` (TRUNCATE/REFERENCES/TRIGGER/MAINTAIN) **ไม่มี SELECT/INSERT/UPDATE/DELETE**
+      ⇒ ต่างจาก template ทั่วไปของ Supabase ที่ grant ทุกอย่างแล้วพึ่ง RLS ล้วน
+      ผลคือ deny-by-default (ดี) แต่ **ลืม grant = ตารางใช้ไม่ได้เงียบๆ** เจอตอน runtime
+      เป็น error 42501 ไม่ใช่ตอน migrate ⇒ ควรมี CI check ว่าทุกตารางใน public มี policy
+- [ ] **`storage.objects` ตรวจสิทธิ์จาก path เท่านั้น** [D-15] — ไม่มีคอลัมน์ `gang_id`
+      ข้อตกลง: `payment-slips/<gang_id>/<payment_id>/<file>` · `avatars/<user_id>/<file>` ·
+      `gang-assets/<gang_id>/<file>` · `announcement-images/<gang_id>/<file>`
+      ⇒ **server action ต้องประกอบ path เอง ห้ามรับ path จาก client** ไม่งั้นสิทธิ์ผิดทันที
+      ยังไม่มีโค้ดฝั่ง TS ที่บังคับข้อนี้ (Phase 2) — ควรทำเป็น helper ตัวเดียวใน `lib/`
+- [ ] **`avatars` / `gang-assets` เป็น bucket public** — ใครมี URL เปิดดูได้โดยไม่ผ่าน RLS
+      ⇒ ห้ามเอาของที่เป็นความลับไปวาง (สลิปต้องอยู่ `payment-slips` เท่านั้น)
+
+### ตัดสินใจไว้ รอทบทวน
+
+- [ ] **[D-12] `profiles` อ่านได้เฉพาะตัวเอง + คนในก๊วนเดียวกัน** — baseline ไม่ได้ระบุ
+      ถ้า Phase 3 (discovery/หาคนเล่น) ต้องโชว์โปรไฟล์คนนอกก๊วน ต้องกลับมาทบทวนข้อนี้
+- [ ] **`gang_line_configs` ปิดแม้แต่แอดมินก๊วน** — baseline เขียน "server-only" ตรงตัว
+      ⇒ หน้าตั้งค่า LINE (Phase 4) ต้องอ่าน/เขียนผ่าน server action เท่านั้น ห้ามให้ client query ตรง
+- [ ] **`event_logs` ที่ `gang_id` เป็น null ไม่มีใครอ่านได้** — policy บังคับ `gang_id is not null`
+      event ระดับแพลตฟอร์ม (ถ้ามี) จะมองไม่เห็นจาก client ⇒ ตั้งใจ แต่ถ้า Phase 3 ต้องการ
+      หน้า audit ระดับ platform ต้องเพิ่ม policy สำหรับ admin ของแพลตฟอร์ม (ซึ่งยังไม่มีแนวคิดนี้)
 
 ---
 

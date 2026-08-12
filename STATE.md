@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 11 ส.ค. 2026** · เขียนตอนจบ WO-1.3
+> **อัปเดตล่าสุด: 12 ส.ค. 2026** · เขียนตอนจบ WO-1.4
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -14,8 +14,8 @@
 | **1.1** | Scaffold (Next.js 15 + Tailwind v4 + Astryx + CLAUDE.md) | ✅ **เสร็จ** `21ecf3a` |
 | **1.2** | Schema migrations (28 ตาราง + index + constraint) | ✅ **เสร็จ** `22a7713` |
 | **1.3** | DB functions (6 ตัว) + GUC trigger + rate_limits | ✅ **เสร็จ** — DoD ผ่านครบ 4 ข้อ |
-| **1.4** | RLS + security definer + storage buckets | ⬜ **ถัดไป** |
-| 1.5 | Cron setup + seed | ⬜ |
+| **1.4** | RLS + security definer + storage buckets | ✅ **เสร็จ** — DoD ผ่านครบ 5 ข้อ |
+| **1.5** | Cron setup + seed | ⬜ **ถัดไป** — ปิด Phase 1 |
 
 Phase 2 ยังไม่แตก WO — baseline สั่งให้แตกตอนจบ Phase 1 เท่านั้น
 
@@ -76,10 +76,10 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 | | |
 |---|---|
 | project / ref | **gang-badminton** · `emmzeriekkjryhucvctx` |
-| migrations ที่ apply แล้ว | **7 / 9** ← 🔴 `0008` + `0009` **ยังไม่ได้ push ขึ้น cloud** |
+| migrations ที่ apply แล้ว | **7 / 11** ← 🔴 `0008`–`0011` **ยังไม่ได้ push ขึ้น cloud** |
 | ข้อมูลใน DB | 0 แถวทุกตาราง |
 
-🔴 **ยังไม่มี RLS — อย่าใส่ข้อมูลจริงจนกว่าจะจบ WO-1.4**
+🔴 **cloud ยังไม่มี RLS** (0010/0011 ยังไม่ได้ push) — อย่าใส่ข้อมูลจริงบน cloud จนกว่าจะ push
 
 push ขึ้น cloud เมื่อพร้อม (ไฟล์ ref หายหลัง clone ใหม่ เพราะ `.temp` ถูก gitignore):
 ```bash
@@ -90,7 +90,9 @@ npm run supabase -- db push --linked
 
 ---
 
-## 4. WO-1.3 — สิ่งที่สร้าง
+## 4. WO-1.3 / WO-1.4 — สิ่งที่สร้าง
+
+### WO-1.3
 
 **migrations ใหม่ 2 ไฟล์** (0001–0007 apply บน cloud แล้ว **ห้ามแก้**)
 
@@ -113,12 +115,41 @@ npm run supabase -- db push --linked
 - **D-10** ที่นั่งที่ใช้แล้ว = `confirmed + checked_in` (ไม่ใช่แค่ confirmed ไม่งั้น overbook)
 - **D-11** เพิ่ม `claim_notifications()` นอกลิสต์ 6 ฟังก์ชัน เพราะ DoD ข้อ 3 ต้องมี worker จริงให้ทดสอบ
 
+### WO-1.4
+
+| ไฟล์ | เนื้อหา |
+|---|---|
+| `20260811000010_rls.sql` | helper 7 ตัว + เปิด RLS ครบ 29 ตาราง + policies + **table GRANT** + ล็อก EXECUTE |
+| `20260811000011_storage_buckets.sql` | 4 buckets + 16 policies บน `storage.objects` |
+
+🔴 **บทเรียนสำคัญที่สุดของ WO นี้ — RLS อย่างเดียวไม่พอ**
+โปรเจกต์นี้ default ACL ของ schema `public` ให้ anon/authenticated/service_role แค่
+`Dxtm` (TRUNCATE/REFERENCES/TRIGGER/MAINTAIN) **ไม่มี SELECT/INSERT/UPDATE/DELETE**
+⇒ ต่างจาก template ทั่วไปของ Supabase ที่ grant ทุกอย่างแล้วพึ่ง RLS ล้วน
+ผลคือ deny-by-default (ดี) แต่ **ตารางใหม่ที่ลืม grant จะใช้ไม่ได้เงียบๆ**
+พังตอน runtime เป็น error `42501` ไม่ใช่ตอน migrate
+
+➡️ **ตารางใหม่ทุกตารางต้องทำครบสามอย่าง: `enable row level security` + `grant` + `create policy`**
+
+**Deviation ที่บันทึกไว้** (หัวไฟล์ 0010/0011):
+- **D-12** `profiles` อ่านได้เฉพาะตัวเอง + คนที่อยู่ก๊วนเดียวกัน (`shares_gang_with()`)
+  — baseline ไม่ได้ระบุ ถ้าเปิดหมดจะ enumerate ผู้ใช้ทั้งแพลตฟอร์มได้
+- **D-13** ตารางที่เขียนผ่าน DB function เท่านั้น (`session_registrations`, `session_charges`,
+  `event_logs`) **ไม่มี policy เขียนและ grant แค่ `select`** — ตั้งใจ ไม่ใช่ลืม
+- **D-14** `sessions` INSERT บังคับ `status = 'draft'` ผ่าน WITH CHECK
+- **D-15** สิทธิ์ของ storage ตรวจจาก **path** (`storage.objects` ไม่มีคอลัมน์ `gang_id`)
+  ⇒ `payment-slips/<gang_id>/<payment_id>/<file>` ฯลฯ — **server ต้องประกอบ path เอง
+  ห้ามรับจาก client** ไม่งั้นสิทธิ์ผิดทันที
+
+⚠️ `avatars` / `gang-assets` เป็น bucket **public** — ใครมี URL เปิดดูได้โดยไม่ผ่าน RLS
+ห้ามเอาของที่เป็นความลับไปวาง สลิปต้องอยู่ `payment-slips` เท่านั้น
+
 ---
 
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 28 tests, 5 files
+npm test          # vitest run — 38 tests, 7 files
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -130,47 +161,59 @@ npm test          # vitest run — 28 tests, 5 files
 | `tests/concurrency/notification-worker.test.ts` | **DoD 3** — SKIP LOCKED, worker 2/4 ตัวไม่หยิบงานซ้ำ |
 | `tests/concurrency/close-session-charges.test.ts` | **DoD 4** — `expected_status` ล้าสมัย → `INVALID_TRANSITION` + **ไม่มี charges เลย** |
 | `tests/concurrency/status-guard.test.ts` | GUC trigger + `check_rate_limit()` |
+| `tests/rls/tenant-isolation.test.ts` | **DoD WO-1.4 ทั้ง 5 ข้อ** — ข้ามก๊วน · line_configs · สลิป · guest token ข้ามนัด · recursion |
+| `tests/rls/write-guards.test.ts` | ช่องโหว่ WO-1.3 ที่ปิดแล้ว — EXECUTE grant · INSERT status · เขียน registrations ตรง |
+
+⚠️ **เทสต์ RLS ต้องห่อด้วย `asRole()` / `visibleCount()` เสมอ** — connection ของเทสต์เป็น
+`postgres` ซึ่งมี BYPASSRLS ถ้าลืมห่อ เทสต์จะผ่านแบบหลอกๆ ทุกครั้งโดยไม่ได้ตรวจ policy เลย
 
 ⚠️ เทสต์ **ไม่ล้างข้อมูลหลังรัน** — สร้าง fixture ใหม่ทุกครั้งด้วยชื่อสุ่ม ถ้าอยากได้ DB สะอาด
 ให้ `npm run supabase -- db reset` ก่อน (ต้องรอ pooler รีสตาร์ตสักครู่ — helper มี retry ให้แล้ว)
 
 ---
 
-## 6. 🔴 ช่องโหว่ที่ WO-1.3 เปิดค้างไว้โดยตั้งใจ — WO-1.4 ต้องปิด
+## 6. ช่องโหว่ — ปิดไป 3 จาก 4 แล้ว
 
-รายละเอียดเต็มอยู่ใน `BACKLOG.md` หัวข้อ "จาก WO-1.3" — สรุปตัวที่สำคัญที่สุด:
+| # | ช่องโหว่ | สถานะ |
+|---|---|---|
+| 1 | EXECUTE grant ของ DB functions เปิดให้ `anon` | ✅ ปิดแล้ว — revoke หมด เหลือ `service_role` |
+| 2 | INSERT นัดด้วย status นอก `draft` | ✅ ปิดแล้ว [D-14] |
+| 4 | เขียน `session_registrations` ตรงๆ | ✅ ปิดแล้ว [D-13] |
+| 3 | **`transition_payment()` ยังไม่มี** | 🔴 **ยังค้าง** |
 
-1. **EXECUTE grant ยังเป็น default** — ฟังก์ชันทั้งหมด `security definer` ⇒ `anon` เรียกได้หมด
-2. **GUC guard คุมเฉพาะ UPDATE ไม่คุม INSERT** — `insert sessions(status:'settled')` ยังผ่าน
-3. **`transition_payment()` ยังไม่มี** ⇒ payment เปลี่ยน status ไม่ได้เลยทุกทาง
-   (trigger ติดตาม baseline แล้ว แต่ไม่มีฟังก์ชันที่ set GUC ให้) — **ห้ามแก้ด้วยการถอด trigger**
-4. **`waitlist → confirmed` บังคับได้แค่ตามกติกา** — ไม่มี trigger บน `session_registrations`
+🔴 **ข้อ 3 ที่ยังค้าง**: baseline สั่งติด GUC trigger บน `payments` แต่ Phase 1 ไม่มีฟังก์ชัน
+ที่ปลด GUC ให้ ⇒ ตอนนี้ payment เปลี่ยน status ไม่ได้เลยทุกทาง เป็นงาน Phase 2
+**ห้ามแก้ด้วยการถอด trigger** (ผมไม่ได้ทำใน WO-1.4 เพราะอยู่นอก scope ของ WO นี้)
+
+➡️ ผลข้างเคียงที่ต้องรู้: **ทุก DB function เรียกได้เฉพาะ `service_role`**
+หมายความว่า guest ลงชื่อต้องผ่าน route handler ฝั่งเรา (ที่ validate + rate limit) เท่านั้น
+เรียกจาก browser ตรงไม่ได้อีกแล้ว — ต้องออกแบบ server action ตามนี้ใน Phase 2
 
 ---
 
-## 7. ทำอะไรต่อ — WO-1.4
+## 7. ทำอะไรต่อ — WO-1.5 (ปิด Phase 1)
 
-**Goal**: `is_gang_member()` / `is_gang_admin()` / `is_org_member()` + RLS policy ทุกตาราง + storage buckets
-**DoD**: RLS tests ทั้ง 5 ข้อใน baseline §Verification ผ่านจริง
+**Goal**: Vercel Cron config + pg_cron jobs + seed script ก๊วนตัวอย่าง
+**DoD**: seed รันซ้ำได้ (idempotent) · cron route ตรวจ `CRON_SECRET`
 
-- ก๊วน A อ่านก๊วน B ไม่ได้
-- member อ่าน `gang_line_configs` ไม่ได้
-- non-member อ่านสลิปไม่ได้ (storage)
-- guest token ใช้ข้าม session ไม่ได้
-- ไม่เกิด recursion
+งานที่ baseline ระบุไว้:
+- **pg_cron jobs** — waitlist sweep · sweep แถว `notifications` ที่ค้าง `processing` ·
+  กวาด `rate_limits` แถวเก่า · rollup `member_statistics` + `daily_metrics` (Phase 3 ใช้)
+- **Vercel Cron** — route handler ใน `server/cron/` ตอบตาม API response contract
+  และตรวจ `CRON_SECRET` (error code `CRON_UNAUTHORIZED` มีใน `docs/errors.md` แล้ว)
+- **seed** — ก๊วนตัวอย่างครบ: org + gang + members + skill levels + pricing plan +
+  sessions + registrations ⇒ ต้อง idempotent (รันซ้ำไม่สร้างซ้ำ)
 
-**กติกาที่ห้ามลืม** (CLAUDE.md §2.8):
-- security definer function ต้องมี `SET search_path` เสมอ
-- policy เรียกแบบ `(SELECT is_gang_member(gang_id))` — วงเล็บทำให้ Postgres cache เป็น initplan
-- ทุก policy ต้องกรอง `deleted_at IS NULL`
-- ปิด 4 ช่องโหว่ในหัวข้อ 6 ไปพร้อมกัน
+⚠️ **seed ต้องเขียนผ่าน DB functions** เท่าที่ทำได้ — เขียน registrations ตรงไม่ได้แล้ว
+ยกเว้นรันเป็น `postgres`/`service_role` ซึ่ง seed ทำได้ (bypass RLS)
 
-✅ `storage` container ขึ้นได้แล้วด้วยคำสั่ง start ในหัวข้อ 3 — ส่วน storage bucket ของ WO-1.4 ทำได้เลย
+⚠️ `.env.example` ยังไม่มี (`CRON_SECRET`, `SUPABASE_*`) — อยู่ใน BACKLOG ตั้งแต่ WO-1.1
+ควรทำใน WO-1.5 เพราะ cron ต้องใช้
 
 **Forbidden**: ห้ามเขียน UI/feature · ห้ามเพิ่มตารางนอก baseline · ห้ามแก้ state machine
 
-**⚠️ กติกา migration**: 0001–0007 apply บน cloud แล้ว **ห้ามแก้ไฟล์เดิม** — แก้ = migration ใหม่เสมอ
-(0008/0009 ยังไม่ขึ้น cloud จึงยังแก้ได้ แต่ถ้า push แล้วให้ถือกติกาเดียวกัน)
+**⚠️ กติกา migration**: 0001–0007 apply บน cloud แล้ว **ห้ามแก้ไฟล์เดิม**
+(0008–0011 ยังไม่ขึ้น cloud จึงยังแก้ได้ แต่ถ้า push แล้วให้ถือกติกาเดียวกัน)
 
 ---
 
@@ -189,6 +232,10 @@ npm test          # vitest run — 28 tests, 5 files
   → `npm run astryx -- <cmd>`
 - **`uuid_generate_v7()` แก้เป็น RFC 9562 Method 3 แล้ว** (sub-millisecond ใน `rand_a`)
 - **`npm audit` 3 high** อยู่ใน transitive deps ของ `next@15.5.23` — แก้ต้องขึ้น next@16 = ต้องผ่าน ADR
+- **RLS ต้องมี GRANT คู่เสมอ** — ดูหัวข้อ 4 (WO-1.4) เป็นกับดักที่เสียเวลาที่สุดใน WO นี้
+- **`service_role` มี BYPASSRLS แต่ BYPASSRLS ไม่ข้าม GRANT** — ต้อง grant ให้ด้วย
+- **helper ของ policy ต้องเป็น SECURITY DEFINER** ไม่งั้น policy ที่อ้างตารางตัวเองจะ recursion
+  และ **ห้ามใช้ `FORCE ROW LEVEL SECURITY`** เพราะจะทำให้ owner ถูก policy ตรวจด้วย = วนกลับมาอีก
 - **`auth.users` ต้องการแค่คอลัมน์ `id`** — สร้าง user ในเทสต์ได้ด้วย `insert into auth.users (id) values (gen_random_uuid())`
 - รายละเอียดที่เหลือทั้งหมดอยู่ใน **`BACKLOG.md`**
 

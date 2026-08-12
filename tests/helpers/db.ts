@@ -203,6 +203,75 @@ export async function countByStatus(sessionId: string): Promise<Record<string, n
 }
 
 /**
+ * รัน query ในฐานะผู้ใช้จริง เพื่อให้ RLS ทำงาน
+ *
+ * connection ปกติของเทสต์เป็น `postgres` ซึ่งมี BYPASSRLS ⇒ policy ไม่ถูกตรวจเลย
+ * ต้องสวมบทบาทให้ครบสองชั้น:
+ *   1. `request.jwt.claims` — `auth.uid()` อ่าน `sub` จากตรงนี้
+ *   2. `set local role` — RLS เลือก policy ตาม role (`anon` / `authenticated`)
+ *
+ * ทั้งคู่ตั้งแบบ transaction-local แล้วปิดท้ายด้วย rollback เสมอ ⇒ สิทธิ์ไม่รั่ว
+ * ไปหา query ถัดไปที่ใช้ connection เส้นเดียวกันจาก pool
+ */
+export async function asRole<T>(
+  role: 'anon' | 'authenticated',
+  userId: string | null,
+  fn: (client: PoolClient) => Promise<T>,
+): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    await client.query(`select set_config('request.jwt.claims', $1, true)`, [
+      JSON.stringify({ sub: userId, role }),
+    ]);
+    await client.query(`set local role ${role}`);
+    return await fn(client);
+  } finally {
+    // rollback เสมอ ไม่ว่าสำเร็จหรือไม่ — เทสต์ RLS เป็นการ "อ่าน" เป็นหลัก
+    // และการทิ้ง state ไว้จะทำให้เทสต์ถัดไปเพี้ยน
+    await client.query('rollback').catch(() => {});
+    client.release();
+  }
+}
+
+/**
+ * จำนวนแถวที่มองเห็น หรือ `'denied'` ถ้าถูกปฏิเสธตั้งแต่ระดับ GRANT
+ *
+ * การกันข้อมูลมีสองด่าน: table GRANT (error 42501) แล้วค่อย RLS (คืน 0 แถว)
+ * เทสต์ที่ถามว่า "อ่านได้ไหม" ต้องรับได้ทั้งสองแบบ — ไม่งั้นเวลาเราปิดแน่นขึ้น
+ * ด้วยการถอด GRANT เทสต์จะกลายเป็นสีแดงทั้งที่ผลลัพธ์ปลอดภัยกว่าเดิม
+ */
+export async function readAccess(
+  userId: string | null,
+  sql: string,
+  params: unknown[] = [],
+  role: 'anon' | 'authenticated' = 'authenticated',
+): Promise<number | 'denied'> {
+  try {
+    return await visibleCount(userId, sql, params, role);
+  } catch (err) {
+    if ((err as { code?: string }).code === '42501') return 'denied';
+    throw err;
+  }
+}
+
+/** ทางลัดสำหรับเคสที่ต้องการแค่จำนวนแถวที่ผู้ใช้คนนั้น "มองเห็น" */
+export async function visibleCount(
+  userId: string | null,
+  sql: string,
+  params: unknown[] = [],
+  role: 'anon' | 'authenticated' = 'authenticated',
+): Promise<number> {
+  return asRole(role, userId, async (c) => {
+    const { rows } = await c.query<{ n: string }>(
+      `select count(*)::text n from (${sql}) q`,
+      params,
+    );
+    return Number(rows[0].n);
+  });
+}
+
+/**
  * ยิงงานหลายชิ้นให้ "ออกตัวพร้อมกันจริง"
  *
  * แค่ Promise.all เฉยๆ ยังไม่พอ เพราะแต่ละงานต้องรอจับ connection จาก pool

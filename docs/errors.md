@@ -77,7 +77,7 @@ RAISE EXCEPTION USING
 |---|---|---|---|
 | `UNAUTHENTICATED` | 401 | ไม่มี session ของ Supabase Auth | middleware / server action |
 | `FORBIDDEN` | 403 | role ไม่พอตาม `domain/permissions/can()` | `can()` guard |
-| `NOT_GANG_MEMBER` | 403 | ไม่ใช่สมาชิกก๊วนนี้ (RLS ปฏิเสธ) | RLS policy / security definer fn |
+| `NOT_GANG_MEMBER` | 403 | ไม่ใช่สมาชิกก๊วนนี้ | ⚠️ ดูหมายเหตุ WO-1.4 ด้านล่าง |
 | `FEATURE_DISABLED` | 403 | ฟีเจอร์ถูกปิดใน `gangs.features` (เช่น รับ guest ทั้งที่ `features.guests = false`) — **ต้องตรวจฝั่ง server เสมอ ไม่ใช่แค่ซ่อนปุ่ม** | `can()` + DB function ที่เกี่ยวข้อง |
 
 ## Infrastructure
@@ -118,4 +118,22 @@ RAISE EXCEPTION USING
 ⚠️ **`DIRECT_STATUS_UPDATE_FORBIDDEN` ของ `payments` ยังไม่มีทางออก**: trigger ติดตั้งแล้ว
 ตาม baseline แต่ Phase 1 ไม่มี `transition_payment()` ในลิสต์ฟังก์ชัน ⇒ ตอนนี้ payment
 เปลี่ยน status ไม่ได้เลยทุกทาง ต้องทำใน Phase 2 (บันทึกใน `BACKLOG.md` แล้ว)
+
+### ✅ ผลการยืนยันจาก WO-1.4 (12 ส.ค. 2026)
+
+🔴 **RLS ไม่ raise error code ของเราเลย — มันคืน "ไม่มีแถว" เงียบๆ**
+
+นี่คือพฤติกรรมของ Postgres RLS ตามธรรมชาติ: policy กรองแถวออก ไม่ได้ปฏิเสธ query
+⇒ `NOT_GANG_MEMBER` **ไม่มีทางถูก raise จาก RLS** ตามที่ตารางเดิมเขียนไว้ ต้องเป็นฝั่ง
+server ที่ตีความเอง:
+
+| สิ่งที่เกิดขึ้นจริง | ฝั่ง server ต้องตอบ |
+|---|---|
+| query สำเร็จแต่ได้ 0 แถว ทั้งที่ id มีอยู่จริง | `NOT_GANG_MEMBER` หรือ `NOT_FOUND` แล้วแต่บริบท |
+| `UPDATE` สำเร็จแต่ `rowCount = 0` | `FORBIDDEN` — **ห้ามตอบ success** |
+| Postgres error `42501` (insufficient_privilege) | `FORBIDDEN` — **เป็นบั๊กของเราเสมอ** เพราะแปลว่า client พยายามแตะของที่ไม่ได้ grant |
+
+⚠️ กับดักที่ต้องระวังตอนเขียน server action: `UPDATE ... WHERE id = $1` ที่โดน RLS กรอง
+จะ **สำเร็จโดยไม่ error** และคืน `rowCount = 0` ⇒ ถ้าไม่เช็ค `rowCount` จะตอบผู้ใช้ว่า
+"บันทึกแล้ว" ทั้งที่ไม่มีอะไรเปลี่ยน — มีเทสต์คุมเคสนี้ใน `tests/rls/write-guards.test.ts`
 - TypeScript `ErrorCode` union จะถูก generate/เขียนที่ `shared/` ตอน WO ที่ต้องใช้จริงครั้งแรก
