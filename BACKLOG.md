@@ -21,7 +21,7 @@
 
 - [ ] **lint rule ตรวจ `domain/` ไม่ import next/react/supabase** — baseline บังคับ (§Verification "Domain layer test")
       ทำด้วย `eslint no-restricted-imports` หรือ `eslint-plugin-boundaries`
-- [ ] **vitest setup** — baseline ระบุ vitest เป็น test runner หลัก; ต้องมีก่อน WO-1.3 (concurrency tests) และ Phase 2 (billing unit tests)
+- [x] ~~**vitest setup**~~ — ✅ เสร็จใน WO-1.3 (`npm test`)
 - [ ] **Playwright setup** — E2E (Phase 5 แต่ smoke test อยู่ใน CI gates บน main)
 - [ ] **GitHub Actions workflow** — PR gate (typecheck → lint → vitest → build → domain lint rule) / main+nightly (RLS + concurrency + Playwright smoke)
 - [ ] **Prettier / formatting config** — ยังไม่มี; ตกลงสไตล์ก่อนโค้ดเยอะ
@@ -29,7 +29,7 @@
 ### Config ที่ค้างไว้
 
 - [ ] **`next.config.ts` ยังว่าง** — ต้องเพิ่ม security headers + CSP (Phase 5 Security Checklist)
-- [ ] **`.env.example`** — ยังไม่มี; ต้องมีตอน WO-1.2/1.5 (`SUPABASE_*`, `CRON_SECRET`, key สำหรับ AES fallback)
+- [x] ~~**`.env.example`**~~ — ✅ เสร็จใน WO-1.5 (ยังไม่มี key สำหรับ AES fallback — เพิ่มตอน Phase 4 LINE)
 - [ ] **`app/page.tsx` เป็น foundation smoke check ไม่ใช่หน้าจริง** — Phase 2 (MVP-0) ต้องแทนที่
 - [ ] **`public/` ยังเป็นไฟล์ boilerplate ของ create-next-app** (svg ต่างๆ) — ลบตอนทำ UI จริง
 - [ ] **README (ไทย)** — baseline กำหนดไว้ Phase 5: setup Supabase, env vars, Vault, cron, deploy Vercel
@@ -110,11 +110,12 @@
 - [ ] **`cancellation_policy` schema ยังไม่นิ่ง** — WO-1.3 ใช้แค่ `cutoff_hours` +
       `allow_cancel_after_cutoff` ส่วนคีย์ penalty (`penalty_type` / `penalty_value`)
       ยังไม่ได้ตกลง ⇒ สรุปให้จบตอนทำ SessionBilling แล้วเขียนลง baseline/ADR
-- [ ] **`claim_notifications()` ยังไม่มี logic ส่ง/retry/sweep** — [D-11] ทำแค่ "หยิบงาน"
-      ให้ DoD ทดสอบ SKIP LOCKED ได้ ส่วน `next_retry_at` backoff + sweep แถวค้าง
-      `processing` เป็นงานของ WO-1.5 (pg_cron) + Phase 2 (worker จริง)
-- [ ] **`rate_limits` ยังไม่มีใครเรียก** — ตาราง + `check_rate_limit()` พร้อมแล้ว
-      แต่ route handler ของ guest/public ยังไม่มี (Phase 2) และต้องมี cron กวาดแถวเก่า (WO-1.5)
+- [ ] **`claim_notifications()` ยังไม่มีตัวส่งจริง** — [D-11] sweep + backoff ✅ เสร็จใน WO-1.5
+      (`sweep_stuck_notifications()`) แต่ **ยังไม่มี worker ที่ส่งข้อความออกไปจริง**
+      ⇒ จงใจไม่ต่อ `claim_notifications()` เข้ากับ cron เพราะ claim แล้วไม่ส่ง = ข้อความหาย
+      (แถวจะค้าง processing รอ sweep คืนคิววนไป) — ต้องทำพร้อม in-app notification ใน Phase 2
+- [ ] **`rate_limits` ยังไม่มีใครเรียก** — ตาราง + `check_rate_limit()` + cron กวาด ✅ พร้อมแล้ว
+      แต่ route handler ของ guest/public ที่ต้องเรียกยังไม่มี (Phase 2)
 
 ### Environment / tooling
 
@@ -156,6 +157,40 @@
 - [ ] **`event_logs` ที่ `gang_id` เป็น null ไม่มีใครอ่านได้** — policy บังคับ `gang_id is not null`
       event ระดับแพลตฟอร์ม (ถ้ามี) จะมองไม่เห็นจาก client ⇒ ตั้งใจ แต่ถ้า Phase 3 ต้องการ
       หน้า audit ระดับ platform ต้องเพิ่ม policy สำหรับ admin ของแพลตฟอร์ม (ซึ่งยังไม่มีแนวคิดนี้)
+
+---
+
+## จาก WO-1.5 (Cron + seed)
+
+### 🔴 ต้องทำต่อทันที
+
+- [ ] **แตก WO ของ Phase 2** — baseline สั่งให้แตกตอนจบ Phase 1 ซึ่ง**ถึงแล้ว**
+      (อย่าแตกก่อนหน้านี้เพราะจะเจอ deviation จาก Phase 1 ที่เปลี่ยนรายละเอียด — ตอนนี้รู้ครบแล้ว)
+      deviation ที่ต้องเอาเข้าไปคิดด้วย: D-7 ถึง D-16 โดยเฉพาะ
+      **D-13/EXECUTE grant** ที่ทำให้ client เรียก DB function ตรงไม่ได้อีกแล้ว
+- [ ] **push migration 0008–0012 ขึ้น cloud** — cloud ยังอยู่ที่ 7/12 และ**ยังไม่มี RLS**
+      ⇒ ห้ามใส่ข้อมูลจริงบน cloud จนกว่าจะ push
+
+### Phase 2
+
+- [ ] **worker ส่ง notification จริง** — ดูหัวข้อ WO-1.3 ด้านบน
+- [ ] **`lib/` helper ประกอบ path ของ storage** — [D-15] สิทธิ์ storage ตรวจจาก path
+      ⇒ ต้องมีฟังก์ชันเดียวที่ประกอบ path ให้ทั้งระบบ ห้ามให้แต่ละที่ต่อ string เอง
+- [ ] **seed มี guard กัน production หรือยัง** — ตอนนี้ยังไม่มี ถ้าเผลอชี้ `db reset` ไป cloud
+      จะยัดข้อมูลปลอมลงฐานจริง ⇒ ควรเช็ค env/ชื่อ database ก่อนรัน
+- [ ] **`server-only` ถูก stub ตอนรันเทสต์** — `tests/helpers/server-only-stub.ts` + alias ใน
+      `vitest.config.ts` (ไม่ลดการป้องกันของ build จริง แต่ต้องรู้ว่ามีอยู่)
+
+### บันทึกการตัดสินใจ
+
+- [ ] **pg_cron กับ Vercel Cron ตั้งเวลาซ้อนกันโดยตั้งใจ** — [D-16] pg_cron เป็นตัวหลัก
+      (ไม่พึ่งแอป) Vercel Cron เป็นเส้นสำรองที่พกพาได้ ตั้งเวลาเหลื่อมกันไว้
+      ปลอดภัยเพราะทั้งสามงาน idempotent — ถ้าวันหนึ่งเพิ่มงานที่ **ไม่** idempotent
+      ต้องเลือกอย่างใดอย่างหนึ่ง ห้ามตั้งทั้งคู่
+- [ ] **pg_cron ใช้เวลา UTC ล้วน** — ไม่สนใจ `gangs.timezone` งานกวาดปัจจุบันไม่ผูกกับ
+      เวลาท้องถิ่นจึงไม่มีปัญหา แต่ job ที่ต้องรันตามเวลาไทย (เช่นสรุปยอดสิ้นวัน) ต้องแปลงเอง
+- [ ] **rollup `member_statistics` / `daily_metrics` ยังไม่ได้ตั้ง cron** — เป็น logic ของ
+      Phase 3 ไม่ใช่ infrastructure ⇒ ตั้ง job ตอนเขียน rollup จริง
 
 ---
 

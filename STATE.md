@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 12 ส.ค. 2026** · เขียนตอนจบ WO-1.4
+> **อัปเดตล่าสุด: 12 ส.ค. 2026** · เขียนตอนจบ WO-1.5 — **Phase 1 เสร็จครบทุกใบ**
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -15,9 +15,12 @@
 | **1.2** | Schema migrations (28 ตาราง + index + constraint) | ✅ **เสร็จ** `22a7713` |
 | **1.3** | DB functions (6 ตัว) + GUC trigger + rate_limits | ✅ **เสร็จ** — DoD ผ่านครบ 4 ข้อ |
 | **1.4** | RLS + security definer + storage buckets | ✅ **เสร็จ** — DoD ผ่านครบ 5 ข้อ |
-| **1.5** | Cron setup + seed | ⬜ **ถัดไป** — ปิด Phase 1 |
+| **1.5** | Cron setup + seed | ✅ **เสร็จ** — DoD ผ่านทั้งสองข้อ |
 
-Phase 2 ยังไม่แตก WO — baseline สั่งให้แตกตอนจบ Phase 1 เท่านั้น
+🎉 **Phase 1 เสร็จครบ** — ฐานข้อมูล + ฟังก์ชัน + RLS + storage + cron + seed พร้อมใช้
+
+🔴 **งานถัดไปคือ "แตก WO ของ Phase 2"** ซึ่ง baseline สั่งให้ทำตอนจบ Phase 1 พอดี
+(ห้ามแตกก่อนหน้านี้เพราะจะเจอ deviation จาก Phase 1 ที่เปลี่ยนรายละเอียด — ตอนนี้รู้ครบแล้ว)
 
 ---
 
@@ -76,7 +79,7 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 | | |
 |---|---|
 | project / ref | **gang-badminton** · `emmzeriekkjryhucvctx` |
-| migrations ที่ apply แล้ว | **7 / 11** ← 🔴 `0008`–`0011` **ยังไม่ได้ push ขึ้น cloud** |
+| migrations ที่ apply แล้ว | **7 / 12** ← 🔴 `0008`–`0012` **ยังไม่ได้ push ขึ้น cloud** |
 | ข้อมูลใน DB | 0 แถวทุกตาราง |
 
 🔴 **cloud ยังไม่มี RLS** (0010/0011 ยังไม่ได้ push) — อย่าใส่ข้อมูลจริงบน cloud จนกว่าจะ push
@@ -115,6 +118,31 @@ npm run supabase -- db push --linked
 - **D-10** ที่นั่งที่ใช้แล้ว = `confirmed + checked_in` (ไม่ใช่แค่ confirmed ไม่งั้น overbook)
 - **D-11** เพิ่ม `claim_notifications()` นอกลิสต์ 6 ฟังก์ชัน เพราะ DoD ข้อ 3 ต้องมี worker จริงให้ทดสอบ
 
+### WO-1.5
+
+| ไฟล์ | เนื้อหา |
+|---|---|
+| `20260812000012_cron_jobs.sql` | pg_cron + `sweep_waitlist` / `sweep_stuck_notifications` / `purge_rate_limits` + ตั้งตาราง 3 job |
+| `supabase/seed/seed.sql` | ก๊วนตัวอย่าง: 10 สมาชิก · 2 นัด (เปิดรับ 8+2 waitlist / ปิดรอบแล้วมี charges 6 ใบ) |
+| `shared/api.ts` · `shared/errors.ts` | API response contract + `ErrorCode` union ตาม `docs/errors.md` |
+| `lib/supabase/admin.ts` | service-role client (`import 'server-only'` กันหลุดไป browser ตั้งแต่ build) |
+| `server/cron/{auth,jobs}.ts` · `app/api/cron/[job]/route.ts` | ตรวจ `CRON_SECRET` แบบ timing-safe + dispatcher |
+| `vercel.json` · `.env.example` | ตาราง Vercel Cron + ตัวแปรที่ต้องตั้ง |
+
+**[D-16]** เพิ่มฟังก์ชัน sweep 3 ตัวนอกลิสต์ baseline — เป็น "ตัวเรียก" ล้วนๆ ไม่มี logic เอง
+ตามกติกา CLAUDE.md §2.1 *"cron sweep มีไว้กันงานหลุด ไม่ใช่กันชน"*
+
+🔴 **seed เดินตามเส้นทางเดียวกับ production ทุกขั้น** — ไม่ยัด status ตรงและไม่ insert
+registrations เอง แต่เรียก `transition_session()` / `register_to_session()` /
+`close_session_with_charges()` ⇒ ถ้า state machine เปลี่ยนแล้ว seed พัง นั่นคือสัญญาณที่ต้องการ
+
+⚠️ **pg_cron กับ Vercel Cron ตั้งซ้อนกันโดยตั้งใจ** — pg_cron เป็นตัวหลัก (ไม่พึ่งแอป)
+Vercel Cron เป็นเส้นสำรอง ปลอดภัยเพราะทั้งสามงาน idempotent
+**ถ้าเพิ่มงานที่ไม่ idempotent ต้องเลือกอย่างใดอย่างหนึ่ง ห้ามตั้งทั้งคู่**
+
+⚠️ **`claim_notifications()` จงใจไม่ต่อกับ cron** — Phase 1 ยังไม่มีตัวส่งข้อความจริง
+claim แล้วไม่ส่ง = ข้อความหาย (ค้าง processing รอ sweep คืนคิววนไป) ⇒ ต่อพร้อม worker ใน Phase 2
+
 ### WO-1.4
 
 | ไฟล์ | เนื้อหา |
@@ -149,7 +177,7 @@ npm run supabase -- db push --linked
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 38 tests, 7 files
+npm test          # vitest run — 55 tests, 9 files
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -163,6 +191,8 @@ npm test          # vitest run — 38 tests, 7 files
 | `tests/concurrency/status-guard.test.ts` | GUC trigger + `check_rate_limit()` |
 | `tests/rls/tenant-isolation.test.ts` | **DoD WO-1.4 ทั้ง 5 ข้อ** — ข้ามก๊วน · line_configs · สลิป · guest token ข้ามนัด · recursion |
 | `tests/rls/write-guards.test.ts` | ช่องโหว่ WO-1.3 ที่ปิดแล้ว — EXECUTE grant · INSERT status · เขียน registrations ตรง |
+| `tests/cron/cron.test.ts` | **DoD WO-1.5** — CRON_SECRET (รวม fail-closed + timing-safe) · pg_cron schedule · sweep ทั้งสาม |
+| `tests/seed/idempotency.test.ts` | **DoD WO-1.5** — รัน seed ไฟล์จริงซ้ำ 3 รอบ สถานะต้องไม่เปลี่ยน |
 
 ⚠️ **เทสต์ RLS ต้องห่อด้วย `asRole()` / `visibleCount()` เสมอ** — connection ของเทสต์เป็น
 `postgres` ซึ่งมี BYPASSRLS ถ้าลืมห่อ เทสต์จะผ่านแบบหลอกๆ ทุกครั้งโดยไม่ได้ตรวจ policy เลย
@@ -191,29 +221,34 @@ npm test          # vitest run — 38 tests, 7 files
 
 ---
 
-## 7. ทำอะไรต่อ — WO-1.5 (ปิด Phase 1)
+## 7. ทำอะไรต่อ — แตก WO ของ Phase 2
 
-**Goal**: Vercel Cron config + pg_cron jobs + seed script ก๊วนตัวอย่าง
-**DoD**: seed รันซ้ำได้ (idempotent) · cron route ตรวจ `CRON_SECRET`
+Phase 1 จบแล้ว ⇒ ตามกติกาใน `AGENT-EXECUTION.md` ถึงเวลาแตก Work Order ของ Phase 2
 
-งานที่ baseline ระบุไว้:
-- **pg_cron jobs** — waitlist sweep · sweep แถว `notifications` ที่ค้าง `processing` ·
-  กวาด `rate_limits` แถวเก่า · rollup `member_statistics` + `daily_metrics` (Phase 3 ใช้)
-- **Vercel Cron** — route handler ใน `server/cron/` ตอบตาม API response contract
-  และตรวจ `CRON_SECRET` (error code `CRON_UNAUTHORIZED` มีใน `docs/errors.md` แล้ว)
-- **seed** — ก๊วนตัวอย่างครบ: org + gang + members + skill levels + pricing plan +
-  sessions + registrations ⇒ ต้อง idempotent (รันซ้ำไม่สร้างซ้ำ)
+**Phase 2 = MVP-0** (จุดที่ก๊วนผู้ใช้เริ่มใช้จริง) ตาม baseline §Roadmap:
+Auth → Gang/Org + สมาชิก + skill + cancellation policy → pricing plan **โมเดลเดียว**
+ที่ก๊วนผู้ใช้ใช้จริง → สร้างนัดมือ + ลงชื่อ/guest ผ่าน invite link + waitlist + realtime
+→ Game Console (เช็คอิน, matching, นับลูก, no-show) → SessionBilling strategy เดียว +
+rounding + unit tests → PromptPay QR + สลิป + verify → In-app notifications
 
-⚠️ **seed ต้องเขียนผ่าน DB functions** เท่าที่ทำได้ — เขียน registrations ตรงไม่ได้แล้ว
-ยกเว้นรันเป็น `postgres`/`service_role` ซึ่ง seed ทำได้ (bypass RLS)
+🔴 **ข้อจำกัดจาก Phase 1 ที่ต้องเอาเข้าไปคิดตอนแตก WO:**
 
-⚠️ `.env.example` ยังไม่มี (`CRON_SECRET`, `SUPABASE_*`) — อยู่ใน BACKLOG ตั้งแต่ WO-1.1
-ควรทำใน WO-1.5 เพราะ cron ต้องใช้
+1. **client เรียก DB function ตรงไม่ได้แล้ว** — ทุกตัว grant ให้ `service_role` เท่านั้น
+   ⇒ ทุก flow ต้องผ่าน server action / route handler ที่ตรวจสิทธิ์เองก่อน
+   ⇒ guest ลงชื่อต้องมี route handler ที่ validate invite token + `check_rate_limit()`
+2. **RLS ไม่ raise error — คืน 0 แถวเงียบๆ** ⇒ server action ต้องเช็ค `rowCount` ทุกครั้ง
+   ไม่งั้นจะตอบ "บันทึกแล้ว" ทั้งที่ไม่มีอะไรเปลี่ยน (ดู `docs/errors.md` §WO-1.4)
+3. **`domain/billing` ยังว่างเปล่า** — [D-9] penalty ตอนนี้บันทึกแค่ `is_late_cancel` ลง event
+   ฝั่ง TS ต้องอ่าน `cancelled_at` + snapshot มาคิดเงินเอง
+4. **`cancellation_policy` schema ยังไม่นิ่ง** — ใช้แค่ `cutoff_hours` +
+   `allow_cancel_after_cutoff` คีย์ penalty ยังไม่ตกลง ⇒ สรุปให้จบตอนทำ SessionBilling
+5. **`transition_payment()` ยังไม่มี** ⇒ payment เปลี่ยน status ไม่ได้เลย ต้องทำก่อนแตะ flow เก็บเงิน
+6. **storage ตรวจสิทธิ์จาก path** [D-15] ⇒ ต้องมี helper กลางใน `lib/` ที่ประกอบ path
 
-**Forbidden**: ห้ามเขียน UI/feature · ห้ามเพิ่มตารางนอก baseline · ห้ามแก้ state machine
-
-**⚠️ กติกา migration**: 0001–0007 apply บน cloud แล้ว **ห้ามแก้ไฟล์เดิม**
-(0008–0011 ยังไม่ขึ้น cloud จึงยังแก้ได้ แต่ถ้า push แล้วให้ถือกติกาเดียวกัน)
+**ก่อนเริ่ม Phase 2 ควรทำ:**
+- [ ] push migration 0008–0012 ขึ้น cloud (ตอนนี้ cloud ยังไม่มี RLS)
+- [ ] เปิด PR ของ `claude/badminton-group-system-4pfs7o` เข้า `main`
+- [ ] GitHub Actions workflow (อยู่ใน BACKLOG ตั้งแต่ WO-1.1) — เทสต์ชุดนี้ต้องมี Postgres ใน CI
 
 ---
 
