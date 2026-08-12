@@ -134,12 +134,14 @@
 
 ### 🔴 กับดักที่ต้องรู้ก่อนเพิ่มตารางใหม่
 
-- [ ] **ตารางใหม่ทุกตารางต้อง `enable row level security` + `grant` + `create policy` ครบสามอย่าง**
-      โปรเจกต์นี้ default ACL ของ schema `public` ให้ anon/authenticated/service_role
-      แค่ `Dxtm` (TRUNCATE/REFERENCES/TRIGGER/MAINTAIN) **ไม่มี SELECT/INSERT/UPDATE/DELETE**
-      ⇒ ต่างจาก template ทั่วไปของ Supabase ที่ grant ทุกอย่างแล้วพึ่ง RLS ล้วน
-      ผลคือ deny-by-default (ดี) แต่ **ลืม grant = ตารางใช้ไม่ได้เงียบๆ** เจอตอน runtime
-      เป็น error 42501 ไม่ใช่ตอน migrate ⇒ ควรมี CI check ว่าทุกตารางใน public มี policy
+- [ ] **ตารางใหม่ทุกตารางต้อง `enable RLS` + `revoke` + `grant` + `create policy`**
+      🔴 **default ACL ของ local กับ cloud ไม่เหมือนกัน** — local ให้ anon/authenticated แค่
+      `Dxtm` แต่ cloud ให้ `arwdDxtm` ⇒ ตอน push 0010 ขึ้น cloud พบว่า `anon` มี SELECT
+      บนตาราง server-only (ข้อมูลไม่รั่วเพราะ RLS กันอยู่ แต่เหลือกำแพงชั้นเดียว
+      และพฤติกรรมต่างกันสองที่ = เทสต์บนเครื่องพิสูจน์อะไรเกี่ยวกับ production ไม่ได้)
+      migration `0013` แก้ด้วยการ revoke ทั้งหมดแล้ว grant กลับตามรายการที่ประกาศ
+      ⇒ **ห้ามพึ่ง "ไม่ได้ grant = แตะไม่ได้" อีก ต้อง revoke ให้ชัดเสมอ**
+      `tests/rls/grant-matrix.test.ts` คุมไว้แล้ว — ตารางใหม่ที่ไม่ประกาศสิทธิ์จะทำให้เทสต์แดง
 - [ ] **`storage.objects` ตรวจสิทธิ์จาก path เท่านั้น** [D-15] — ไม่มีคอลัมน์ `gang_id`
       ข้อตกลง: `payment-slips/<gang_id>/<payment_id>/<file>` · `avatars/<user_id>/<file>` ·
       `gang-assets/<gang_id>/<file>` · `announcement-images/<gang_id>/<file>`
@@ -168,8 +170,7 @@
       (อย่าแตกก่อนหน้านี้เพราะจะเจอ deviation จาก Phase 1 ที่เปลี่ยนรายละเอียด — ตอนนี้รู้ครบแล้ว)
       deviation ที่ต้องเอาเข้าไปคิดด้วย: D-7 ถึง D-16 โดยเฉพาะ
       **D-13/EXECUTE grant** ที่ทำให้ client เรียก DB function ตรงไม่ได้อีกแล้ว
-- [ ] **push migration 0008–0012 ขึ้น cloud** — cloud ยังอยู่ที่ 7/12 และ**ยังไม่มี RLS**
-      ⇒ ห้ามใส่ข้อมูลจริงบน cloud จนกว่าจะ push
+- [x] ~~**push migration ขึ้น cloud**~~ — ✅ เสร็จ 12 ส.ค. 2026 (13/13 · ไม่ได้ push seed)
 
 ### Phase 2
 

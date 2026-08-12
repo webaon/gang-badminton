@@ -79,10 +79,13 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 | | |
 |---|---|
 | project / ref | **gang-badminton** · `emmzeriekkjryhucvctx` |
-| migrations ที่ apply แล้ว | **7 / 12** ← 🔴 `0008`–`0012` **ยังไม่ได้ push ขึ้น cloud** |
-| ข้อมูลใน DB | 0 แถวทุกตาราง |
+| migrations ที่ apply แล้ว | **13 / 13** ✅ (push แล้ว 12 ส.ค. 2026) |
+| ข้อมูลใน DB | 0 แถวทุกตาราง (ไม่ได้ push seed ขึ้นไป — `seeds: []`) |
+| RLS | ✅ 29/29 ตาราง · 50 policies + 16 บน storage.objects |
+| storage | ✅ 4 buckets · cron ✅ 3 jobs active |
 
-🔴 **cloud ยังไม่มี RLS** (0010/0011 ยังไม่ได้ push) — อย่าใส่ข้อมูลจริงบน cloud จนกว่าจะ push
+✅ **cloud พร้อมใช้แล้ว** — ตรวจยืนยันหลัง push ว่า `anon` เรียก DB function ไม่ได้สักตัว
+และอ่านได้แค่ `gangs` ตารางเดียว (ก๊วน public เท่านั้นตาม policy)
 
 push ขึ้น cloud เมื่อพร้อม (ไฟล์ ref หายหลัง clone ใหม่ เพราะ `.temp` ถูก gitignore):
 ```bash
@@ -177,7 +180,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 55 tests, 9 files
+npm test          # vitest run — 59 tests, 10 files
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -193,6 +196,7 @@ npm test          # vitest run — 55 tests, 9 files
 | `tests/rls/write-guards.test.ts` | ช่องโหว่ WO-1.3 ที่ปิดแล้ว — EXECUTE grant · INSERT status · เขียน registrations ตรง |
 | `tests/cron/cron.test.ts` | **DoD WO-1.5** — CRON_SECRET (รวม fail-closed + timing-safe) · pg_cron schedule · sweep ทั้งสาม |
 | `tests/seed/idempotency.test.ts` | **DoD WO-1.5** — รัน seed ไฟล์จริงซ้ำ 3 รอบ สถานะต้องไม่เปลี่ยน |
+| `tests/rls/grant-matrix.test.ts` | สิทธิ์ระดับตารางตรงกับที่ประกาศไว้เป๊ะ — กัน default ACL ของ environment แอบให้สิทธิ์เกิน |
 
 ⚠️ **เทสต์ RLS ต้องห่อด้วย `asRole()` / `visibleCount()` เสมอ** — connection ของเทสต์เป็น
 `postgres` ซึ่งมี BYPASSRLS ถ้าลืมห่อ เทสต์จะผ่านแบบหลอกๆ ทุกครั้งโดยไม่ได้ตรวจ policy เลย
@@ -246,7 +250,7 @@ rounding + unit tests → PromptPay QR + สลิป + verify → In-app notifi
 6. **storage ตรวจสิทธิ์จาก path** [D-15] ⇒ ต้องมี helper กลางใน `lib/` ที่ประกอบ path
 
 **ก่อนเริ่ม Phase 2 ควรทำ:**
-- [ ] push migration 0008–0012 ขึ้น cloud (ตอนนี้ cloud ยังไม่มี RLS)
+- [x] ~~push migration ขึ้น cloud~~ — ✅ เสร็จ 12 ส.ค. 2026 (13/13)
 - [ ] เปิด PR ของ `claude/badminton-group-system-4pfs7o` เข้า `main`
 - [ ] GitHub Actions workflow (อยู่ใน BACKLOG ตั้งแต่ WO-1.1) — เทสต์ชุดนี้ต้องมี Postgres ใน CI
 
@@ -268,6 +272,11 @@ rounding + unit tests → PromptPay QR + สลิป + verify → In-app notifi
 - **`uuid_generate_v7()` แก้เป็น RFC 9562 Method 3 แล้ว** (sub-millisecond ใน `rand_a`)
 - **`npm audit` 3 high** อยู่ใน transitive deps ของ `next@15.5.23` — แก้ต้องขึ้น next@16 = ต้องผ่าน ADR
 - **RLS ต้องมี GRANT คู่เสมอ** — ดูหัวข้อ 4 (WO-1.4) เป็นกับดักที่เสียเวลาที่สุดใน WO นี้
+- 🔴 **default ACL ของ local กับ cloud ไม่เหมือนกัน** — local ให้ `Dxtm`, cloud ให้ `arwdDxtm`
+  ⇒ ห้ามพึ่ง "ไม่ได้ grant = แตะไม่ได้" เด็ดขาด ต้อง `revoke` ให้ชัด
+  migration `0013` ล้างแล้ว grant กลับตามรายการที่ประกาศไว้ ⇒ สองที่เหมือนกันแล้ว
+  **ตารางใหม่ทุกตารางต้อง revoke/grant เองใน migration ที่สร้างมัน**
+  (มีเทสต์ `tests/rls/grant-matrix.test.ts` คุมไว้ — ตารางใหม่ที่ไม่ประกาศสิทธิ์จะทำให้เทสต์แดง)
 - **`service_role` มี BYPASSRLS แต่ BYPASSRLS ไม่ข้าม GRANT** — ต้อง grant ให้ด้วย
 - **helper ของ policy ต้องเป็น SECURITY DEFINER** ไม่งั้น policy ที่อ้างตารางตัวเองจะ recursion
   และ **ห้ามใช้ `FORCE ROW LEVEL SECURITY`** เพราะจะทำให้ owner ถูก policy ตรวจด้วย = วนกลับมาอีก
