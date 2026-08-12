@@ -74,6 +74,10 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 ⚠️ user ของ pooler ต้องเป็น `postgres.<tenant>` — tenant ของ local คือ **`pooler-dev`**
 (ดูได้จาก `docker exec supabase_pooler_gang-badminton cat /app/pooler_tenant.exs`)
 
+> **[D-6]** baseline §Verification อ้าง pooled port = **6543** ซึ่งเป็นพอร์ตของ Supabase **cloud**
+> — ของ local คือ **54329** (ตั้งไว้ใน `config.toml`) เจตนาของ baseline คือ "ต้องผ่าน
+> transaction pooling" ซึ่งทำได้ครบ เปลี่ยนแค่เลขพอร์ตให้ตรงกับสภาพแวดล้อมจริง
+
 ### Cloud
 
 | | |
