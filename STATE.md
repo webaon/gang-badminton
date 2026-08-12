@@ -19,8 +19,8 @@
 
 🎉 **Phase 1 เสร็จครบ** — ฐานข้อมูล + ฟังก์ชัน + RLS + storage + cron + seed พร้อมใช้
 
-🔴 **งานถัดไปคือ "แตก WO ของ Phase 2"** ซึ่ง baseline สั่งให้ทำตอนจบ Phase 1 พอดี
-(ห้ามแตกก่อนหน้านี้เพราะจะเจอ deviation จาก Phase 1 ที่เปลี่ยนรายละเอียด — ตอนนี้รู้ครบแล้ว)
+✅ **แตก WO ของ Phase 2 แล้ว** (12 ส.ค. 2026) — อยู่ใน `AGENT-EXECUTION.md` ท้ายไฟล์
+แตก 10 ใบ (WO-2.1 ถึง WO-2.10) พร้อมตารางข้อจำกัดจาก Phase 1 ที่ทุกใบต้องยึด
 
 ---
 
@@ -225,34 +225,37 @@ npm test          # vitest run — 59 tests, 10 files
 
 ---
 
-## 7. ทำอะไรต่อ — แตก WO ของ Phase 2
+## 7. ทำอะไรต่อ — WO-2.1 (App foundation)
 
-Phase 1 จบแล้ว ⇒ ตามกติกาใน `AGENT-EXECUTION.md` ถึงเวลาแตก Work Order ของ Phase 2
+Phase 2 แตก WO เรียบร้อยแล้ว — **รายละเอียดเต็มอยู่ใน `AGENT-EXECUTION.md`** ท้ายไฟล์
+ที่นี่สรุปแค่ภาพรวมกับใบถัดไป
 
-**Phase 2 = MVP-0** (จุดที่ก๊วนผู้ใช้เริ่มใช้จริง) ตาม baseline §Roadmap:
-Auth → Gang/Org + สมาชิก + skill + cancellation policy → pricing plan **โมเดลเดียว**
-ที่ก๊วนผู้ใช้ใช้จริง → สร้างนัดมือ + ลงชื่อ/guest ผ่าน invite link + waitlist + realtime
-→ Game Console (เช็คอิน, matching, นับลูก, no-show) → SessionBilling strategy เดียว +
-rounding + unit tests → PromptPay QR + สลิป + verify → In-app notifications
+| WO | งาน |
+|---|---|
+| **2.1** | **App foundation** ← เริ่มที่นี่ |
+| 2.2 | Auth + โปรไฟล์ |
+| 2.3 | ก๊วน/องค์กร + สมาชิก + skill + policy + pricing plan (โมเดลเดียว) |
+| 2.4 | สร้างนัด + snapshot |
+| 2.5 | ลงชื่อ + guest + waitlist + realtime |
+| 2.6 | Matching Engine (pure domain — ทำคู่ขนานกับ 2.5 ได้) |
+| 2.7 | Game Console |
+| 2.8 | SessionBilling + rounding + money invariants |
+| 2.9 | Payments — `transition_payment()` + PromptPay + สลิป + verify |
+| 2.10 | In-app notifications + worker |
 
-🔴 **ข้อจำกัดจาก Phase 1 ที่ต้องเอาเข้าไปคิดตอนแตก WO:**
+**WO-2.1 ทำอะไร**: `lib/supabase/` (browser/server client + middleware ด้วย `@supabase/ssr`) ·
+`domain/permissions/can()` · helper ครอบ server action ที่บังคับเช็ค `rowCount` ·
+`lib/storage/` helper ประกอบ path · eslint rule กัน `domain/` แตะ framework · GitHub Actions
 
-1. **client เรียก DB function ตรงไม่ได้แล้ว** — ทุกตัว grant ให้ `service_role` เท่านั้น
-   ⇒ ทุก flow ต้องผ่าน server action / route handler ที่ตรวจสิทธิ์เองก่อน
-   ⇒ guest ลงชื่อต้องมี route handler ที่ validate invite token + `check_rate_limit()`
-2. **RLS ไม่ raise error — คืน 0 แถวเงียบๆ** ⇒ server action ต้องเช็ค `rowCount` ทุกครั้ง
-   ไม่งั้นจะตอบ "บันทึกแล้ว" ทั้งที่ไม่มีอะไรเปลี่ยน (ดู `docs/errors.md` §WO-1.4)
-3. **`domain/billing` ยังว่างเปล่า** — [D-9] penalty ตอนนี้บันทึกแค่ `is_late_cancel` ลง event
-   ฝั่ง TS ต้องอ่าน `cancelled_at` + snapshot มาคิดเงินเอง
-4. **`cancellation_policy` schema ยังไม่นิ่ง** — ใช้แค่ `cutoff_hours` +
-   `allow_cancel_after_cutoff` คีย์ penalty ยังไม่ตกลง ⇒ สรุปให้จบตอนทำ SessionBilling
-5. **`transition_payment()` ยังไม่มี** ⇒ payment เปลี่ยน status ไม่ได้เลย ต้องทำก่อนแตะ flow เก็บเงิน
-6. **storage ตรวจสิทธิ์จาก path** [D-15] ⇒ ต้องมี helper กลางใน `lib/` ที่ประกอบ path
+**DoD ที่ตรวจง่ายที่สุด**: จงใจ `import '@supabase/supabase-js'` ใน `domain/` แล้ว lint ต้องแดง
 
-**ก่อนเริ่ม Phase 2 ควรทำ:**
-- [x] ~~push migration ขึ้น cloud~~ — ✅ เสร็จ 12 ส.ค. 2026 (13/13)
-- [ ] เปิด PR ของ `claude/badminton-group-system-4pfs7o` เข้า `main`
-- [ ] GitHub Actions workflow (อยู่ใน BACKLOG ตั้งแต่ WO-1.1) — เทสต์ชุดนี้ต้องมี Postgres ใน CI
+🔴 **ข้อจำกัดจาก Phase 1 ที่เปลี่ยนวิธีออกแบบมากที่สุด** (ตารางเต็ม 8 ข้ออยู่ใน `AGENT-EXECUTION.md`):
+1. client เรียก DB function ตรงไม่ได้ — ทุก flow ต้องผ่าน server action
+2. RLS คืน 0 แถวเงียบๆ ไม่ raise — ต้องเช็ค `rowCount` ทุกครั้ง
+3. `transition_payment()` ยังไม่มี — ต้องเขียนก่อนแตะ flow เก็บเงิน (WO-2.9)
+
+**ค้างอยู่ก่อนเริ่ม**: เปิด PR ของ `claude/badminton-group-system-4pfs7o` เข้า `main`
+(GitHub Actions ย้ายไปเป็นส่วนหนึ่งของ WO-2.1 แล้ว)
 
 ---
 
