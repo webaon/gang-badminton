@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/notification-dispatch",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/waitlist-sweep",
+      "schedule": "2,17,32,47 * * * *"
+    },
+    {
+      "path": "/api/cron/notification-sweep",
+      "schedule": "7,22,37,52 * * * *"
+    },
+    {
+      "path": "/api/cron/rate-limits-purge",
+      "schedule": "20 4 * * *"
+    }
+  ]
+}

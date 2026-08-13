@@ -1,0 +1,19 @@
+/*
+ * Cascade layer order — MUST stay in its own file, imported first by globals.css.
+ *
+ * เหตุผล: webpack (ที่ Next.js ใช้) hoist เนื้อหาของ @import ขึ้นเหนือ CSS ที่เขียน
+ * inline ตามหลัง ถ้าประกาศ @layer ไว้ใน globals.css ตรงๆ ลำดับจะเพี้ยนเงียบๆ
+ *
+ * ลำดับสำคัญ (later layer ชนะ earlier layer เสมอ ไม่สนใจ specificity):
+ *   reset         — Astryx :where() reset + legacy reset ใดๆ (ต่ำสุดเสมอ)
+ *   theme         — Tailwind theme variables
+ *   base          — Tailwind preflight (ต้องอยู่ใน layer ห้ามลอย unlayered)
+ *   astryx-base   — component styles ของ Astryx
+ *   astryx-theme  — theme tokens ของ Astryx
+ *   components    — component CSS ของแอปเราเอง
+ *   utilities     — Tailwind utilities (สูงสุด — className บน component ถึงจะ override ได้)
+ *
+ * ห้ามเพิ่ม @import แบบไม่มี layer() ที่ไหนก็ตาม — unlayered ชนะทุก layer
+ * ดูรายละเอียด: npm run astryx -- docs migration  (หัวข้อ Cascade Layer Safety)
+ */
+@layer reset, theme, base, astryx-base, astryx-theme, components, utilities;
