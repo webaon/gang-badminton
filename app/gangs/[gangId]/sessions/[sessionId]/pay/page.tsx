@@ -5,6 +5,7 @@ import { Card } from '@astryxdesign/core/Card';
 
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseServer } from '@/lib/supabase/server';
+import { summarize, type LedgerEntry } from '@/domain/billing/ledger';
 import { promptPayQrDataUrl } from '@/lib/promptpay/qr';
 import { PaySlipForm } from '@/features/payments/PaySlipForm';
 import { CreateMyPaymentButton } from '@/features/payments/CreateMyPaymentButton';
@@ -40,7 +41,12 @@ export default async function PayPage({
   // ยอดของฉันในนัดนี้ — RLS ให้เห็นเฉพาะ charge ของตัวเอง (หรือทั้งหมดถ้าเป็นแอดมิน)
   const { data: charges } = await supabase
     .from('session_charges')
-    .select('id, amount, breakdown, session_registrations!inner(user_id)')
+    .select(
+      `id, amount, breakdown,
+       session_registrations!inner(user_id),
+       payment_allocations(amount, payments(status)),
+       payment_adjustments(amount)`,
+    )
     .eq('session_id', sessionId)
     .eq('type', 'session');
 
@@ -49,11 +55,26 @@ export default async function PayPage({
     amount: string;
     breakdown: Record<string, unknown>;
     session_registrations: { user_id: string | null };
+    payment_allocations: { amount: string; payments: { status: string } | null }[];
+    payment_adjustments: { amount: string }[];
   };
 
   const mine = ((charges ?? []) as unknown as ChargeRow[]).filter(
     (c) => c.session_registrations.user_id === user.id,
   );
+
+  // 🔴 [WO-2.5-D] ยอดที่ต้องจ่าย = ledger ของ charge ตัวเอง ไม่ใช่ผลบวกดิบของ `amount`
+  //    (เพื่อนอาจจ่ายแทนไปแล้ว หรือแอดมินอาจคืนเงินบางส่วน)
+  const entries: LedgerEntry[] = mine.map((c) => ({
+    chargeId: c.id,
+    amount: c.amount,
+    allocated: c.payment_allocations
+      .filter((a) => a.payments?.status === 'verified')
+      .map((a) => a.amount),
+    adjustments: c.payment_adjustments.map((a) => a.amount),
+  }));
+
+  const myLedger = summarize(entries);
 
   const { data: payment } = await supabase
     .from('payments')
@@ -94,9 +115,15 @@ export default async function PayPage({
           <p className="mt-3 text-sm">ยังไม่มียอดที่ต้องจ่ายในนัดนี้</p>
         ) : (
           <>
-            <p className="mt-2 text-2xl font-semibold">
-              {mine.reduce((sum, c) => sum + Number(c.amount), 0).toFixed(2)} บาท
-            </p>
+            <p className="mt-2 text-2xl font-semibold">{myLedger.outstanding} บาท</p>
+            {myLedger.allocated !== '0.00' ? (
+              <p className="text-sm opacity-70">จ่ายมาแล้ว {myLedger.allocated} บาท</p>
+            ) : null}
+            {myLedger.credit !== '0.00' ? (
+              <p className="text-sm opacity-70">
+                ก๊วนต้องคืนให้ {myLedger.credit.replace('-', '')} บาท
+              </p>
+            ) : null}
 
             {!payment ? (
               <div className="mt-4">

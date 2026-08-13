@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — `WO-2.5-A` … `WO-2.5-C` เสร็จแล้ว
+> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — `WO-2.5-A` … `WO-2.5-D` เสร็จแล้ว
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -298,7 +298,20 @@ auto-generate → QR check-in → reminder jobs
 - โฟลเดอร์ใหม่ `server/membership/` ใช้ร่วมกันระหว่าง cron กับ server action
   (แนวเดียวกับ `server/guest/`)
 
-**ต่อไป: `WO-2.5-D`** — `payment_allocations` + adjustments/refund
+✅ **`WO-2.5-D` เสร็จแล้ว** (13 ส.ค. 2026) — migration `0026` push cloud แล้ว (26/26)
+ตรวจของจริงบน cloud: 3 ฟังก์ชัน + trigger `session_charges_no_edit_after_paid` +
+`event_logs_aggregate_type_check` ที่มี `'charge'` แล้ว
+
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- **ยอดค้างอ่านจาก ledger เท่านั้น** — `charge_outstanding()` (SQL) หรือ
+  `domain/billing/ledger.ts` (หน้าจอ) ❌ ห้ามนับจาก `payments.status`
+- allocation นับเฉพาะสลิปที่ **verified** · "ค้างเก็บ" กับ "ต้องคืน" ไม่หักกลบกัน
+- `create_payment_for_charges()` **ไม่ออกใบซ้ำ** — คืนใบเดิมถ้ายังไม่ verified
+  และเขียน `payment_allocations` ให้อัตโนมัติ
+- แก้ยอดหลัง verify ต้องผ่าน `add_payment_adjustment()` — มี trigger กัน UPDATE
+  `session_charges.amount` ของหนี้ที่จ่ายแล้ว
+
+**ต่อไป: `WO-2.5-E`** — session templates + auto-generate
 
 ### สิ่งที่ควรทำก่อนเริ่ม Phase 2.5
 

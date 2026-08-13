@@ -478,7 +478,7 @@ DoD ทั้ง 4 ข้อผ่านจริง:
 
 ---
 
-## WO-2.5-D: `payment_allocations` + adjustments/refund
+## WO-2.5-D: `payment_allocations` + adjustments/refund ✅ **เสร็จ (13 ส.ค. 2026)**
 
 **Goal**: จ่ายแทนเพื่อนได้ และแก้ยอดหลัง verify ได้โดยไม่แตะ record เดิม
 
@@ -498,6 +498,26 @@ DoD ทั้ง 4 ข้อผ่านจริง:
 - ห้ามอ่านยอดสุทธิจาก `status` (baseline §การตัดสินใจสะสม — Allocated/Adjusted ไม่ใช่ state)
 
 **References**: baseline §การตัดสินใจสะสม (Refund/แก้ยอดหลัง verify) · §Verification (Money invariants)
+
+**ผลลัพธ์** — migration `0026_payment_ledger.sql` · `domain/billing/ledger.ts` ·
+เทสต์ใหม่ 27 ตัว (DB 15 + domain 12) · dashboard เขียนใหม่ให้คิดจาก ledger
+
+DoD ทั้ง 5 ข้อผ่านจริง:
+- invariant `sum(allocations) ≤ payment.amount` — ยิงชนแล้วได้ `ALLOCATION_EXCEEDS_PAYMENT`
+  และเคส "เท่ากันพอดี" ต้องผ่าน (`≤` ไม่ใช่ `<`)
+- ยอดสุทธิ = `charge − allocations + adjustments` — ทั้งใน `charge_outstanding()` (SQL)
+  และ `domain/billing/ledger.ts` (หน้าจอ)
+- refund ระดับ charge แล้ว dashboard สะท้อนทันที (ยอดติดลบ = ก๊วนต้องคืน)
+- กด "ขอ QR" ซ้ำได้ใบเดิมถ้ายังไม่ `verified`
+- E2E 1 สลิป 2 คน: verify ครั้งเดียว หนี้ทั้งสองคนเป็น 0
+
+**การตัดสินใจที่บันทึกไว้** (ไม่ถึงขั้น ADR เพราะตามกติกาที่ baseline วางไว้แล้ว):
+- 🔴 นับ allocation **เฉพาะสลิปที่ `verified`** — ถ้านับสลิปที่ยังไม่ยืนยันด้วย
+  คนอัปสลิปปลอมจะทำให้หนี้หายทันที
+- 🔴 "ค้างเก็บ" กับ "ต้องคืน" **ไม่หักกลบกัน** ในสรุป — ก๊วนที่มีคนค้าง 500
+  และอีกคนจ่ายเกิน 500 ต้องไม่เห็นเป็น "เก็บครบแล้ว"
+- `event_logs.aggregate_type` เพิ่มค่า `'charge'` (expand — additive)
+  เพราะการปรับยอดเกิดกับหนี้ก้อนหนึ่ง ไม่ใช่กับ payment (สลิปใบเดียวครอบหลายคน)
 
 ---
 

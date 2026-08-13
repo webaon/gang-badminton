@@ -4,9 +4,12 @@ import { Badge } from '@astryxdesign/core/Badge';
 import { Card } from '@astryxdesign/core/Card';
 
 import { requireUser } from '@/lib/supabase/auth';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
 import { can } from '@/domain/permissions/can';
 import type { GangRole } from '@/domain/permissions/types';
+import { summarize, type LedgerEntry } from '@/domain/billing/ledger';
+import { LedgerPanel, type LedgerRow } from '@/features/payments/LedgerPanel';
 import { ReviewPaymentActions } from '@/features/payments/ReviewPaymentActions';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +21,13 @@ const STATUS_LABELS: Record<string, string> = {
   rejected: 'ถูกปฏิเสธ',
 };
 
-/** dashboard ค้างจ่าย (baseline §โมดูล ข้อ 5) */
+/**
+ * dashboard ค้างจ่าย (baseline §โมดูล ข้อ 5) — **[WO-2.5-D] คิดจาก ledger**
+ *
+ * 🔴 ยอดค้าง = `charge − allocations(verified) + adjustments` คำนวณสดทุกครั้ง
+ *    ❌ ห้ามนับจาก `payments.status` — สลิปใบเดียวครอบหนี้ได้หลายคน (จ่ายแทนเพื่อน)
+ *    และการคืนเงินไม่ได้เปลี่ยน status ของอะไรเลย
+ */
 export default async function PaymentsPage({ params }: { params: Promise<{ gangId: string }> }) {
   const { gangId } = await params;
   const user = await requireUser(`/gangs/${gangId}/payments`);
@@ -44,24 +53,119 @@ export default async function PaymentsPage({ params }: { params: Promise<{ gangI
   const role = (membership?.role as GangRole | undefined) ?? null;
   if (!can({ role }, 'payment.verify')) redirect(`/gangs/${gangId}/sessions`);
 
-  // RLS ให้แอดมินเห็นทั้งก๊วน
-  const { data: payments } = await supabase
+  const admin = supabaseAdmin();
+
+  // ---------------------------------------------------------------------------
+  // ledger: หนี้ทุกก้อนของก๊วน + ที่จ่ายมาแล้ว + รายการปรับยอด
+  // ---------------------------------------------------------------------------
+  const { data: chargeRows } = await admin
+    .from('session_charges')
+    .select(
+      `id, amount, type, billing_month,
+       sessions(title),
+       session_registrations(guest_name, user_id, profiles(display_name)),
+       gang_members(user_id, profiles(display_name)),
+       payment_allocations(amount, payments(status)),
+       payment_adjustments(amount)`,
+    )
+    .eq('gang_id', gangId)
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  type ChargeRow = {
+    id: string;
+    amount: string;
+    type: string;
+    billing_month: string | null;
+    sessions: { title: string } | null;
+    session_registrations: {
+      guest_name: string | null;
+      user_id: string | null;
+      profiles: { display_name: string } | null;
+    } | null;
+    gang_members: { user_id: string; profiles: { display_name: string } | null } | null;
+    payment_allocations: { amount: string; payments: { status: string } | null }[];
+    payment_adjustments: { amount: string }[];
+  };
+
+  const charges = (chargeRows ?? []) as unknown as ChargeRow[];
+
+  const entries: LedgerEntry[] = charges.map((c) => ({
+    chargeId: c.id,
+    amount: c.amount,
+    // 🔴 นับเฉพาะสลิปที่ยืนยันแล้ว — ไม่งั้นอัปสลิปปลอมแล้วหนี้หายทันที
+    allocated: c.payment_allocations
+      .filter((a) => a.payments?.status === 'verified')
+      .map((a) => a.amount),
+    adjustments: c.payment_adjustments.map((a) => a.amount),
+  }));
+
+  const summary = summarize(entries);
+  const lineOf = new Map(summary.lines.map((l) => [l.chargeId, l]));
+
+  const rows: LedgerRow[] = charges.map((c) => {
+    const line = lineOf.get(c.id)!;
+    const person = c.session_registrations ?? c.gang_members;
+    const displayName =
+      c.session_registrations?.profiles?.display_name ??
+      c.session_registrations?.guest_name ??
+      c.gang_members?.profiles?.display_name ??
+      'ไม่ทราบชื่อ';
+
+    return {
+      chargeId: c.id,
+      displayName,
+      userId: (person && 'user_id' in person ? person.user_id : null) ?? null,
+      label:
+        c.type === 'monthly_fee'
+          ? `ค่าสมาชิกเดือน ${c.billing_month?.slice(0, 7) ?? ''}`
+          : (c.sessions?.title ?? 'นัดเล่น'),
+      charge: line.charge,
+      allocated: line.allocated,
+      adjusted: line.adjusted,
+      outstanding: line.outstanding,
+    };
+  });
+
+  // คนที่เป็นผู้จ่ายได้ต้องมีบัญชี (guest ไม่มี `user_id`)
+  const { data: memberRows } = await admin
+    .from('gang_members')
+    .select('user_id, profiles!inner(display_name)')
+    .eq('gang_id', gangId)
+    .is('deleted_at', null);
+
+  type MemberRow = { user_id: string; profiles: { display_name: string } };
+  const payers = ((memberRows ?? []) as unknown as MemberRow[]).map((m) => ({
+    userId: m.user_id,
+    displayName: m.profiles.display_name,
+  }));
+
+  // ---------------------------------------------------------------------------
+  // สลิปที่รอยืนยัน
+  // ---------------------------------------------------------------------------
+  const { data: payments } = await admin
     .from('payments')
-    .select('id, amount, status, slip_url, created_at, profiles:payer_user_id(display_name)')
+    .select(
+      `id, amount, status, slip_url, created_at,
+       profiles:payer_user_id(display_name),
+       payment_allocations(session_charge_id)`,
+    )
     .eq('gang_id', gangId)
     .is('deleted_at', null)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(50);
 
-  type Row = {
+  type PaymentRow = {
     id: string;
     amount: string;
     status: string;
     slip_url: string | null;
     profiles: { display_name: string } | null;
+    payment_allocations: { session_charge_id: string }[];
   };
 
-  const rows = (payments ?? []) as unknown as Row[];
-  const outstanding = rows.filter((p) => p.status !== 'verified');
+  const paymentRows = (payments ?? []) as unknown as PaymentRow[];
+  const nameOfCharge = new Map(rows.map((r) => [r.chargeId, r.displayName]));
 
   return (
     <main className="mx-auto max-w-2xl p-4">
@@ -74,22 +178,39 @@ export default async function PaymentsPage({ params }: { params: Promise<{ gangI
 
       <Card padding={4} variant="muted">
         <p className="text-sm">
-          ค้างจ่าย {outstanding.length} รายการ · รวม{' '}
-          {outstanding.reduce((sum, p) => sum + Number(p.amount), 0).toFixed(2)} บาท
+          ค้างเก็บ <strong>{summary.outstanding} บาท</strong> · เก็บมาแล้ว {summary.allocated} บาท
+          {summary.credit !== '0.00' ? ` · ต้องคืน ${summary.credit.replace('-', '')} บาท` : ''}
         </p>
+        {/* 🔴 ค้างจ่ายกับเงินที่ต้องคืนแยกกัน ไม่หักกลบ — ไม่งั้นจะดูเหมือนเก็บครบทั้งที่ยังต้องตามทั้งสองทาง */}
       </Card>
 
-      {rows.length === 0 ? (
-        <p className="mt-4 text-sm">ยังไม่มีรายการจ่าย</p>
+      <div className="mt-4">
+        <Card padding={4}>
+          <h2 className="mb-3 text-base font-semibold">ยอดรายคน</h2>
+          <LedgerPanel gangId={gangId} rows={rows} payers={payers} />
+        </Card>
+      </div>
+
+      <h2 className="mt-6 mb-2 text-base font-semibold">สลิป ({paymentRows.length})</h2>
+      {paymentRows.length === 0 ? (
+        <p className="text-sm">ยังไม่มีรายการจ่าย</p>
       ) : (
-        <ul className="mt-4 flex flex-col gap-3">
-          {rows.map((p) => (
+        <ul className="flex flex-col gap-3">
+          {paymentRows.map((p) => (
             <li key={p.id}>
               <Card padding={4}>
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium">{p.profiles?.display_name ?? 'ไม่ทราบชื่อ'}</p>
                     <p className="text-sm">{p.amount} บาท</p>
+                    {p.payment_allocations.length > 1 ? (
+                      <p className="text-xs opacity-70">
+                        ครอบ{' '}
+                        {p.payment_allocations
+                          .map((a) => nameOfCharge.get(a.session_charge_id) ?? '—')
+                          .join(' · ')}
+                      </p>
+                    ) : null}
                   </div>
                   <Badge label={STATUS_LABELS[p.status] ?? p.status} />
                 </div>

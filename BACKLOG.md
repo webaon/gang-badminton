@@ -343,16 +343,15 @@
 
 ## จาก WO-2.9 (Payments)
 
-- [ ] **payment ยังไม่ผูกกับ charge เป็นรายรายการ** — `create_payment_for_charges()`
-      รวมยอดเป็นก้อนเดียว ยังไม่เขียน `payment_allocations`
-      ⇒ จ่ายแทนเพื่อน (1 สลิป 2 คน) ยังทำไม่ได้ — เป็นงาน Phase 2.5 ตาม baseline
-      ⚠️ แปลว่าตอนนี้ยัง reconcile ระดับ charge ไม่ได้ รู้แค่ว่า "คนนี้จ่ายมาเท่าไร"
-- [ ] **ออกใบจ่ายซ้ำได้** — กด "ขอ QR" หลายครั้งจะได้ payment หลายใบ
-      หน้าจอแสดงใบล่าสุดใบเดียว แต่ใบเก่ายังค้างเป็น `pending` ในหน้าแอดมิน
-      ⇒ ควรใช้ใบเดิมถ้ายังไม่ verified หรือยกเลิกใบเก่าอัตโนมัติ
-- [ ] **ยังไม่มี `payment_adjustments` (refund/correction)** — verify แล้วแก้ไม่ได้เลย
-      ตามที่ ADR ตั้งใจ แต่แปลว่าถ้าแอดมินกดยืนยันผิดคนต้องแก้ผ่าน DB
-      ⇒ Phase 2.5 ตาม baseline
+- [x] ~~**payment ยังไม่ผูกกับ charge เป็นรายรายการ**~~ — ✅ **WO-2.5-D**
+      `create_payment_for_charges()` เขียน `payment_allocations` แล้ว ⇒ 1 สลิปครอบหลายคนได้
+      และ reconcile ระดับ charge ได้จริง (`charge_outstanding()`)
+- [x] ~~**ออกใบจ่ายซ้ำได้**~~ — ✅ **WO-2.5-D** ถ้ามีใบที่ยังไม่ `verified`
+      ครอบ charge **ชุดเดียวกันเป๊ะ** อยู่แล้ว จะคืนใบเดิมแทนการออกใหม่
+      (ชุด charge ต่างกัน = คนละใบ ไม่เหมารวม)
+- [x] ~~**ยังไม่มี `payment_adjustments` (refund/correction)**~~ — ✅ **WO-2.5-D**
+      `add_payment_adjustment()` (refund/correction/credit) ระดับ charge · append-only ·
+      มี trigger กัน UPDATE `session_charges.amount` ของหนี้ที่ verify แล้ว
 - [ ] **ไม่ได้ตรวจว่ายอดในสลิปตรงกับยอดที่เรียกเก็บ** — แอดมินดูเอง
       (OCR สลิป/เชื่อม API ธนาคารไม่อยู่ใน baseline)
 
