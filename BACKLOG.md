@@ -19,11 +19,16 @@
 
 ### CI / Tooling (baseline §Verification + §CI Gates — ยังไม่มี WO รองรับ)
 
-- [ ] **lint rule ตรวจ `domain/` ไม่ import next/react/supabase** — baseline บังคับ (§Verification "Domain layer test")
-      ทำด้วย `eslint no-restricted-imports` หรือ `eslint-plugin-boundaries`
+- [x] ~~**lint rule ตรวจ `domain/` ไม่ import next/react/supabase**~~ — ✅ WO-2.1
+      `@typescript-eslint/no-restricted-imports` + ห้ามพึ่งชั้นนอกด้วย
+      พิสูจน์ด้วย `tests/domain/layer-boundary.test.ts` ที่รัน eslint จริง (ถอด rule = เทสต์พัง)
 - [x] ~~**vitest setup**~~ — ✅ เสร็จใน WO-1.3 (`npm test`)
 - [ ] **Playwright setup** — E2E (Phase 5 แต่ smoke test อยู่ใน CI gates บน main)
-- [ ] **GitHub Actions workflow** — PR gate (typecheck → lint → vitest → build → domain lint rule) / main+nightly (RLS + concurrency + Playwright smoke)
+- [x] ~~**GitHub Actions workflow (PR gate)**~~ — ✅ WO-2.1 · `.github/workflows/ci.yml`
+      typecheck → lint → vitest (Supabase จริง ไม่ใช่ Postgres เปล่า) → build
+      ยังไม่มี: job แยกสำหรับ main+nightly และ Playwright smoke (รอ WO ที่มี E2E)
+- [ ] **actions ที่ใช้ยัง target Node 20** — GitHub เตือน deprecation (บังคับรันบน Node 24 ให้แล้ว)
+      ไม่กระทบตอนนี้ แต่ควรอัป `actions/checkout` / `setup-node` / `supabase/setup-cli` เมื่อมีเวอร์ชันใหม่
 - [ ] **Prettier / formatting config** — ยังไม่มี; ตกลงสไตล์ก่อนโค้ดเยอะ
 
 ### Config ที่ค้างไว้
@@ -175,8 +180,8 @@
 ### Phase 2
 
 - [ ] **worker ส่ง notification จริง** — ดูหัวข้อ WO-1.3 ด้านบน
-- [ ] **`lib/` helper ประกอบ path ของ storage** — [D-15] สิทธิ์ storage ตรวจจาก path
-      ⇒ ต้องมีฟังก์ชันเดียวที่ประกอบ path ให้ทั้งระบบ ห้ามให้แต่ละที่ต่อ string เอง
+- [x] ~~**`lib/` helper ประกอบ path ของ storage**~~ — ✅ WO-2.1 · `lib/storage/paths.ts`
+      sanitize ชื่อไฟล์ + บังคับ id เป็น UUID · **ยังต้องบังคับใช้จริงตอนทำ upload ใน WO-2.9**
 - [ ] **seed มี guard กัน production หรือยัง** — ตอนนี้ยังไม่มี ถ้าเผลอชี้ `db reset` ไป cloud
       จะยัดข้อมูลปลอมลงฐานจริง ⇒ ควรเช็ค env/ชื่อ database ก่อนรัน
 - [ ] **`server-only` ถูก stub ตอนรันเทสต์** — `tests/helpers/server-only-stub.ts` + alias ใน

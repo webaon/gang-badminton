@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 12 ส.ค. 2026** · เขียนตอนจบ WO-1.5 — **Phase 1 เสร็จครบทุกใบ**
+> **อัปเดตล่าสุด: 13 ส.ค. 2026** · เขียนตอนจบ **WO-2.1** (Phase 1 เสร็จครบแล้ว)
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -184,7 +184,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 59 tests, 10 files
+npm test          # vitest run — 95 tests, 13 files
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -201,6 +201,9 @@ npm test          # vitest run — 59 tests, 10 files
 | `tests/cron/cron.test.ts` | **DoD WO-1.5** — CRON_SECRET (รวม fail-closed + timing-safe) · pg_cron schedule · sweep ทั้งสาม |
 | `tests/seed/idempotency.test.ts` | **DoD WO-1.5** — รัน seed ไฟล์จริงซ้ำ 3 รอบ สถานะต้องไม่เปลี่ยน |
 | `tests/rls/grant-matrix.test.ts` | สิทธิ์ระดับตารางตรงกับที่ประกาศไว้เป๊ะ — กัน default ACL ของ environment แอบให้สิทธิ์เกิน |
+| `tests/domain/can.test.ts` | **WO-2.1** — ทุก role × action + feature flag (pure ไม่แตะ DB) |
+| `tests/domain/action-helper.test.ts` | **WO-2.1** — `rowCount 0 → FORBIDDEN` · storage path + path traversal |
+| `tests/domain/layer-boundary.test.ts` | **WO-2.1** — รัน eslint จริงเพื่อพิสูจน์ว่า rule กัน `domain/` ยังทำงาน |
 
 ⚠️ **เทสต์ RLS ต้องห่อด้วย `asRole()` / `visibleCount()` เสมอ** — connection ของเทสต์เป็น
 `postgres` ซึ่งมี BYPASSRLS ถ้าลืมห่อ เทสต์จะผ่านแบบหลอกๆ ทุกครั้งโดยไม่ได้ตรวจ policy เลย
@@ -229,37 +232,46 @@ npm test          # vitest run — 59 tests, 10 files
 
 ---
 
-## 7. ทำอะไรต่อ — WO-2.1 (App foundation)
+## 7. ทำอะไรต่อ — WO-2.2 (Auth + โปรไฟล์)
 
-Phase 2 แตก WO เรียบร้อยแล้ว — **รายละเอียดเต็มอยู่ใน `AGENT-EXECUTION.md`** ท้ายไฟล์
-ที่นี่สรุปแค่ภาพรวมกับใบถัดไป
+**Phase 2 แตก WO ไว้ครบ 10 ใบใน `AGENT-EXECUTION.md`** — WO-2.1 เสร็จแล้ว
 
-| WO | งาน |
+| WO | สถานะ |
 |---|---|
-| **2.1** | **App foundation** ← เริ่มที่นี่ |
-| 2.2 | Auth + โปรไฟล์ |
-| 2.3 | ก๊วน/องค์กร + สมาชิก + skill + policy + pricing plan (โมเดลเดียว) |
-| 2.4 | สร้างนัด + snapshot |
-| 2.5 | ลงชื่อ + guest + waitlist + realtime |
-| 2.6 | Matching Engine (pure domain — ทำคู่ขนานกับ 2.5 ได้) |
-| 2.7 | Game Console |
-| 2.8 | SessionBilling + rounding + money invariants |
-| 2.9 | Payments — `transition_payment()` + PromptPay + สลิป + verify |
-| 2.10 | In-app notifications + worker |
+| **2.1** App foundation | ✅ **เสร็จ** — clients · `can()` · action helper · storage path · lint rule · CI |
+| **2.2** Auth + โปรไฟล์ | ⬜ **ถัดไป** |
+| 2.3 – 2.10 | ⬜ (ดูรายละเอียดใน `AGENT-EXECUTION.md`) |
 
-**WO-2.1 ทำอะไร**: `lib/supabase/` (browser/server client + middleware ด้วย `@supabase/ssr`) ·
-`domain/permissions/can()` · helper ครอบ server action ที่บังคับเช็ค `rowCount` ·
-`lib/storage/` helper ประกอบ path · eslint rule กัน `domain/` แตะ framework · GitHub Actions
+### WO-2.1 ทิ้งอะไรไว้ให้ใช้
 
-**DoD ที่ตรวจง่ายที่สุด**: จงใจ `import '@supabase/supabase-js'` ใน `domain/` แล้ว lint ต้องแดง
+| ของ | ใช้ยังไง |
+|---|---|
+| `supabaseServer()` | **ค่าเริ่มต้น** ของ server action/RSC — อยู่ใต้ RLS `auth.uid()` เป็นของผู้ใช้จริง |
+| `supabaseAdmin()` | เฉพาะตอนต้องเรียก DB function (grant ให้ `service_role` เท่านั้น) — **ต้อง `can()` ก่อนเสมอ** |
+| `supabaseBrowser()` | อ่านข้อมูลฝั่ง client ตาม policy · เรียก DB function ไม่ได้แล้ว |
+| `can(ctx, action)` | แหล่งเดียวของสิทธิ์ — ❌ ห้าม `if (role === 'admin')` ที่อื่น |
+| `runAction()` + `assertAffected()` | ทุก mutation ต้องผ่าน `assertAffected()` ไม่งั้นตอบ "บันทึกแล้ว" ทั้งที่ RLS กรองทิ้ง |
+| `lib/storage/paths.ts` | ประกอบ path ที่เดียว — **ห้ามรับ path จาก client** |
 
-🔴 **ข้อจำกัดจาก Phase 1 ที่เปลี่ยนวิธีออกแบบมากที่สุด** (ตารางเต็ม 8 ข้ออยู่ใน `AGENT-EXECUTION.md`):
-1. client เรียก DB function ตรงไม่ได้ — ทุก flow ต้องผ่าน server action
-2. RLS คืน 0 แถวเงียบๆ ไม่ raise — ต้องเช็ค `rowCount` ทุกครั้ง
-3. `transition_payment()` ยังไม่มี — ต้องเขียนก่อนแตะ flow เก็บเงิน (WO-2.9)
+⚠️ **`can()` ไม่ใช่ชั้นความปลอดภัย** — กำแพงจริงคือ RLS + EXECUTE grant
+`can()` มีไว้ให้ตอบถูกและซ่อนปุ่มให้ตรงความจริง **ห้ามผ่อน RLS เพราะ "เช็คที่ can() แล้ว"**
 
-**ค้างอยู่ก่อนเริ่ม**: เปิด PR ของ `claude/badminton-group-system-4pfs7o` เข้า `main`
-(GitHub Actions ย้ายไปเป็นส่วนหนึ่งของ WO-2.1 แล้ว)
+### CI
+
+`.github/workflows/ci.yml` — typecheck → lint → vitest (Supabase จริง) → build · รัน ~3 นาที
+ใช้ `supabase start` ไม่ใช่ `services: postgres` เพราะเทสต์แตะ `auth.users` · `storage.objects` ·
+schema `cron` และต่อผ่าน pooled port · **ห้ามตัด supavisor ออกจาก `-x`**
+
+### WO-2.2 ต้องทำอะไร
+
+Supabase Auth (email/password + magic link) · หน้า sign up/in/out · สร้างแถว `profiles`
+ให้ผู้ใช้ใหม่ · แก้โปรไฟล์ตัวเอง · middleware กันหน้าที่ต้องล็อกอิน
+
+**จุดที่ต้องตัดสินใจแล้วบันทึกเหตุผล**: สร้าง `profiles` ด้วย DB trigger บน `auth.users`
+หรือด้วย server action — DoD ของ WO-2.2 ระบุไว้ว่าต้องเลือกและเขียนเหตุผลกำกับ
+
+⚠️ `middleware.ts` ที่ root **ยังไม่ได้สร้าง** — `lib/supabase/middleware.ts` มี `updateSession()`
+พร้อมแล้ว แต่ยังไม่มีใครเรียก ⇒ WO-2.2 ต้องสร้าง `middleware.ts` ที่ root แล้วต่อเข้าไป
 
 ---
 
