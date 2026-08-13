@@ -83,11 +83,11 @@ export async function checkIn(registrationId: string): Promise<ApiResponse<{ sta
 }
 
 /**
- * mark no-show
+ * mark no-show — **[WO-2.5-A]** ย้ายไปเป็น DB function
  *
- * ⚠️ ไม่ใช่ transition ที่มี DB function เฉพาะ — เขียนตรงผ่าน RLS ไม่ได้เพราะ
- *    `session_registrations` ไม่มี policy เขียน [D-13] ⇒ ใช้ admin client
- *    และตรวจสิทธิ์เองที่นี่
+ * ⚠️ เดิม action นี้ `UPDATE` แถวตรงๆ ผ่าน admin client ⇒ ไม่มี event log
+ *    และ state guard อยู่ใน TypeScript ที่ bypass ได้ทุกทางที่ไม่ผ่าน action นี้
+ *    ตอนนี้ `mark_no_show()` เป็นคนตัดสิน state + เขียน event ให้ครบ
  */
 export async function markNoShow(registrationId: string): Promise<ApiResponse<{ id: string }>> {
   const correlationId = await cid();
@@ -99,23 +99,47 @@ export async function markNoShow(registrationId: string): Promise<ApiResponse<{ 
 
     assertCan({ role }, 'registration.no_show');
 
-    if (!['confirmed', 'checked_in'].includes(reg.status)) {
-      throw new AppError(
-        'INVALID_REGISTRATION_TRANSITION',
-        'ทำเครื่องหมายไม่มาได้เฉพาะคนที่ได้ที่หรือเช็คอินแล้ว',
-      );
-    }
+    const { data, error } = await supabaseAdmin().rpc('mark_no_show', {
+      p_registration_id: registrationId,
+      p_actor_id: user.id,
+      p_correlation_id: correlationId,
+    });
 
-    const rows = unwrap(
-      await supabaseAdmin()
-        .from('session_registrations')
-        .update({ status: 'no_show', updated_by: user.id })
-        .eq('id', registrationId)
-        .select('id'),
-    );
+    if (error) throw error;
 
     revalidatePath(`/gangs/${session.gang_id}/sessions/${reg.session_id}/console`);
-    return assertOne<{ id: string }>(rows);
+    return { id: (data as { id: string }).id };
+  });
+}
+
+/**
+ * เช็คอินทุกคนที่ได้ที่รวดเดียว
+ *
+ * 🔴 เหตุผลที่ต้องมี: `confirmed` ที่ไม่เคยเช็คอินถูกคิดเงินเท่ากับคนไม่มา
+ *    (`penalty_type = full_share`) ⇒ วันที่แอดมินไม่ได้เปิดคอนโซล ทุกคน
+ *    จะโดนเก็บเงินในฐานะ "ไม่เช็คอิน" ทั้งที่มากันครบ
+ */
+export async function checkInEveryone(
+  sessionId: string,
+): Promise<ApiResponse<{ checkedIn: number }>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const user = await requireUser();
+    const { session, role } = await sessionContext(sessionId, user.id);
+
+    assertCan({ role }, 'registration.checkin');
+
+    const { data, error } = await supabaseAdmin().rpc('check_in_all', {
+      p_session_id: sessionId,
+      p_actor_id: user.id,
+      p_correlation_id: correlationId,
+    });
+
+    if (error) throw error;
+
+    revalidatePath(`/gangs/${session.gang_id}/sessions/${sessionId}/console`);
+    return { checkedIn: Number(data ?? 0) };
   });
 }
 
@@ -276,6 +300,55 @@ export async function finishGame(
 
     revalidatePath(`/gangs/${session.gang_id}/sessions/${game.session_id}/console`);
     return assertOne<{ id: string }>(rows);
+  });
+}
+
+/**
+ * แก้จำนวนลูกของเกมที่จบไปแล้ว — **[WO-2.5-A]**
+ *
+ * 🔴 ทำไมต้องมีก่อนเปิด `court_plus_shuttle`
+ *    โมเดลนั้นคิดเงินจากจำนวนลูก ⇒ กรอกผิดหน้างานแล้วแก้ไม่ได้ = คิดเงินผิดถาวร
+ *    DB function เป็นคนบังคับว่าแก้ได้เฉพาะก่อนปิดรอบ
+ */
+export async function updateGameShuttles(
+  gameId: string,
+  shuttlesUsed: string,
+): Promise<ApiResponse<{ id: string; shuttlesUsed: string }>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const user = await requireUser();
+    const admin = supabaseAdmin();
+
+    const { data: game } = await admin
+      .from('games')
+      .select('id, session_id')
+      .eq('id', gameId)
+      .maybeSingle();
+
+    if (!game) throw new AppError('NOT_FOUND', 'ไม่พบเกมนี้');
+
+    const { session, role } = await sessionContext(game.session_id, user.id);
+    assertCan({ role }, 'game.manage');
+
+    const shuttles = Number(shuttlesUsed);
+    if (!Number.isFinite(shuttles) || shuttles < 0) {
+      throw new AppError('VALIDATION_ERROR', 'จำนวนลูกต้องเป็นตัวเลขไม่ติดลบ');
+    }
+
+    const { data, error } = await admin.rpc('update_game_shuttles', {
+      p_game_id: gameId,
+      p_shuttles: shuttles,
+      p_actor_id: user.id,
+      p_correlation_id: correlationId,
+    });
+
+    if (error) throw error;
+
+    const updated = data as { id: string; shuttles_used: string };
+
+    revalidatePath(`/gangs/${session.gang_id}/sessions/${game.session_id}/console`);
+    return { id: updated.id, shuttlesUsed: updated.shuttles_used };
   });
 }
 

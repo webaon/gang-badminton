@@ -371,7 +371,7 @@ Phase นี้ชื่อ "2.5" และ Phase 2 มีใบชื่อ WO-
 
 ---
 
-## WO-2.5-A: Game Console แก้ผลได้ + no-show ที่เชื่อถือได้
+## WO-2.5-A: Game Console แก้ผลได้ + no-show ที่เชื่อถือได้ ✅ **เสร็จ (13 ส.ค. 2026)**
 
 **Goal**: ตัวเลขที่ billing จะใช้ในใบถัดไปแก้ได้ก่อนปิดรอบ และสถานะ no-show ตรวจสอบย้อนหลังได้
 
@@ -389,6 +389,19 @@ Phase นี้ชื่อ "2.5" และ Phase 2 มีใบชื่อ WO-
 - ห้ามให้แก้จำนวนลูกหลัง commit charges · ห้ามเขียน `session_registrations` ตรงโดยไม่ผ่าน DB function
 
 **References**: BACKLOG §WO-2.7, §WO-2.8 · baseline §Verification (เช็คอินแต่ไม่ลงเกม)
+
+**ผลลัพธ์** — migration `0024_console_corrections.sql` (3 ฟังก์ชัน) · 11 เทสต์ DB ใหม่
+(`tests/sessions/console-corrections.test.ts`) + 4 เทสต์ domain · หน้า
+`/gangs/[gangId]/sessions/[sessionId]/close` · error code ใหม่ `CONFIRMATION_REQUIRED`
+
+DoD ทั้ง 4 ข้อผ่านจริง:
+- แก้จำนวนลูกได้ตอน `in_play` · หลัง `billing` raise `INVALID_TRANSITION` และค่าเดิมไม่ถูกแตะ
+- `mark_no_show()` เขียน event พร้อม `from_status` · ปฏิเสธ `waitlist`/`cancelled` → `no_show`
+- ไม่มีใครเช็คอินเลย → `CONFIRMATION_REQUIRED` ต้องติ๊กยืนยันก่อนถึงปิดได้
+- หน้าสรุปยอดแสดง **ทุกคน** พร้อมเหตุผลต่อคน ก่อนกดยืนยัน
+
+⚠️ **Deviation**: ปุ่ม "ปิดรอบ เก็บเงิน" ในหน้ารายการนัด **ไม่ปิดรอบทันทีอีกต่อไป** —
+พาไปหน้าสรุปยอดก่อน (เจตนาของ DoD ข้อสุดท้าย: ต้องเห็นยอดต่อคนก่อนยืนยัน)
 
 ---
 

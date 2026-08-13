@@ -10,10 +10,12 @@ import { TextInput } from '@astryxdesign/core/TextInput';
 
 import {
   checkIn,
+  checkInEveryone,
   finishGame,
   generateGames,
   markNoShow,
   substitutePlayer,
+  updateGameShuttles,
 } from '@/server/actions/game-console';
 
 export type ConsolePlayer = {
@@ -32,6 +34,9 @@ export type ConsoleGame = {
 };
 
 export type PendingCheckIn = { registrationId: string; displayName: string };
+
+/** เกมที่จบแล้วในนัดนี้ — มีไว้ให้แก้จำนวนลูกก่อนปิดรอบ [WO-2.5-A] */
+export type FinishedGame = { id: string; courtNo: number; shuttlesUsed: string };
 
 /**
  * คอนโซลวันเล่น
@@ -52,14 +57,19 @@ export function GameConsole({
   sessionId,
   pendingCheckIn,
   games,
+  finishedGames,
   queue,
   courtCount,
+  canEditShuttles,
 }: {
   sessionId: string;
   pendingCheckIn: PendingCheckIn[];
   games: ConsoleGame[];
+  finishedGames: FinishedGame[];
   queue: ConsolePlayer[];
   courtCount: number;
+  /** แก้ผลได้เฉพาะก่อนปิดรอบ — DB บังคับซ้ำอีกชั้นใน `update_game_shuttles()` */
+  canEditShuttles: boolean;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +77,8 @@ export function GameConsole({
   const [shuttles, setShuttles] = useState<Record<string, string>>({});
   /** ช่องที่ถูกเลือกไว้รอสลับ */
   const [picked, setPicked] = useState<{ gameId: string; slot: number } | null>(null);
+  /** ค่าที่กำลังแก้ของเกมที่จบแล้ว — key = gameId */
+  const [corrections, setCorrections] = useState<Record<string, string>>({});
 
   async function run(fn: () => Promise<{ success: boolean; error?: { message: string } }>) {
     setPending(true);
@@ -101,7 +113,19 @@ export function GameConsole({
 
       {pendingCheckIn.length > 0 ? (
         <Card padding={4}>
-          <h2 className="mb-3 text-base font-semibold">รอเช็คอิน ({pendingCheckIn.length})</h2>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold">รอเช็คอิน ({pendingCheckIn.length})</h2>
+            {/*
+              🔴 [WO-2.5-A] คนที่ได้ที่แต่ไม่เคยเช็คอิน ถูกคิดเงินเท่ากับคนไม่มา
+                 วันที่แอดมินไม่ได้เปิดคอนโซล = ทุกคนโดนเก็บด้วยเหตุผลผิด
+            */}
+            <Button
+              size="sm"
+              label="เช็คอินทุกคน"
+              isDisabled={pending}
+              onClick={() => run(() => checkInEveryone(sessionId))}
+            />
+          </div>
           <ul className="divide-y">
             {pendingCheckIn.map((p) => (
               <li key={p.registrationId} className="flex items-center justify-between gap-2 py-2">
@@ -190,6 +214,41 @@ export function GameConsole({
           </ul>
         )}
       </Card>
+
+      {finishedGames.length > 0 ? (
+        <Card padding={4}>
+          <h2 className="mb-1 text-base font-semibold">เกมที่จบแล้ว ({finishedGames.length})</h2>
+          <p className="mb-3 text-sm opacity-70">
+            {canEditShuttles
+              ? 'แก้จำนวนลูกได้จนกว่าจะปิดรอบ — หลังปิดรอบแก้ไม่ได้'
+              : 'ปิดรอบไปแล้ว แก้จำนวนลูกไม่ได้'}
+          </p>
+          <ul className="flex flex-col gap-2">
+            {finishedGames.map((g) => (
+              <li key={g.id} className="flex items-end gap-2">
+                <span className="mb-2 min-w-0 flex-1 truncate text-sm">คอร์ท {g.courtNo}</span>
+                <div className="w-28">
+                  <TextInput
+                    label="ลูกที่ใช้"
+                    size="sm"
+                    isDisabled={!canEditShuttles}
+                    value={corrections[g.id] ?? g.shuttlesUsed}
+                    onChange={(v) => setCorrections((c) => ({ ...c, [g.id]: v }))}
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  label="บันทึก"
+                  isDisabled={pending || !canEditShuttles}
+                  onClick={() =>
+                    run(() => updateGameShuttles(g.id, corrections[g.id] ?? g.shuttlesUsed))
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
       <Card padding={4}>
         <h2 className="mb-3 text-base font-semibold">คิวรอ ({idle.length})</h2>

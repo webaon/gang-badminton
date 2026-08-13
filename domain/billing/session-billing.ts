@@ -187,6 +187,23 @@ export function calculateSessionCharges(input: BillingInput): BillingResult {
 }
 
 /**
+ * ปิดรอบทั้งที่ไม่มีใครเช็คอินเลย = ต้องให้คนยืนยันก่อน — **[WO-2.5-A]**
+ *
+ * 🔴 `penalty_type = 'full_share'` ทำให้คนที่ได้ที่แต่ไม่เคยเช็คอิน ถูกเก็บเต็ม
+ *    เท่ากับคนไม่มา ⇒ วันที่แอดมินลืมเปิดคอนโซล ทั้งก๊วนจะถูกเก็บด้วยเหตุผลผิด
+ *    และเงินถูก commit ไปแล้วแก้ไม่ได้ (ADR-001)
+ *
+ * ⚠️ คืน true = "ให้ยืนยัน" ไม่ใช่ "ห้ามปิด" — วันที่ไม่มีใครมาจริงๆ ก็ต้องปิดรอบได้
+ */
+export function requiresCloseConfirmation(participants: Participant[]): boolean {
+  const anyCheckedIn = participants.some((p) => p.status === 'checked_in');
+  if (anyCheckedIn) return false;
+
+  // ไม่มีใครได้ที่เลย (นัดร้าง) ก็ไม่มีอะไรให้เตือน
+  return participants.some((p) => p.status === 'confirmed');
+}
+
+/**
  * ต้นทุนจริงของนัดตามโมเดล `flat_rate`
  *
  * ใช้ตรวจ invariant: `sum(charges) − ต้นทุนจริง = surplus`

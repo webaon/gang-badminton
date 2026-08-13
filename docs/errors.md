@@ -88,6 +88,7 @@ RAISE EXCEPTION USING
 | `CRON_UNAUTHORIZED` | 401 | `CRON_SECRET` ไม่ตรง | cron route handler |
 | `WEBHOOK_SIGNATURE_INVALID` | 401 | LINE signature verify ไม่ผ่าน | `/api/line/webhook/[gangId]` |
 | `VALIDATION_ERROR` | 400 | input ไม่ผ่าน schema validation | server action / route handler |
+| `CONFIRMATION_REQUIRED` | 409 | การกระทำถูกต้องตามกติกาแต่ผลลัพธ์ผิดปกติจนต้องให้คนยืนยันก่อน (เช่นปิดรอบทั้งที่ไม่มีใครเช็คอินเลย) — ยิงซ้ำพร้อมธงยืนยันเพื่อดำเนินการต่อ | server action |
 | `NOT_FOUND` | 404 | resource ทั่วไปไม่พบ (ใช้เมื่อไม่มี code เฉพาะทาง) | ทุกที่ |
 | `INTERNAL_ERROR` | 500 | ข้อผิดพลาดที่ไม่ได้จัดหมวด — **ต้อง log ต้นฉบับเต็มพร้อม correlation id เสมอ** | ทุกที่ |
 

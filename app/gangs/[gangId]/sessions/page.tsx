@@ -120,6 +120,7 @@ export default async function SessionsPage({ params }: { params: Promise<{ gangI
                   <div className="mt-3">
                     <SessionActions
                       sessionId={s.id}
+                      gangId={gangId}
                       status={s.status}
                       midwayCancelRatioDefault={
                         policyFromJson(

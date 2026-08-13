@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 13 ส.ค. 2026** · 🎉 **MVP-0 เสร็จ — merge เข้า main + tag `v0.1.0` แล้ว**
+> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — `WO-2.5-A` เสร็จแล้ว
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -261,10 +261,18 @@ auto-generate → QR check-in → reminder jobs
 ✅ **แตก WO ของ Phase 2.5 แล้ว** — 7 ใบ (`WO-2.5-A` … `WO-2.5-G`) อยู่ท้าย `AGENT-EXECUTION.md`
 (ใช้ตัวอักษรเพราะ Phase 2 มีใบชื่อ WO-2.5 อยู่แล้ว)
 
-**เริ่มที่ `WO-2.5-A`** — Game Console แก้ผลได้ + no-show ที่เชื่อถือได้
-เป็นใบที่ปลดล็อก blocker 4 ข้อจาก 6 ที่ Phase 2 ทิ้งไว้ โดยเฉพาะ
-**แก้จำนวนลูกย้อนหลังไม่ได้** ซึ่งจะกลายเป็น "คิดเงินผิดถาวร" ทันทีที่เปิด
-`court_plus_shuttle` ในใบถัดไป
+✅ **`WO-2.5-A` เสร็จแล้ว** (13 ส.ค. 2026) — migration `0024` + 15 เทสต์ใหม่ · push ขึ้น cloud แล้ว
+(ตรวจของจริงบน cloud: 3 ฟังก์ชันเป็น security definer และ EXECUTE มีแค่ `postgres`, `service_role`)
+
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- `mark_no_show()` · `update_game_shuttles()` · `check_in_all()` เป็น DB function
+  ⇒ **ห้ามกลับไป UPDATE `session_registrations` / `games` ตรงจาก server action อีก**
+- แก้ `shuttles_used` ได้เฉพาะตอนนัดอยู่ `open`/`in_play` — **หลัง `billing` DB จะ raise**
+  (นี่คือเงื่อนไขที่ทำให้ `court_plus_shuttle` ใน WO-2.5-B ปลอดภัยพอจะเปิดได้)
+- ปิดรอบต้องผ่านหน้า `/gangs/[gangId]/sessions/[sessionId]/close` — `closeSessionWithBilling()`
+  ปฏิเสธด้วย `CONFIRMATION_REQUIRED` ถ้าไม่มีใครเช็คอินและไม่ได้ส่ง `confirmNoCheckIn`
+
+**ต่อไป: `WO-2.5-B`** — `court_plus_shuttle` + นโยบายปัดเศษมีผลจริง
 
 ### สิ่งที่ควรทำก่อนเริ่ม Phase 2.5
 
@@ -273,9 +281,9 @@ auto-generate → QR check-in → reminder jobs
 - [ ] **ให้ก๊วนจริงลองใช้** แล้วเก็บ feedback ก่อนตัดสินว่า Phase 2.5 ต้องทำอะไรก่อน
       — รายการใน BACKLOG ยาวกว่าที่ควรทำทั้งหมด
 - [ ] **ปิดช่องที่ยังค้าง** (ดู `BACKLOG.md`) ที่สำคัญที่สุด:
-      guest token อยู่ใน query string · ออกใบจ่ายซ้ำได้ ·
-      `confirmed` ที่ไม่เคยเช็คอินถูกคิดเหมือน no-show (ถ้าแอดมินลืมเปิดคอนโซล
-      ทุกคนจะโดนเก็บเงินหมด)
+      guest token อยู่ใน query string (WO-2.5-F) · ออกใบจ่ายซ้ำได้ (WO-2.5-D)
+- [x] ~~`confirmed` ที่ไม่เคยเช็คอินถูกคิดเหมือน no-show~~ — WO-2.5-A ปิดแล้ว
+      (ปุ่ม "เช็คอินทุกคน" + หน้าสรุปยอด + ด่าน `CONFIRMATION_REQUIRED`)
 
 ---
 
