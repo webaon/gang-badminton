@@ -8,7 +8,8 @@
  */
 import { correlationIdFrom, fail, httpStatusFor, respond } from '@/shared/api';
 import { isAuthorizedCronRequest } from '@/server/cron/auth';
-import { isCronJobName, runCronJob } from '@/server/cron/jobs';
+import { isAppCronJobName, isCronJobName, runCronJob } from '@/server/cron/jobs';
+import { dispatchNotifications } from '@/server/cron/notifications';
 
 // งาน cron แตะฐานข้อมูลจริงทุกครั้ง — ห้าม prerender หรือ cache
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,11 @@ export async function GET(
   }
 
   const { job } = await context.params;
+
+  // งานที่ต้องใช้ runtime ของแอป (ส่ง notification) แยกจากงาน SQL ล้วน
+  if (isAppCronJobName(job)) {
+    return respond(correlationId, () => dispatchNotifications(correlationId));
+  }
 
   if (!isCronJobName(job)) {
     return jsonError('NOT_FOUND', correlationId, `ไม่รู้จักงาน cron ชื่อ "${job}"`);

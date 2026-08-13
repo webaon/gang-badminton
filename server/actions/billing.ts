@@ -190,6 +190,25 @@ export async function closeSessionWithBilling(
 
     if (error) throw error;
 
+    // เตือนจ่ายเฉพาะคนที่มียอดจริง (baseline §โมดูล ข้อ 6 "เตือนจ่าย")
+    if (result.charges.length > 0) {
+      const { error: notifyError } = await supabaseAdmin().rpc('enqueue_session_notification', {
+        p_session_id: sessionId,
+        p_event_type: 'payment.due',
+        p_audience: 'charged',
+        p_correlation_id: correlationId,
+      });
+
+      // เงินถูก commit ไปแล้ว — แจ้งเตือนล้มต้องไม่ทำให้ทั้ง action ล้มตาม
+      if (notifyError) {
+        console.error('[billing] เข้าคิวเตือนจ่ายไม่สำเร็จ', {
+          correlationId,
+          sessionId,
+          message: notifyError.message,
+        });
+      }
+    }
+
     revalidatePath(`/gangs/${first.session.gang_id}/sessions/${sessionId}`);
 
     return {

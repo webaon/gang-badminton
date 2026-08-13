@@ -201,6 +201,28 @@ export async function transitionSession(
 
     if (error) throw error;
 
+    // แจ้งสมาชิกก๊วนเมื่อเปิดรับสมัคร (baseline §โมดูล ข้อ 6 "เปิดรอบใหม่")
+    //
+    // ⚠️ เข้าคิวอย่างเดียว — worker เป็นคนส่ง ⇒ ถ้าคิวมีปัญหาก็ไม่ทำให้การเปิดนัดล้ม
+    //    ซึ่งสำคัญกว่า: แจ้งเตือนช้าได้ แต่เปิดนัดไม่ได้คือปัญหาจริง
+    if (toStatus === 'open') {
+      const { error: notifyError } = await supabaseAdmin().rpc('enqueue_session_notification', {
+        p_session_id: sessionId,
+        p_event_type: 'session.opened',
+        p_audience: 'gang_members',
+        p_correlation_id: correlationId,
+      });
+
+      // 🔴 ห้าม swallow เงียบ — log ไว้ให้ตามได้ แต่ไม่โยนต่อ
+      if (notifyError) {
+        console.error('[sessions] เข้าคิวแจ้งเตือนไม่สำเร็จ', {
+          correlationId,
+          sessionId,
+          message: notifyError.message,
+        });
+      }
+    }
+
     revalidatePath(`/gangs/${session.gang_id}/sessions`);
     return { status: (data as { status: string }).status };
   });

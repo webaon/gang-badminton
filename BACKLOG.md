@@ -110,10 +110,7 @@
 - [ ] **`cancellation_policy` schema ยังไม่นิ่ง** — WO-1.3 ใช้แค่ `cutoff_hours` +
       `allow_cancel_after_cutoff` ส่วนคีย์ penalty (`penalty_type` / `penalty_value`)
       ยังไม่ได้ตกลง ⇒ สรุปให้จบตอนทำ SessionBilling แล้วเขียนลง baseline/ADR
-- [ ] **`claim_notifications()` ยังไม่มีตัวส่งจริง** — [D-11] sweep + backoff ✅ เสร็จใน WO-1.5
-      (`sweep_stuck_notifications()`) แต่ **ยังไม่มี worker ที่ส่งข้อความออกไปจริง**
-      ⇒ จงใจไม่ต่อ `claim_notifications()` เข้ากับ cron เพราะ claim แล้วไม่ส่ง = ข้อความหาย
-      (แถวจะค้าง processing รอ sweep คืนคิววนไป) — ต้องทำพร้อม in-app notification ใน Phase 2
+- [x] ~~**`claim_notifications()` ยังไม่มีตัวส่งจริง**~~ — ✅ WO-2.10 (`/api/cron/notification-dispatch`)
 - [ ] **`rate_limits` ยังไม่มีใครเรียก** — ตาราง + `check_rate_limit()` + cron กวาด ✅ พร้อมแล้ว
       แต่ route handler ของ guest/public ที่ต้องเรียกยังไม่มี (Phase 2)
 
@@ -356,6 +353,24 @@
       ⇒ Phase 2.5 ตาม baseline
 - [ ] **ไม่ได้ตรวจว่ายอดในสลิปตรงกับยอดที่เรียกเก็บ** — แอดมินดูเอง
       (OCR สลิป/เชื่อม API ธนาคารไม่อยู่ใน baseline)
+
+---
+
+## จาก WO-2.10 (Notifications)
+
+- [ ] **`in_app` ไม่มีปลายทางภายนอกให้ยิง** — แถวใน `notifications` คือตัวข้อความเอง
+      worker จึงแค่บันทึกว่าถึงมือแล้ว ที่ยังให้เดินผ่านคิวเพราะ Phase 4 จะมี `line`
+      ที่ต้องยิง API จริง ⇒ ให้ทั้งสอง channel เดินเส้นทางเดียวกันตั้งแต่แรก
+      **ผลข้างเคียง**: กระดิ่งแสดงตั้งแต่ตอนเข้าคิว (ไม่รอ worker) — ตั้งใจ
+- [ ] **ยังไม่มี notification ของ "ประกาศ"** — baseline §โมดูล ข้อ 6 ระบุไว้
+      แต่หน้าประกาศเป็นงาน Phase 3 ⇒ เข้าคิวตอนโพสต์ประกาศได้เมื่อทำหน้านั้น
+- [ ] **แจ้งเตือนเข้าคิวจาก server action ไม่ใช่จาก DB function**
+      เพราะ `transition_session()` / `close_session_with_charges()` apply บน cloud แล้ว
+      การ `CREATE OR REPLACE` ต้องคัดลอก body ทั้งก้อน เสี่ยงพิมพ์ตกในฟังก์ชันที่คุมเงิน
+      ⇒ **เรียก `transition_session()` ตรงจาก SQL (เช่น seed) จะไม่มีแจ้งเตือน** — ยอมรับได้
+      แต่ถ้าวันหนึ่งมี flow อื่นที่เปลี่ยนสถานะโดยไม่ผ่าน server action ต้องเติมเอง
+- [ ] **ไม่มี realtime บนกระดิ่ง** — ต้อง refresh หน้าถึงจะเห็นของใหม่
+      (`notifications` ไม่ได้อยู่ใน publication — เปิดเพิ่มได้ แต่กิน quota free tier)
 
 ---
 

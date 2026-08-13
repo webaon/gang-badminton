@@ -21,20 +21,31 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
  *    - sweep_stuck_notifications → แตะเฉพาะแถวที่ค้างเกิน threshold
  *    - purge_rate_limits         → ลบแถวที่หมดอายุ ซึ่งลบซ้ำก็ไม่มีอะไรให้ลบแล้ว
  *
- * ⚠️ Phase 1 ยังไม่มี worker ส่ง notification จริง — `claim_notifications()` มีแล้ว
- *    แต่ยังไม่มีตัวส่ง ⇒ **จงใจไม่เอามาต่อกับ cron** เพราะ claim แล้วไม่ส่ง
- *    = ข้อความหายเข้ากลีบเมฆ (แถวจะค้าง processing รอ sweep คืนคิวไปเรื่อยๆ)
+ * ✅ **WO-2.10 ต่อ worker ส่ง notification เข้ามาแล้ว** (`notification-dispatch`)
+ *    ตอน Phase 1 จงใจไม่ต่อเพราะยังไม่มีตัวส่ง — claim แล้วไม่ส่ง = ข้อความหาย
  */
+/** งานที่เป็น SQL ล้วน — เรียก DB function ตรง */
 export const CRON_JOBS = {
   'waitlist-sweep': 'sweep_waitlist',
   'notification-sweep': 'sweep_stuck_notifications',
   'rate-limits-purge': 'purge_rate_limits',
 } as const;
 
+/**
+ * งานที่ต้องใช้ runtime ของแอป — ไม่ใช่ SQL ล้วน จึงอยู่ใน Vercel Cron
+ * (baseline §การแบ่งงาน cron แยกสองประเภทนี้ไว้ชัดเจน)
+ */
+export const APP_CRON_JOBS = ['notification-dispatch'] as const;
+export type AppCronJobName = (typeof APP_CRON_JOBS)[number];
+
 export type CronJobName = keyof typeof CRON_JOBS;
 
 export function isCronJobName(value: string): value is CronJobName {
   return Object.prototype.hasOwnProperty.call(CRON_JOBS, value);
+}
+
+export function isAppCronJobName(value: string): value is AppCronJobName {
+  return (APP_CRON_JOBS as readonly string[]).includes(value);
 }
 
 export type CronJobResult = {
