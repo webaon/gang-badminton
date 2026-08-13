@@ -8,6 +8,8 @@ import { can } from '@/domain/permissions/can';
 import type { GangRole } from '@/domain/permissions/types';
 import { fromJson as policyFromJson } from '@/domain/policies/cancellation';
 import { GangSettingsForm } from '@/features/gangs/GangSettingsForm';
+import { PricingAndSkills } from '@/features/gangs/PricingAndSkills';
+import { flatRateFromJson } from '@/domain/policies/pricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,13 +59,33 @@ export default async function GangSettingsPage({
     );
   }
 
+  const { data: plan } = await supabase
+    .from('gang_pricing_plans')
+    .select('id, name, params')
+    .eq('gang_id', gangId)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: skillLevels } = await supabase
+    .from('gang_skill_levels')
+    .select('id, label, rank')
+    .eq('gang_id', gangId)
+    .order('rank');
+
   return (
     <main className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">ตั้งค่าก๊วน</h1>
-        <Link href={`/gangs/${gangId}/members`} className="underline">
-          สมาชิก
-        </Link>
+        <span className="flex gap-3">
+          <Link href={`/gangs/${gangId}/sessions`} className="underline">
+            นัด
+          </Link>
+          <Link href={`/gangs/${gangId}/members`} className="underline">
+            สมาชิก
+          </Link>
+        </span>
       </div>
 
       <Card padding={6}>
@@ -79,6 +101,24 @@ export default async function GangSettingsPage({
           }}
         />
       </Card>
+
+      <div className="mt-4">
+        <Card padding={6}>
+          <PricingAndSkills
+            gangId={gangId}
+            plan={
+              plan
+                ? {
+                    id: plan.id,
+                    name: plan.name,
+                    amountPerPerson: flatRateFromJson(plan.params).amountPerPerson,
+                  }
+                : null
+            }
+            skillLevels={skillLevels ?? []}
+          />
+        </Card>
+      </div>
     </main>
   );
 }

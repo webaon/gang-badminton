@@ -233,11 +233,28 @@
       `upsertPricingPlan()` ปฏิเสธไว้ตั้งแต่ต้นทาง — เปิดใน Phase 2.5
       ⚠️ Game Console (WO-2.7) ยังต้องทำหน้านับลูกตาม baseline แต่ตัวเลขยังไม่เข้าสูตร
       คิดเงินใน MVP-0 จนกว่าจะเปิด `court_plus_shuttle`
-- [ ] **ยังไม่มีหน้าจัดการ skill levels / pricing plan** — server action พร้อมแล้ว
-      (`addSkillLevel` / `removeSkillLevel` / `upsertPricingPlan`) แต่ยังไม่มี UI ต่อ
-      ⇒ ต้องทำก่อนสร้างนัดจริงใน WO-2.4 เพราะ snapshot ต้องมี pricing plan
+- [x] ~~**ยังไม่มีหน้าจัดการ skill levels / pricing plan**~~ — ✅ WO-2.4 (`PricingAndSkills`)
 - [ ] **เปลี่ยน role ตัวเองเป็น member ได้ถ้ามี owner คนอื่นอยู่** — ตั้งใจ (ก๊วนอาจมีหลาย owner)
       แต่ UI ยังไม่เตือนว่ากำลังลดสิทธิ์ตัวเอง ⇒ กดพลาดแล้วต้องให้ owner อีกคนกู้ให้
+
+---
+
+## จาก WO-2.4 (สร้างนัด + snapshot)
+
+- [ ] **Astryx ไม่มี date-time input** — `CreateSessionForm` ใช้ `<input type="datetime-local">`
+      ดิบห่อด้วย label เอง ตาม fallback rule §1 (Tailwind เสริมเมื่อ Astryx ไม่มี prop)
+      ⇒ หน้าตาไม่เข้าชุดกับ TextInput ตัวอื่น และไม่มี validation UI ของ Astryx
+      ทางเลือก: เขียน custom ใน `components/ui/` ที่ใช้ Astryx token · หรือรอ Astryx เพิ่ม
+- [ ] **แก้นัดแล้ว snapshot ไม่เปลี่ยนตาม (ตั้งใจ)** — `updateSession()` ไม่แตะ snapshot
+      ⇒ ถ้าแอดมินแก้ราคาแล้วอยากให้นัดที่สร้างไว้ใช้ราคาใหม่ **ต้องลบแล้วสร้างใหม่**
+      ยังไม่มี UI อธิบายเรื่องนี้ให้แอดมินเข้าใจ
+- [ ] **ยังไม่มีหน้า "นัดของฉัน" ฝั่งสมาชิก** — ตอนนี้ดูนัดได้จากหน้าก๊วนเท่านั้น
+      สมาชิกที่อยู่หลายก๊วนต้องไล่เปิดทีละก๊วน (Phase 2 ปลายๆ)
+- [ ] **`in_play → cancelled` ยังไม่ผ่าน close_session_with_charges** — ปุ่ม "ยกเลิกนัด"
+      ใน `SessionActions` เรียก `transition_session()` ตรง ซึ่งถูกต้องตอนยังไม่มีเงิน
+      แต่ baseline [v3.3] บอกว่ายกเลิกกลางคันต้องคิดเงินบางส่วนแบบ atomic
+      ⇒ WO-2.8 ต้องเปลี่ยนปุ่มนี้ให้เรียก `close_session_with_charges(..., 'cancelled')`
+      เมื่อนัดอยู่ใน `in_play`
 
 ---
 

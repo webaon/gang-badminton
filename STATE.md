@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 13 ส.ค. 2026** · เขียนตอนจบ **WO-2.3**
+> **อัปเดตล่าสุด: 13 ส.ค. 2026** · เขียนตอนจบ **WO-2.4**
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -184,7 +184,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 143 tests, 17 files
+npm test          # vitest run — 168 tests, 19 files
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -208,6 +208,8 @@ npm test          # vitest run — 143 tests, 17 files
 | `tests/auth/safe-next.test.ts` | **WO-2.2** — กัน open redirect ที่พารามิเตอร์ `next` |
 | `tests/domain/policies.test.ts` | **WO-2.3** — schema cancellation/pricing ตาม ADR-002 |
 | `tests/gangs/create-gang.test.ts` | **WO-2.3** — create_gang atomic · ไม่ใช่แอดมินแก้ไม่ได้ · เพิ่มสมาชิกด้วยอีเมล |
+| `tests/domain/timezone.test.ts` | **WO-2.4** — เวลาข้าม timezone + DST + snapshot builder |
+| `tests/sessions/snapshot.test.ts` | **WO-2.4** — ขึ้นราคาแล้วนัดเก่าต้องถือราคาเดิม |
 
 ⚠️ **เทสต์ RLS ต้องห่อด้วย `asRole()` / `visibleCount()` เสมอ** — connection ของเทสต์เป็น
 `postgres` ซึ่งมี BYPASSRLS ถ้าลืมห่อ เทสต์จะผ่านแบบหลอกๆ ทุกครั้งโดยไม่ได้ตรวจ policy เลย
@@ -236,7 +238,7 @@ npm test          # vitest run — 143 tests, 17 files
 
 ---
 
-## 7. ทำอะไรต่อ — WO-2.4 (สร้างนัด + snapshot)
+## 7. ทำอะไรต่อ — WO-2.5 (ลงชื่อ + guest + waitlist)
 
 **Phase 2 แตก WO ไว้ครบ 10 ใบใน `AGENT-EXECUTION.md`** — WO-2.1 เสร็จแล้ว
 
@@ -245,8 +247,9 @@ npm test          # vitest run — 143 tests, 17 files
 | **2.1** App foundation | ✅ **เสร็จ** |
 | **2.2** Auth + โปรไฟล์ | ✅ **เสร็จ** |
 | **2.3** ก๊วน/สมาชิก/pricing | ✅ **เสร็จ** — **ADR-002** ตรึง flat_rate + penalty full_share |
-| **2.4** สร้างนัด + snapshot | ⬜ **ถัดไป** |
-| 2.5 – 2.10 | ⬜ (ดูรายละเอียดใน `AGENT-EXECUTION.md`) |
+| **2.4** สร้างนัด + snapshot | ✅ **เสร็จ** |
+| **2.5** ลงชื่อ + guest + waitlist + realtime | ⬜ **ถัดไป** |
+| 2.6 – 2.10 | ⬜ (ดูรายละเอียดใน `AGENT-EXECUTION.md`) |
 
 ### WO-2.1 ทิ้งอะไรไว้ให้ใช้
 
