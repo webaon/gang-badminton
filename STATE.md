@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 13 ส.ค. 2026** · เขียนตอนจบ **WO-2.8**
+> **อัปเดตล่าสุด: 13 ส.ค. 2026** · เขียนตอนจบ **WO-2.9**
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -83,7 +83,7 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 | | |
 |---|---|
 | project / ref | **gang-badminton** · `emmzeriekkjryhucvctx` |
-| migrations ที่ apply แล้ว | **13 / 13** ✅ (push แล้ว 12 ส.ค. 2026) |
+| migrations ที่ apply แล้ว | **21 / 21** ✅ (push ล่าสุด 13 ส.ค. 2026) |
 | ข้อมูลใน DB | 0 แถวทุกตาราง (ไม่ได้ push seed ขึ้นไป — `seeds: []`) |
 | RLS | ✅ 29/29 ตาราง · 50 policies + 16 บน storage.objects |
 | storage | ✅ 4 buckets · cron ✅ 3 jobs active |
@@ -184,7 +184,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 275 tests, 26 files
+npm test          # vitest run — 295 tests, 28 files
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -217,6 +217,8 @@ npm test          # vitest run — 275 tests, 26 files
 | `tests/sessions/game-console.test.ts` | **WO-2.7** — เช็คอิน · คิวสด · guest ลงเกม · ลูกทศนิยม · สลับตัว |
 | `tests/domain/billing.test.ts` | **WO-2.8** — money invariant property-based (3/7/13 คน) + penalty ทุกเคส |
 | `tests/sessions/close-billing.test.ts` | **WO-2.8** — domain ต่อกับ `close_session_with_charges()` จริง |
+| `tests/domain/promptpay.test.ts` | **WO-2.9** — payload EMVCo + ยอดถูกฝังจริง |
+| `tests/sessions/payments.test.ts` | **WO-2.9** — state machine · verify แล้วแก้ไม่ได้ · สลิปไม่รั่ว |
 
 ⚠️ **เทสต์ RLS ต้องห่อด้วย `asRole()` / `visibleCount()` เสมอ** — connection ของเทสต์เป็น
 `postgres` ซึ่งมี BYPASSRLS ถ้าลืมห่อ เทสต์จะผ่านแบบหลอกๆ ทุกครั้งโดยไม่ได้ตรวจ policy เลย
@@ -245,7 +247,7 @@ npm test          # vitest run — 275 tests, 26 files
 
 ---
 
-## 7. ทำอะไรต่อ — WO-2.9 (Payments)
+## 7. ทำอะไรต่อ — WO-2.10 (Notifications) แล้วจบ MVP-0
 
 **Phase 2 แตก WO ไว้ครบ 10 ใบใน `AGENT-EXECUTION.md`** — WO-2.1 เสร็จแล้ว
 
@@ -259,8 +261,8 @@ npm test          # vitest run — 275 tests, 26 files
 | **2.6** Matching Engine (pure domain) | ✅ **เสร็จ** — **ADR-003** ตรึงข้อตกลงแบ่งทีม |
 | **2.7** Game Console | ✅ **เสร็จ** |
 | **2.8** SessionBilling + money invariants | ✅ **เสร็จ** — **ADR-004** สัดส่วนยกเลิกกลางคัน |
-| **2.9** Payments — PromptPay + สลิป + verify | ⬜ **ถัดไป** |
-| 2.10 | ⬜ In-app notifications + worker |
+| **2.9** Payments — PromptPay + สลิป + verify | ✅ **เสร็จ** |
+| **2.10** In-app notifications + worker | ⬜ **ถัดไป** — ใบสุดท้ายของ MVP-0 |
 
 ### WO-2.1 ทิ้งอะไรไว้ให้ใช้
 

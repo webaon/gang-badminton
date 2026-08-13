@@ -88,6 +88,9 @@ export default async function SessionDetailPage({
               คอนโซล
             </Link>
           ) : null}
+          <Link href={`/gangs/${gangId}/sessions/${sessionId}/pay`} className="underline">
+            จ่ายเงิน
+          </Link>
           <Link href={`/gangs/${gangId}/sessions`} className="underline">
             นัดทั้งหมด
           </Link>
