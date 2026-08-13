@@ -220,6 +220,27 @@
 
 ---
 
+## จาก WO-2.3 (ก๊วน/สมาชิก/pricing)
+
+- [ ] **เชิญคนที่ยังไม่มีบัญชีเข้าก๊วนไม่ได้** [D-18] — `add_gang_member_by_email()` หาได้เฉพาะ
+      คนที่สมัครแล้ว เพราะ `gang_members.user_id` เป็น NOT NULL
+      ⇒ ตอนนี้ต้องบอกให้เขาสมัครเองก่อน แล้วแอดมินค่อยเพิ่ม
+      ลิงก์เชิญเข้าก๊วน (แบบเดียวกับ `session_invite_tokens`) เป็นงาน Phase 3 พร้อม discovery
+- [ ] **`penalty_type` แบบ `fixed` / `percent` ยังไม่ implement** (ADR-002)
+      UI เตือนไว้แล้วว่าเลือกได้แต่ระบบยังคิดให้ไม่ได้ ⇒ `domain/billing` (WO-2.8)
+      ต้อง raise ถ้าเจอ **ห้ามคิดเป็น 0 เงียบๆ** (`isImplemented()` มีให้เรียกแล้ว)
+- [ ] **pricing โมเดล `court_plus_shuttle` / `monthly` ยังไม่ implement** (ADR-002)
+      `upsertPricingPlan()` ปฏิเสธไว้ตั้งแต่ต้นทาง — เปิดใน Phase 2.5
+      ⚠️ Game Console (WO-2.7) ยังต้องทำหน้านับลูกตาม baseline แต่ตัวเลขยังไม่เข้าสูตร
+      คิดเงินใน MVP-0 จนกว่าจะเปิด `court_plus_shuttle`
+- [ ] **ยังไม่มีหน้าจัดการ skill levels / pricing plan** — server action พร้อมแล้ว
+      (`addSkillLevel` / `removeSkillLevel` / `upsertPricingPlan`) แต่ยังไม่มี UI ต่อ
+      ⇒ ต้องทำก่อนสร้างนัดจริงใน WO-2.4 เพราะ snapshot ต้องมี pricing plan
+- [ ] **เปลี่ยน role ตัวเองเป็น member ได้ถ้ามี owner คนอื่นอยู่** — ตั้งใจ (ก๊วนอาจมีหลาย owner)
+      แต่ UI ยังไม่เตือนว่ากำลังลดสิทธิ์ตัวเอง ⇒ กดพลาดแล้วต้องให้ owner อีกคนกู้ให้
+
+---
+
 ## จาก baseline ที่ยังไม่มี WO (บันทึกกันลืม)
 
 - [ ] Phase 2 ยังไม่แตก WO — baseline สั่งให้แตกตอนจบ Phase 1 (อย่าแตกล่วงหน้า)

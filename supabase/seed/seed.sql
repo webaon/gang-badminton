@@ -84,7 +84,8 @@ begin
     'ตีกันทุกวันพุธกับวันเสาร์ สนามในร่ม 3 คอร์ท',
     'ลาดพร้าว กรุงเทพฯ', true, '0812345678', 'Asia/Bangkok',
     -- cutoff 12 ชม. · ยกเลิกหลัง cutoff ได้แต่โดน penalty
-    '{"cutoff_hours": 12, "allow_cancel_after_cutoff": true}'::jsonb,
+    -- ADR-002 schema เต็ม
+    '{"cutoff_hours": 12, "allow_cancel_after_cutoff": true, "penalty_type": "full_share"}'::jsonb,
     '{"line": false, "discovery": true, "guests": true, "coupons": false, "statistics": true}'::jsonb,
     v_user_ids[1]
   )
@@ -116,8 +117,10 @@ begin
     id, gang_id, name, type, params, rounding_policy, monthly_member_pays_shuttle, created_by
   )
   values (
-    k_plan, k_gang, 'ค่าคอร์ท + ค่าลูก (หารเท่า)', 'court_plus_shuttle',
-    '{"court_fee_total": "900.00", "shuttle_price": "25.00"}'::jsonb,
+    -- ADR-002: MVP-0 ทำ flat_rate โมเดลเดียว ⇒ seed ต้องสะท้อนของที่ทำจริง
+    -- ไม่ใช่ของที่ยังทำไม่ได้ (court_plus_shuttle เป็นงาน Phase 2.5)
+    k_plan, k_gang, 'เหมาจ่ายต่อหัว', 'flat_rate',
+    '{"amount_per_person": "200.00"}'::jsonb,
     '{"mode": "ceil_baht", "surplus_to": "gang"}'::jsonb,
     true, v_user_ids[1]
   )
@@ -201,13 +204,13 @@ begin
 
     perform public.transition_session(k_past, 'in_play', v_user_ids[1], 'seed');
 
-    -- คิดเงิน: ค่าคอร์ท 900 หาร 6 = 150 + ค่าลูก 2 ลูก/คน × 25 = 50 ⇒ 200 บาท
-    -- (ของจริงคำนวณใน domain/billing ฝั่ง TS — ที่นี่ใส่ตัวเลขตรงๆ เพราะ Phase 2 ยังไม่เขียน)
+    -- คิดเงิน: flat_rate 200 บาท/คน (ADR-002)
+    -- ของจริงคำนวณใน domain/billing ฝั่ง TS — ที่นี่ใส่ตัวเลขตรงๆ เพราะ WO-2.8 ยังไม่ถึง
     select jsonb_agg(
              jsonb_build_object(
                'registration_id', r.id,
                'amount', '200.00',
-               'breakdown', jsonb_build_object('court', '150.00', 'shuttle', '50.00')
+               'breakdown', jsonb_build_object('flat_rate', '200.00')
              )
            )
       into v_charges
