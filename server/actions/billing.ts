@@ -9,7 +9,12 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { assertCan } from '@/domain/permissions/can';
 import type { GangRole } from '@/domain/permissions/types';
 import { fromJson as cancellationFromJson } from '@/domain/policies/cancellation';
-import { flatRateFromJson } from '@/domain/policies/pricing';
+import {
+  courtPlusShuttleFromJson,
+  flatRateFromJson,
+  roundingFromJson,
+} from '@/domain/policies/pricing';
+import { fromSatang, sumSatang, toSatang } from '@/domain/billing/money';
 import { assertUsableSnapshot } from '@/domain/sessions/snapshot';
 import {
   calculateSessionCharges,
@@ -54,7 +59,8 @@ async function loadBillingContext(sessionId: string) {
   // fail เร็วถ้า snapshot ใช้การไม่ได้ ดีกว่าคิดเงินผิดแล้วไปรู้ทีหลัง
   assertUsableSnapshot(session.snapshot);
   const snapshot = session.snapshot as {
-    pricing_plan: { type: string; params: unknown };
+    pricing_plan: { type: string; params: unknown; monthly_member_pays_shuttle?: boolean };
+    rounding_policy?: unknown;
     cancellation_policy: unknown;
   };
 
@@ -91,12 +97,38 @@ async function loadBillingContext(sessionId: string) {
     isMonthlyMember: r.user_id !== null && monthly.has(r.user_id),
   }));
 
+  /**
+   * จำนวนลูกที่ใช้ทั้งนัด — **[WO-2.5-B]** ต้องใช้เฉพาะ `court_plus_shuttle`
+   *
+   * ⚠️ อ่านจาก `games` ตอนปิดรอบ ไม่ได้อยู่ใน snapshot (snapshot แช่แข็ง "ราคา"
+   *    ส่วนนี่คือ "ปริมาณ" ที่เกิดระหว่างนัด — WO-2.5-A ทำให้แก้ได้ก่อนปิดรอบ)
+   *
+   * ⚠️ บวกกันในหน่วย 1/100 ลูก ด้วย helper ของเงิน เพราะเป็นทศนิยม 2 ตำแหน่ง
+   *    เหมือนกัน ⇒ ไม่มี float เข้ามาเกี่ยว
+   */
+  let shuttlesUsedTotal: string | undefined;
+  if (snapshot.pricing_plan.type === 'court_plus_shuttle') {
+    const { data: games } = await admin
+      .from('games')
+      .select('shuttles_used')
+      .eq('session_id', sessionId);
+
+    shuttlesUsedTotal = fromSatang(
+      sumSatang((games ?? []).map((g) => toSatang(String(g.shuttles_used ?? '0')))),
+    );
+  }
+
   return {
     session,
     participants,
+    shuttlesUsedTotal,
     billingSnapshot: {
       pricingType: snapshot.pricing_plan.type,
       amountPerPerson: flatRateFromJson(snapshot.pricing_plan.params).amountPerPerson,
+      courtPlusShuttle: courtPlusShuttleFromJson(snapshot.pricing_plan.params),
+      roundingPolicy: roundingFromJson(snapshot.rounding_policy),
+      // snapshot เก่าไม่มีคีย์นี้ ⇒ true = default ของ schema (ค่าลูกคิดตามจริง)
+      monthlyMemberPaysShuttle: snapshot.pricing_plan.monthly_member_pays_shuttle ?? true,
       cancellationPolicy: cancellationFromJson(snapshot.cancellation_policy),
     },
   };
@@ -133,6 +165,12 @@ export type ChargePreviewRow = {
 
 export type BillingPreview = {
   sessionStatus: string;
+  /** โมเดลคิดเงินที่แช่แข็งไว้ใน snapshot ของนัดนี้ */
+  pricingType: string;
+  /** จำนวนลูกที่ใช้ทั้งนัด — มีเฉพาะ `court_plus_shuttle` [WO-2.5-B] */
+  shuttlesUsedTotal?: string;
+  /** เศษจากการปัด (ติดลบ = ก๊วนรับส่วนต่างเอง) */
+  roundingSurplus: string;
   rows: ChargePreviewRow[];
   total: string;
   chargedCount: number;
@@ -177,6 +215,7 @@ export async function previewSessionCharges(
       snapshot: context.billingSnapshot,
       participants: context.participants,
       startsAt: new Date(context.session.starts_at),
+      shuttlesUsedTotal: context.shuttlesUsedTotal,
       ...(toStatus === 'cancelled'
         ? {
             midwayCancelRatio:
@@ -223,6 +262,9 @@ export async function previewSessionCharges(
 
     return {
       sessionStatus: context.session.status,
+      pricingType: context.billingSnapshot.pricingType,
+      shuttlesUsedTotal: context.shuttlesUsedTotal,
+      roundingSurplus: result.roundingSurplus,
       rows,
       total: result.totalCollected,
       chargedCount: result.charges.length,
@@ -317,6 +359,7 @@ export async function closeSessionWithBilling(
         snapshot: context.billingSnapshot,
         participants: context.participants,
         startsAt: new Date(context.session.starts_at),
+        shuttlesUsedTotal: context.shuttlesUsedTotal,
         // [ADR-004] ยกเลิกกลางคัน: ใช้ค่าที่แอดมินระบุ ไม่งั้นใช้ค่าตั้งต้นของก๊วน
         // ที่แช่แข็งไว้ใน snapshot (ไม่ใช่ค่าปัจจุบันของก๊วน — baseline §Snapshot rule)
         ...(toStatus === 'cancelled'

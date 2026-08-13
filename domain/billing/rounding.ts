@@ -70,6 +70,33 @@ export function splitEvenly(total: Satang, people: number, mode: RoundingMode): 
 }
 
 /**
+ * แบ่งต้นทุนเป็น "ส่วนที่ควรจ่ายจริง" ของแต่ละคน แบบจำนวนเต็มสตางค์ที่**บวกกันได้ต้นทุนเป๊ะ**
+ *
+ * ใช้วิธี largest remainder: คนแรกๆ รับเศษคนละ 1 สตางค์จนเศษหมด
+ * ⇒ `sum(shares) === total` เสมอ ไม่ว่าจะหารลงตัวหรือไม่
+ *
+ * 🔴 ทำไมต้องมี: `rounding_surplus` ต่อ charge จะมีความหมายก็ต่อเมื่อรู้ว่า
+ *    "ส่วนที่ควรจ่ายจริง" ของคนนั้นคือเท่าไหร่ — ไม่งั้นเก็บได้แค่ตัวเลขระดับนัด
+ *    แล้ว reconcile รายคนไม่ได้ (คนทักว่า "ทำไมผมจ่าย 251 ทั้งที่หาร 3 ได้ 250.33")
+ *
+ * ⚠️ ลำดับมีผล — คนที่อยู่ index ต้นๆ รับเศษก่อน แต่ผลรวมเท่ากันเสมอ
+ *    เรียก billing ด้วยลำดับ participants ที่คงที่ ⇒ คิดใหม่กี่รอบก็ได้ผลเดิม
+ */
+export function distributeExactShares(total: Satang, people: number): Satang[] {
+  if (!Number.isInteger(total)) {
+    throw new Error(`ต้นทุนต้องเป็นจำนวนเต็มสตางค์: ${total}`);
+  }
+  if (!Number.isInteger(people) || people < 1) {
+    throw new Error(`จำนวนคนต้องเป็นจำนวนเต็มตั้งแต่ 1: ${people}`);
+  }
+
+  const base = Math.floor(total / people);
+  const remainder = total - base * people;
+
+  return Array.from({ length: people }, (_, index) => base + (index < remainder ? 1 : 0));
+}
+
+/**
  * ตรวจ invariant ให้ชัดเจนในที่เดียว
  *
  * เรียกจาก billing ก่อนคืนผลลัพธ์ ⇒ ถ้าวันหนึ่งมีคนแก้สูตรจนเพี้ยน

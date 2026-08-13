@@ -83,7 +83,17 @@ export default async function CloseSessionPage({
     );
   }
 
-  const { rows, total, chargedCount, checkedInCount, needsConfirmation, warnings } = preview.data;
+  const {
+    rows,
+    total,
+    chargedCount,
+    checkedInCount,
+    needsConfirmation,
+    warnings,
+    pricingType,
+    shuttlesUsedTotal,
+    roundingSurplus,
+  } = preview.data;
 
   type PreviewRow = {
     name: string;
@@ -113,10 +123,18 @@ export default async function CloseSessionPage({
       ))}
 
       <Card padding={4}>
-        <p className="mb-3 text-sm">
+        <p className="mb-1 text-sm">
           เก็บ {chargedCount} คน · รวม <strong>{total} บาท</strong> · เช็คอินแล้ว {checkedInCount}{' '}
           คน
         </p>
+
+        {/* [WO-2.5-B] โมเดลที่มีการหารจริงเท่านั้นที่มีเศษให้รายงาน */}
+        {pricingType === 'court_plus_shuttle' ? (
+          <p className="mb-3 text-sm opacity-70">
+            ใช้ลูกทั้งหมด {shuttlesUsedTotal ?? '0'} ลูก · เศษจากการปัดเข้าก๊วน {roundingSurplus}{' '}
+            บาท
+          </p>
+        ) : null}
 
         <Table
           data={tableRows}

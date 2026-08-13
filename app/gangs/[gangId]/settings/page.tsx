@@ -9,7 +9,12 @@ import type { GangRole } from '@/domain/permissions/types';
 import { fromJson as policyFromJson } from '@/domain/policies/cancellation';
 import { GangSettingsForm } from '@/features/gangs/GangSettingsForm';
 import { PricingAndSkills } from '@/features/gangs/PricingAndSkills';
-import { flatRateFromJson } from '@/domain/policies/pricing';
+import {
+  courtPlusShuttleFromJson,
+  flatRateFromJson,
+  roundingFromJson,
+  type PricingType,
+} from '@/domain/policies/pricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,7 +66,7 @@ export default async function GangSettingsPage({
 
   const { data: plan } = await supabase
     .from('gang_pricing_plans')
-    .select('id, name, params')
+    .select('id, name, type, params, rounding_policy, monthly_member_pays_shuttle')
     .eq('gang_id', gangId)
     .eq('is_active', true)
     .order('created_at', { ascending: false })
@@ -111,7 +116,12 @@ export default async function GangSettingsPage({
                 ? {
                     id: plan.id,
                     name: plan.name,
+                    type: plan.type as PricingType,
                     amountPerPerson: flatRateFromJson(plan.params).amountPerPerson,
+                    courtFeeTotal: courtPlusShuttleFromJson(plan.params).courtFeeTotal,
+                    shuttlePrice: courtPlusShuttleFromJson(plan.params).shuttlePrice,
+                    roundingMode: roundingFromJson(plan.rounding_policy).mode,
+                    monthlyMemberPaysShuttle: plan.monthly_member_pays_shuttle ?? true,
                   }
                 : null
             }

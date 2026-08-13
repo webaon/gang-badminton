@@ -405,7 +405,7 @@ DoD ทั้ง 4 ข้อผ่านจริง:
 
 ---
 
-## WO-2.5-B: `court_plus_shuttle` + นโยบายปัดเศษมีผลจริง
+## WO-2.5-B: `court_plus_shuttle` + นโยบายปัดเศษมีผลจริง ✅ **เสร็จ (13 ส.ค. 2026)**
 
 **Goal**: ก๊วนที่คิดค่าคอร์ท+ค่าลูกตามจริงใช้ระบบได้ และ invariant ปัดเศษถูกพิสูจน์ด้วยเคสจริง
 
@@ -425,6 +425,20 @@ DoD ทั้ง 4 ข้อผ่านจริง:
 - ห้ามลบ guard `isImplemented()` — เปิดเฉพาะตัวที่ทำเสร็จจริง
 
 **References**: **ADR-002** · baseline §การตัดสินใจสะสม (นโยบายปัดเศษ — blocker) · `domain/billing/rounding.ts`
+
+**ผลลัพธ์** — **ADR-005** (หารค่าสนาม/ค่าลูกแยกก้อน + เศษรายคนแบบ largest remainder) ·
+ไม่มี migration ใหม่ (คอลัมน์ `court_fee_total`/`shuttle_price`/`monthly_member_pays_shuttle`
+มีมาตั้งแต่ 0003) · เทสต์ใหม่ 30 ตัว (`tests/domain/court-plus-shuttle.test.ts` 22 +
+`tests/sessions/court-billing.test.ts` 6 + policies 2)
+
+DoD ทั้ง 5 ข้อผ่านจริง:
+- money invariant ที่ 3/7/13 คน × 3 โหมดปัดเศษ — **surplus ≠ 0 จริง** (เทสต์ assert ข้อนี้ตรงๆ
+  ไม่งั้นเทสต์จะผ่านแบบไม่ได้พิสูจน์อะไร)
+- `rounding_surplus` ต่อ charge เป็นค่าจริง และ**บวกกันได้ surplus ของนัดเป๊ะ**
+- นัดเก่าที่ snapshot เป็น `flat_rate` คิดได้ยอดเดิมทุกบาท — มีเทสต์ที่ใช้ snapshot
+  รูปแบบก่อน WO นี้ (ไม่มี `courtPlusShuttle`/`roundingPolicy`) โดยตรง
+- ค่าลูกของสมาชิกรายเดือนตาม `monthly_member_pays_shuttle` · ค่าสนาม = 0 เสมอ
+- เลือกโมเดล + โหมดปัดเศษได้จากหน้าตั้งค่าก๊วน
 
 ---
 

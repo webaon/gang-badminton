@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — `WO-2.5-A` เสร็จแล้ว
+> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — `WO-2.5-A`, `WO-2.5-B` เสร็จแล้ว
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -272,7 +272,20 @@ auto-generate → QR check-in → reminder jobs
 - ปิดรอบต้องผ่านหน้า `/gangs/[gangId]/sessions/[sessionId]/close` — `closeSessionWithBilling()`
   ปฏิเสธด้วย `CONFIRMATION_REQUIRED` ถ้าไม่มีใครเช็คอินและไม่ได้ส่ง `confirmNoCheckIn`
 
-**ต่อไป: `WO-2.5-B`** — `court_plus_shuttle` + นโยบายปัดเศษมีผลจริง
+✅ **`WO-2.5-B` เสร็จแล้ว** (13 ส.ค. 2026) — **ไม่มี migration ใหม่** (schema มีคอลัมน์ครบตั้งแต่ 0003)
+⇒ cloud ยังตรงกับ local ที่ 24 migrations
+
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- `IMPLEMENTED_PRICING_TYPES` = `flat_rate` + `court_plus_shuttle` — `monthly` ยัง**ปิดอยู่**
+  จนกว่า WO-2.5-C จะมี MembershipBilling จริง
+- **ADR-005** ตรึงวิธีหาร: ค่าสนามหารเฉพาะคนที่ไม่ใช่สมาชิกรายเดือน · ค่าลูกตาม
+  `monthly_member_pays_shuttle` · ปัดแยกก้อน · เศษรายคนอยู่ใน `breakdown.rounding_surplus`
+  และบวกกันได้ surplus ของนัดเป๊ะ
+- snapshot มีคีย์ใหม่ `pricing_plan.monthly_member_pays_shuttle` (additive ไม่ขึ้น version)
+- `calculateSessionCharges()` ต้องได้ `shuttlesUsedTotal` เมื่อเป็น `court_plus_shuttle`
+  — **throw ถ้าไม่ส่ง** ห้าม default 0
+
+**ต่อไป: `WO-2.5-C`** — MembershipBilling (รายเดือน)
 
 ### สิ่งที่ควรทำก่อนเริ่ม Phase 2.5
 

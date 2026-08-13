@@ -318,11 +318,9 @@
 
 ### 🔴 ผลข้างเคียงของ ADR-002 ที่ต้องรู้
 
-- [ ] **`flat_rate` ไม่มีการหาร ⇒ นโยบายปัดเศษยังไม่ถูกใช้จริงใน MVP-0**
-      `rounding_surplus` ในทุก charge เป็น `0.00` เสมอ และ `rounding_policy` ใน snapshot
-      ถูกเก็บไว้เฉยๆ ⇒ **invariant ที่ baseline เรียกว่า blocker ยังไม่มีเคสจริงให้พิสูจน์**
-      แก้ด้วยการ implement `domain/billing/rounding.ts` แยกแล้วพิสูจน์ property-based
-      ที่ 3/7/13 คนตรงๆ (พร้อมใช้ทันทีเมื่อเปิด `court_plus_shuttle` ใน Phase 2.5)
+- [x] ~~**`flat_rate` ไม่มีการหาร ⇒ นโยบายปัดเศษยังไม่ถูกใช้จริงใน MVP-0**~~ — ✅ **WO-2.5-B**
+      `court_plus_shuttle` ใช้ `splitEvenly()` จริงแล้ว · เทสต์ที่ 3/7/13 คน × 3 โหมด
+      assert ว่า **surplus ≠ 0** ⇒ invariant มีเคสจริงพิสูจน์แล้ว (ADR-005)
 - [x] ~~**สัดส่วนเก็บเงินตอนยกเลิกกลางคันไม่มีที่เก็บใน policy**~~ — ✅ **ADR-004**
       เพิ่ม `midway_cancel_ratio` เข้า schema · ก๊วนตั้งค่าตั้งต้นเองได้ในหน้าตั้งค่า ·
       แอดมินแก้ได้อีกทีตอนกดยกเลิกจริง · ค่าที่ใช้จริงบันทึกลง `breakdown`

@@ -13,8 +13,17 @@
  * MVP-0 รองรับ `flat_rate` โมเดลเดียว (ADR-002)
  */
 import { fromSatang, sumSatang, toSatang, type Satang } from './money';
+import { assertSplitInvariant, distributeExactShares, splitEvenly } from './rounding';
 import type { CancellationPolicy, PenaltyType } from '../policies/cancellation';
 import { isImplemented as isPenaltyImplemented } from '../policies/cancellation';
+import {
+  DEFAULT_ROUNDING_POLICY,
+  isImplemented as isPricingImplemented,
+  type CourtPlusShuttleParams,
+  type PricingType,
+  type RoundingMode,
+  type RoundingPolicy,
+} from '../policies/pricing';
 
 /** สถานะของการลงชื่อ ณ ตอนปิดรอบ */
 export type ParticipantStatus = 'checked_in' | 'confirmed' | 'no_show' | 'cancelled' | 'waitlist';
@@ -39,6 +48,15 @@ export type BillingSnapshot = {
   /** `flat_rate` → ราคาต่อคน เป็น string เสมอ */
   amountPerPerson: string;
   cancellationPolicy: CancellationPolicy;
+  /**
+   * **[WO-2.5-B]** ค่าสนาม/ค่าลูก — ต้องมีเมื่อ `pricingType === 'court_plus_shuttle'`
+   * เป็น optional เพื่อให้ snapshot ของ `flat_rate` ไม่ต้องแบกคีย์ที่ไม่ใช้
+   */
+  courtPlusShuttle?: CourtPlusShuttleParams;
+  /** ไม่ส่ง = `ceil_baht` ตาม default ของ baseline */
+  roundingPolicy?: RoundingPolicy;
+  /** ค่าลูกของสมาชิกรายเดือน — ไม่ส่ง = คิดตามจริง (default ของ schema) */
+  monthlyMemberPaysShuttle?: boolean;
 };
 
 export type BillingInput = {
@@ -57,6 +75,17 @@ export type BillingInput = {
    *    ไม่งั้นยอดจะถูกหั่นโดยไม่มีใครตั้งใจ
    */
   midwayCancelRatio?: number;
+  /**
+   * จำนวนลูกที่ใช้ทั้งนัด — ผลรวมของ `games.shuttles_used` **[WO-2.5-B]**
+   *
+   * 🔴 ต้องส่งเมื่อ `pricingType === 'court_plus_shuttle'` ไม่งั้น throw
+   *    ❌ ห้าม default เป็น 0 เงียบๆ — ก๊วนจะเก็บแต่ค่าสนาม แล้วขาดทุนค่าลูกทั้งนัด
+   *    โดยไม่มีอะไรฟ้อง
+   *
+   * ⚠️ ตัวเลขนี้ **ไม่ได้อยู่ใน snapshot** เพราะเป็นสิ่งที่เกิดระหว่างนัด ไม่ใช่ราคา
+   *    (WO-2.5-A ทำให้แก้ได้ก่อนปิดรอบ — นี่คือเหตุผลที่ใบนั้นต้องมาก่อนใบนี้)
+   */
+  shuttlesUsedTotal?: string;
 };
 
 export type Charge = {
@@ -70,7 +99,13 @@ export type BillingResult = {
   charges: Charge[];
   /** ยอดรวมที่เก็บได้ */
   totalCollected: string;
-  /** เศษที่เข้ารายรับก๊วน — `flat_rate` ไม่มีการหารจึงเป็น 0 เสมอ */
+  /**
+   * ส่วนต่าง `เก็บได้ − ต้นทุนจริง`
+   *
+   * - `flat_rate` ไม่มีการหาร ⇒ 0 เสมอ
+   * - `court_plus_shuttle` = เศษจากการปัดตาม policy (ติดลบได้ถ้าโหมด `absorb`
+   *   หรือถ้าค่าสนามไม่มีใครหารเพราะทุกคนเป็นสมาชิกรายเดือน)
+   */
   roundingSurplus: string;
 };
 
@@ -119,26 +154,64 @@ function chargeReason(
   }
 }
 
+type Payer = { participant: Participant; reason: string };
+
+/**
+ * ผลการหารต้นทุนก้อนหนึ่ง (ค่าสนาม หรือ ค่าลูก)
+ *
+ * `shares` = "ส่วนที่ควรจ่ายจริง" ของแต่ละคน (บวกกันได้ต้นทุนเป๊ะ)
+ * ใช้คู่กับ `perPerson` เพื่อรู้ว่าใครจ่ายเกินจากการปัดไปกี่สตางค์
+ */
+type CostSplit = {
+  perPerson: Satang;
+  shares: Satang[];
+  surplus: Satang;
+  total: Satang;
+};
+
+/**
+ * หารต้นทุนก้อนหนึ่งให้กลุ่มผู้จ่าย
+ *
+ * 🔴 กรณี **ไม่มีใครต้องจ่ายก้อนนี้เลย** (เช่นทุกคนเป็นสมาชิกรายเดือน ⇒ ไม่มีใครหารค่าสนาม)
+ *    ต้นทุนไม่ได้หายไปไหน — ก๊วนรับเอง ⇒ `surplus` ติดลบเท่าต้นทุนก้อนนั้น
+ *    ❌ ห้ามคืน 0 เฉยๆ เพราะรายงานจะดูเหมือนนัดนั้นไม่มีค่าสนาม
+ */
+function splitCost(total: Satang, people: number, mode: RoundingMode): CostSplit {
+  if (people === 0) {
+    return { perPerson: 0, shares: [], surplus: -total, total };
+  }
+
+  const split = splitEvenly(total, people, mode);
+  assertSplitInvariant(split);
+
+  return {
+    perPerson: split.perPerson,
+    shares: distributeExactShares(total, people),
+    surplus: split.surplus,
+    total,
+  };
+}
+
 /**
  * คิดยอดต่อคน
  *
- * @throws ถ้า snapshot ใช้ pricing/penalty ที่ MVP-0 ยังไม่รองรับ
+ * @throws ถ้า snapshot ใช้ pricing/penalty ที่ยังไม่รองรับ
  *         — **ห้ามคิดเป็น 0 เงียบๆ** (ADR-002) เพราะก๊วนตั้งค่าไว้แล้วระบบไม่เก็บ
  *           โดยไม่มีใครรู้ คือความเสียหายที่มองไม่เห็น
  */
 export function calculateSessionCharges(input: BillingInput): BillingResult {
   const { snapshot, participants, startsAt } = input;
 
-  if (snapshot.pricingType !== 'flat_rate') {
+  if (!isPricingImplemented(snapshot.pricingType as PricingType)) {
     throw new Error(
-      `ยังคิดเงินโมเดล "${snapshot.pricingType}" ไม่ได้ — MVP-0 รองรับ flat_rate เท่านั้น (ADR-002)`,
+      `ยังคิดเงินโมเดล "${snapshot.pricingType}" ไม่ได้ — รองรับ ${IMPLEMENTED_LABEL} เท่านั้น`,
     );
   }
 
   const penaltyType: PenaltyType = snapshot.cancellationPolicy.penaltyType;
   if (!isPenaltyImplemented(penaltyType)) {
     throw new Error(
-      `ยังคิด penalty แบบ "${penaltyType}" ไม่ได้ — MVP-0 รองรับ full_share กับ none เท่านั้น (ADR-002)`,
+      `ยังคิด penalty แบบ "${penaltyType}" ไม่ได้ — รองรับ full_share กับ none เท่านั้น (ADR-002)`,
     );
   }
 
@@ -148,14 +221,30 @@ export function calculateSessionCharges(input: BillingInput): BillingResult {
     throw new Error(`สัดส่วนการเก็บเงินต้องอยู่ระหว่าง 0 ถึง 1: ${ratio}`);
   }
 
-  const fullShare = toSatang(snapshot.amountPerPerson);
-
-  const charges: Charge[] = [];
-
+  const payers: Payer[] = [];
   for (const participant of participants) {
     const { pays, reason } = chargeReason(participant, startsAt, snapshot.cancellationPolicy);
-    if (!pays) continue;
+    if (pays) payers.push({ participant, reason });
+  }
 
+  return snapshot.pricingType === 'court_plus_shuttle'
+    ? courtPlusShuttleCharges(input, payers, ratio)
+    : flatRateCharges(input, payers, ratio);
+}
+
+const IMPLEMENTED_LABEL = 'flat_rate กับ court_plus_shuttle';
+
+/**
+ * `flat_rate` — ทุกคนจ่ายเท่ากันต่อหัว ไม่มีการหาร ⇒ ไม่มีเศษ (ADR-002)
+ *
+ * 🔴 ห้ามแก้พฤติกรรมของฟังก์ชันนี้เมื่อเพิ่มโมเดลใหม่
+ *    นัดเก่าที่ snapshot เป็น `flat_rate` ต้องคิดได้ยอดเดิมทุกบาทตลอดไป
+ */
+function flatRateCharges(input: BillingInput, payers: Payer[], ratio: number): BillingResult {
+  const fullShare = toSatang(input.snapshot.amountPerPerson);
+  const charges: Charge[] = [];
+
+  for (const { participant, reason } of payers) {
     // สมาชิกรายเดือน: ค่าสนามเป็น 0 เสมอ (baseline §การตัดสินใจสะสม)
     // `flat_rate` ไม่ได้แยกค่าลูกออกมา ⇒ ไม่มีอะไรเหลือให้เก็บ
     const base = participant.isMonthlyMember ? 0 : fullShare;
@@ -184,6 +273,105 @@ export function calculateSessionCharges(input: BillingInput): BillingResult {
     totalCollected: fromSatang(totalCollected),
     roundingSurplus: fromSatang(0),
   };
+}
+
+/**
+ * `court_plus_shuttle` — **[WO-2.5-B]** หารค่าสนาม + ค่าลูกตามที่ใช้จริง
+ *
+ * ต้นทุนจริง = ค่าสนามทั้งนัด + (ราคาต่อลูก × จำนวนลูกที่ใช้)
+ *
+ * แยกสองก้อนเพราะกลุ่มผู้จ่ายไม่เหมือนกัน (baseline §การตัดสินใจสะสม):
+ *   · ค่าสนาม — สมาชิกรายเดือน **ไม่จ่าย** เสมอ (จ่ายไปแล้วในค่ารายเดือน)
+ *   · ค่าลูก  — จ่ายหรือไม่ ขึ้นกับ `monthly_member_pays_shuttle` ของแผนราคา
+ *
+ * 🔴 หารสองก้อนแยกกันแล้วค่อยรวม ≠ หารยอดรวมก้อนเดียว
+ *    ถ้ารวมก่อนหาร สมาชิกรายเดือนจะได้ส่วนลดค่าลูกไปด้วยโดยไม่มีใครตั้งใจ
+ */
+function courtPlusShuttleCharges(
+  input: BillingInput,
+  payers: Payer[],
+  ratio: number,
+): BillingResult {
+  const { snapshot } = input;
+  const params = snapshot.courtPlusShuttle;
+
+  if (!params) {
+    throw new Error('snapshot เป็น court_plus_shuttle แต่ไม่มีค่าสนาม/ราคาลูก — คิดเงินไม่ได้');
+  }
+  if (input.shuttlesUsedTotal === undefined || input.shuttlesUsedTotal === null) {
+    // ❌ ห้าม default เป็น 0 — ก๊วนจะขาดค่าลูกทั้งนัดโดยไม่มีอะไรฟ้อง
+    throw new Error('court_plus_shuttle ต้องรู้จำนวนลูกที่ใช้ทั้งนัดก่อนจึงคิดเงินได้');
+  }
+
+  const mode: RoundingMode = (snapshot.roundingPolicy ?? DEFAULT_ROUNDING_POLICY).mode;
+  const monthlyPaysShuttle = snapshot.monthlyMemberPaysShuttle ?? true;
+
+  const courtCost = toSatang(params.courtFeeTotal);
+  // `toSatang` = เลข ×100 ⇒ ที่นี่คือ "จำนวนลูก ×100" (ลูกแบ่งครึ่งได้ ⇒ ทศนิยมถูกต้อง)
+  // คูณกันในโลกจำนวนเต็มแล้วหาร 100 ครั้งเดียว ⇒ ไม่มี float เข้ามาเกี่ยว (CLAUDE.md §2.6)
+  const shuttleUnits = toSatang(input.shuttlesUsedTotal);
+  const shuttleCost = Math.round((toSatang(params.shuttlePrice) * shuttleUnits) / 100);
+
+  const courtPayers = payers.filter((p) => !p.participant.isMonthlyMember);
+  const shuttlePayers = monthlyPaysShuttle ? payers : courtPayers;
+
+  const courtSplit = splitCost(courtCost, courtPayers.length, mode);
+  const shuttleSplit = splitCost(shuttleCost, shuttlePayers.length, mode);
+
+  const courtIndex = new Map(courtPayers.map((p, i) => [p.participant.registrationId, i]));
+  const shuttleIndex = new Map(shuttlePayers.map((p, i) => [p.participant.registrationId, i]));
+
+  const charges: Charge[] = payers.map(({ participant, reason }) => {
+    const ci = courtIndex.get(participant.registrationId);
+    const si = shuttleIndex.get(participant.registrationId);
+
+    const courtPart = ci === undefined ? 0 : courtSplit.perPerson;
+    const shuttlePart = si === undefined ? 0 : shuttleSplit.perPerson;
+
+    // ส่วนที่ "ควรจ่ายจริง" ก่อนปัด — ใช้คำนวณเศษรายคนให้ reconcile ได้
+    const exactShare =
+      (ci === undefined ? 0 : courtSplit.shares[ci]) +
+      (si === undefined ? 0 : shuttleSplit.shares[si]);
+
+    const amount = Math.floor((courtPart + shuttlePart) * ratio);
+
+    return {
+      registrationId: participant.registrationId,
+      amount: fromSatang(amount),
+      breakdown: {
+        court_fee: fromSatang(Math.floor(courtPart * ratio)),
+        shuttle_fee: fromSatang(Math.floor(shuttlePart * ratio)),
+        shuttles_used_total: input.shuttlesUsedTotal ?? '0',
+        rounding_mode: mode,
+        // เศษของ**คนนี้**: จ่ายจริง − ส่วนที่ควรจ่าย ⇒ บวกกันทุกคนได้ surplus ของนัด
+        // (เมื่อ ratio = 1 — ถ้ายกเลิกกลางคัน ส่วนต่างที่ก๊วนดูดซับอยู่ที่ระดับนัด)
+        rounding_surplus: fromSatang(amount - Math.floor(exactShare * ratio)),
+        reason,
+        is_monthly_member: participant.isMonthlyMember,
+        ...(ratio !== 1 ? { midway_cancel_ratio: ratio } : {}),
+      },
+    };
+  });
+
+  const totalCollected = sumSatang(charges.map((c) => toSatang(c.amount)));
+
+  return {
+    charges,
+    totalCollected: fromSatang(totalCollected),
+    // นิยามเดียว: เก็บได้ − ต้นทุนจริง (ไม่ได้เอา surplus ของสองก้อนมาบวกแล้วหวังว่าตรง)
+    roundingSurplus: fromSatang(totalCollected - (courtCost + shuttleCost)),
+  };
+}
+
+/** ต้นทุนจริงของนัดแบบ `court_plus_shuttle` — ใช้ตรวจ invariant */
+export function courtPlusShuttleCost(
+  params: CourtPlusShuttleParams,
+  shuttlesUsedTotal: string,
+): Satang {
+  return (
+    toSatang(params.courtFeeTotal) +
+    Math.round((toSatang(params.shuttlePrice) * toSatang(shuttlesUsedTotal)) / 100)
+  );
 }
 
 /**

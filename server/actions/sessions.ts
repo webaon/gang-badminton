@@ -9,7 +9,13 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { assertCan } from '@/domain/permissions/can';
 import type { GangRole } from '@/domain/permissions/types';
 import { fromJson as cancellationFromJson } from '@/domain/policies/cancellation';
-import { flatRateFromJson, roundingFromJson, type PricingType } from '@/domain/policies/pricing';
+import {
+  courtPlusShuttleFromJson,
+  flatRateFromJson,
+  isImplemented as isPricingImplemented,
+  roundingFromJson,
+  type PricingType,
+} from '@/domain/policies/pricing';
 import { buildSnapshot } from '@/domain/sessions/snapshot';
 import { isValidTimeZone, zonedTimeToUtc } from '@/domain/time/timezone';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
@@ -104,7 +110,7 @@ export async function createSession(
 
     const { data: plan } = await supabase
       .from('gang_pricing_plans')
-      .select('id, name, type, params, rounding_policy')
+      .select('id, name, type, params, rounding_policy, monthly_member_pays_shuttle')
       .eq('gang_id', gangId)
       .eq('is_active', true)
       .order('created_at', { ascending: false })
@@ -126,13 +132,33 @@ export async function createSession(
       .eq('gang_id', gangId)
       .order('rank');
 
+    const planType = plan.type as PricingType;
+
+    // 🔴 กันไม่ให้แช่แข็ง snapshot ของโมเดลที่คิดเงินไม่ได้
+    //    ถ้าปล่อยผ่าน คนจะเล่นจบทั้งนัดแล้วเพิ่งรู้ตอนกดปิดรอบว่าเก็บเงินไม่ได้
+    if (!isPricingImplemented(planType)) {
+      throw new AppError(
+        'VALIDATION_ERROR',
+        `แผนราคาของก๊วนเป็นแบบที่ระบบยังคิดเงินให้ไม่ได้ (${planType}) — เปลี่ยนแผนราคาก่อนสร้างนัด`,
+      );
+    }
+
     const snapshot = buildSnapshot({
-      pricingPlan: {
-        id: plan.id,
-        name: plan.name,
-        type: plan.type as PricingType,
-        flatRate: flatRateFromJson(plan.params),
-      },
+      pricingPlan:
+        planType === 'court_plus_shuttle'
+          ? {
+              id: plan.id,
+              name: plan.name,
+              type: 'court_plus_shuttle',
+              courtPlusShuttle: courtPlusShuttleFromJson(plan.params),
+            }
+          : {
+              id: plan.id,
+              name: plan.name,
+              type: 'flat_rate',
+              flatRate: flatRateFromJson(plan.params),
+            },
+      monthlyMemberPaysShuttle: plan.monthly_member_pays_shuttle ?? true,
       roundingPolicy: roundingFromJson(plan.rounding_policy),
       promptpayId: gang.promptpay_id,
       cancellationPolicy: cancellationFromJson(gang.cancellation_policy),

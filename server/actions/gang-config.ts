@@ -9,12 +9,16 @@ import { assertCan } from '@/domain/permissions/can';
 import type { GangRole } from '@/domain/permissions/types';
 import {
   DEFAULT_ROUNDING_POLICY,
+  ROUNDING_MODES,
+  courtPlusShuttleToJson,
   flatRateToJson,
   isImplemented as isPricingImplemented,
   roundingToJson,
+  validateCourtPlusShuttle,
   validateFlatRate,
+  type CourtPlusShuttleParams,
   type FlatRateParams,
-  type PricingType,
+  type RoundingMode,
 } from '@/domain/policies/pricing';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { AppError, assertOne, runAction, unwrap } from '@/shared/action';
@@ -113,9 +117,14 @@ export async function removeSkillLevel(
 
 export type PricingPlanInput = {
   name: string;
-  type: PricingType;
-  flatRate: FlatRateParams;
-};
+  /** ไม่ส่ง = `ceil_baht` ตาม baseline */
+  roundingMode?: RoundingMode;
+  /** ค่าลูกของสมาชิกรายเดือน — ใช้เฉพาะ `court_plus_shuttle` */
+  monthlyMemberPaysShuttle?: boolean;
+} & (
+  | { type: 'flat_rate'; flatRate: FlatRateParams }
+  | { type: 'court_plus_shuttle'; courtPlusShuttle: CourtPlusShuttleParams }
+);
 
 export async function upsertPricingPlan(
   gangId: string,
@@ -133,16 +142,25 @@ export async function upsertPricingPlan(
     if (!isPricingImplemented(input.type)) {
       throw new AppError(
         'VALIDATION_ERROR',
-        'ตอนนี้รองรับเฉพาะแบบเหมาจ่ายต่อหัว (โมเดลอื่นอยู่ระหว่างพัฒนา)',
+        'แผนราคาแบบนี้ยังอยู่ระหว่างพัฒนา (รองรับ: เหมาจ่ายต่อหัว · ค่าสนาม+ค่าลูกตามจริง)',
       );
     }
 
-    const issues = validateFlatRate(input.flatRate);
+    const issues =
+      input.type === 'court_plus_shuttle'
+        ? validateCourtPlusShuttle(input.courtPlusShuttle)
+        : validateFlatRate(input.flatRate);
+
     if (issues.length > 0) {
       throw new AppError('VALIDATION_ERROR', issues.map((i) => i.message).join(' · '));
     }
 
     if (input.name.trim() === '') throw new AppError('VALIDATION_ERROR', 'ต้องระบุชื่อแผนราคา');
+
+    const mode = input.roundingMode ?? DEFAULT_ROUNDING_POLICY.mode;
+    if (!ROUNDING_MODES.includes(mode)) {
+      throw new AppError('VALIDATION_ERROR', 'โหมดปัดเศษไม่ถูกต้อง');
+    }
 
     const supabase = await supabaseServer();
 
@@ -150,8 +168,13 @@ export async function upsertPricingPlan(
       gang_id: gangId,
       name: input.name.trim(),
       type: input.type,
-      params: flatRateToJson(input.flatRate),
-      rounding_policy: roundingToJson(DEFAULT_ROUNDING_POLICY),
+      params:
+        input.type === 'court_plus_shuttle'
+          ? courtPlusShuttleToJson(input.courtPlusShuttle)
+          : flatRateToJson(input.flatRate),
+      rounding_policy: roundingToJson({ mode, surplusTo: 'gang' }),
+      // ⚠️ `flat_rate` ไม่ได้ใช้ค่านี้ แต่เก็บไว้ให้คอลัมน์ตรงกับที่แอดมินเลือกเสมอ
+      monthly_member_pays_shuttle: input.monthlyMemberPaysShuttle ?? true,
       updated_by: user.id,
     };
 
