@@ -82,9 +82,16 @@ export default async function SessionDetailPage({
     <main className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{session.title}</h1>
-        <Link href={`/gangs/${gangId}/sessions`} className="underline">
-          นัดทั้งหมด
-        </Link>
+        <span className="flex gap-3">
+          {can({ role }, 'game.manage') ? (
+            <Link href={`/gangs/${gangId}/sessions/${sessionId}/console`} className="underline">
+              คอนโซล
+            </Link>
+          ) : null}
+          <Link href={`/gangs/${gangId}/sessions`} className="underline">
+            นัดทั้งหมด
+          </Link>
+        </span>
       </div>
 
       <Card padding={6}>

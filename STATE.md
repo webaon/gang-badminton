@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 13 ส.ค. 2026** · เขียนตอนจบ **WO-2.6**
+> **อัปเดตล่าสุด: 13 ส.ค. 2026** · เขียนตอนจบ **WO-2.7**
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -184,7 +184,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 218 tests, 23 files
+npm test          # vitest run — 232 tests, 24 files
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -214,6 +214,7 @@ npm test          # vitest run — 218 tests, 23 files
 | `tests/sessions/guest-rate-limit.test.ts` | **WO-2.5** — rate limit ต่อ IP ต่อนัด (เรียก path เดียวกับ action) |
 | `tests/domain/sync-fallback.test.ts` | **WO-2.5** — realtime ต่อไม่ติด → ตกไป polling เอง |
 | `tests/domain/matching.test.ts` | **WO-2.6** — DoD 4 ข้อของ Matching Engine + ความคงที่ของผลลัพธ์ |
+| `tests/sessions/game-console.test.ts` | **WO-2.7** — เช็คอิน · คิวสด · guest ลงเกม · ลูกทศนิยม · สลับตัว |
 
 ⚠️ **เทสต์ RLS ต้องห่อด้วย `asRole()` / `visibleCount()` เสมอ** — connection ของเทสต์เป็น
 `postgres` ซึ่งมี BYPASSRLS ถ้าลืมห่อ เทสต์จะผ่านแบบหลอกๆ ทุกครั้งโดยไม่ได้ตรวจ policy เลย
@@ -242,7 +243,7 @@ npm test          # vitest run — 218 tests, 23 files
 
 ---
 
-## 7. ทำอะไรต่อ — WO-2.7 (Game Console)
+## 7. ทำอะไรต่อ — WO-2.8 (SessionBilling)
 
 **Phase 2 แตก WO ไว้ครบ 10 ใบใน `AGENT-EXECUTION.md`** — WO-2.1 เสร็จแล้ว
 
@@ -254,8 +255,9 @@ npm test          # vitest run — 218 tests, 23 files
 | **2.4** สร้างนัด + snapshot | ✅ **เสร็จ** |
 | **2.5** ลงชื่อ + guest + waitlist + realtime | ✅ **เสร็จ** |
 | **2.6** Matching Engine (pure domain) | ✅ **เสร็จ** — **ADR-003** ตรึงข้อตกลงแบ่งทีม |
-| **2.7** Game Console | ⬜ **ถัดไป** |
-| 2.8 – 2.10 | ⬜ (ดูรายละเอียดใน `AGENT-EXECUTION.md`) |
+| **2.7** Game Console | ✅ **เสร็จ** |
+| **2.8** SessionBilling + money invariants | ⬜ **ถัดไป** |
+| 2.9 – 2.10 | ⬜ (ดูรายละเอียดใน `AGENT-EXECUTION.md`) |
 
 ### WO-2.1 ทิ้งอะไรไว้ให้ใช้
 
