@@ -308,6 +308,33 @@ describe('SessionBilling — flat_rate (ADR-002)', () => {
     expect(result.charges[0].amount).toBe('0.00');
   });
 
+  it('🔴 [ADR-004] ไม่ส่ง ratio ตอนปิดรอบปกติ → เก็บเต็ม ไม่ถูกหั่นด้วยค่า policy', () => {
+    // policy ตั้งไว้ 0.5 แต่ปิดรอบปกติต้องเก็บเต็ม — ค่านี้ใช้เฉพาะตอนยกเลิกกลางคัน
+    const result = calculateSessionCharges({
+      snapshot: {
+        ...SNAPSHOT,
+        cancellationPolicy: { ...DEFAULT_CANCELLATION_POLICY, midwayCancelRatio: 0.5 },
+      },
+      participants: [participant('a', 'checked_in')],
+      startsAt: STARTS_AT,
+    });
+    expect(result.charges[0].amount).toBe('200.00');
+  });
+
+  it('[ADR-004] แอดมินระบุ ratio เอง → ใช้ค่านั้น ไม่ใช่ค่าใน policy', () => {
+    const result = calculateSessionCharges({
+      snapshot: {
+        ...SNAPSHOT,
+        cancellationPolicy: { ...DEFAULT_CANCELLATION_POLICY, midwayCancelRatio: 0.5 },
+      },
+      participants: [participant('a', 'checked_in')],
+      startsAt: STARTS_AT,
+      midwayCancelRatio: 0.25,
+    });
+    expect(result.charges[0].amount).toBe('50.00');
+    expect(result.charges[0].breakdown.midway_cancel_ratio).toBe(0.25);
+  });
+
   it('ratio นอกช่วง 0-1 ถูกปฏิเสธ', () => {
     for (const ratio of [-0.5, 1.5, Number.NaN]) {
       expect(() =>

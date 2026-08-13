@@ -8,6 +8,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { can } from '@/domain/permissions/can';
 import type { GangRole } from '@/domain/permissions/types';
 import { formatInTimeZone } from '@/domain/time/timezone';
+import { fromJson as policyFromJson } from '@/domain/policies/cancellation';
 import { CreateSessionForm } from '@/features/sessions/CreateSessionForm';
 import { SessionActions } from '@/features/sessions/SessionActions';
 
@@ -58,7 +59,7 @@ export default async function SessionsPage({ params }: { params: Promise<{ gangI
 
   const { data: sessions } = await supabase
     .from('sessions')
-    .select('id, title, venue, starts_at, ends_at, status, max_players')
+    .select('id, title, venue, starts_at, ends_at, status, max_players, snapshot')
     .eq('gang_id', gangId)
     .is('deleted_at', null)
     .order('starts_at', { ascending: false });
@@ -117,7 +118,16 @@ export default async function SessionsPage({ params }: { params: Promise<{ gangI
 
                 {can({ role }, 'session.transition') ? (
                   <div className="mt-3">
-                    <SessionActions sessionId={s.id} status={s.status} />
+                    <SessionActions
+                      sessionId={s.id}
+                      status={s.status}
+                      midwayCancelRatioDefault={
+                        policyFromJson(
+                          (s.snapshot as { cancellation_policy?: unknown } | null)
+                            ?.cancellation_policy,
+                        ).midwayCancelRatio
+                      }
+                    />
                   </div>
                 ) : null}
               </Card>

@@ -23,6 +23,17 @@ export type CancellationPolicy = {
    * เก็บเป็น string เสมอ — ห้ามใช้ number กับเงิน (CLAUDE.md §2.6)
    */
   penaltyValue?: string;
+  /**
+   * **[ADR-004]** สัดส่วนที่เก็บเมื่อ**ยกเลิกกลางคัน** (`in_play → cancelled`) — 0 ถึง 1
+   *
+   * เป็นแค่ **ค่าตั้งต้น** — แอดมินแก้ได้ตอนกดยกเลิกจริง
+   * (ตอนไฟดับ/ฝนรั่วคือช่วงที่วุ่นที่สุด การมีค่าเริ่มต้นให้ลดโอกาสกรอกผิด
+   *  แต่สถานการณ์จริงต่างกันทุกครั้ง จึงต้องแก้ได้)
+   *
+   * ⚠️ เป็นสัดส่วน ไม่ใช่เงิน จึงเป็น number ได้ — ตัวเงินที่คำนวณออกมา
+   *    ยังถูกปัดเป็นจำนวนเต็มสตางค์เสมอ (ดู session-billing.ts)
+   */
+  midwayCancelRatio: number;
 };
 
 /**
@@ -35,7 +46,12 @@ export const DEFAULT_CANCELLATION_POLICY: CancellationPolicy = {
   cutoffHours: 12,
   allowCancelAfterCutoff: true,
   penaltyType: 'full_share',
+  // [ADR-004] ก๊วนจ่ายค่าคอร์ทไปแล้วบางส่วนตอนที่เล่นไปได้ครึ่งทาง — เก็บครึ่งเป็นจุดตั้งต้น
+  midwayCancelRatio: 0.5,
 };
+
+/** ค่าที่ใช้เมื่อ snapshot เก่าไม่มีคีย์นี้ (ADR-004 — additive ไม่ขึ้น version) */
+export const DEFAULT_MIDWAY_CANCEL_RATIO = 0.5;
 
 /** รูปแบบที่เก็บใน jsonb — snake_case ตามคอลัมน์อื่นในฐานข้อมูล */
 export type CancellationPolicyJson = {
@@ -43,6 +59,7 @@ export type CancellationPolicyJson = {
   allow_cancel_after_cutoff: boolean;
   penalty_type: PenaltyType;
   penalty_value?: string;
+  midway_cancel_ratio: number;
 };
 
 export function toJson(policy: CancellationPolicy): CancellationPolicyJson {
@@ -50,6 +67,7 @@ export function toJson(policy: CancellationPolicy): CancellationPolicyJson {
     cutoff_hours: policy.cutoffHours,
     allow_cancel_after_cutoff: policy.allowCancelAfterCutoff,
     penalty_type: policy.penaltyType,
+    midway_cancel_ratio: policy.midwayCancelRatio,
     ...(policy.penaltyValue !== undefined ? { penalty_value: policy.penaltyValue } : {}),
   };
 }
@@ -71,10 +89,19 @@ export function fromJson(raw: unknown): CancellationPolicy {
 
   const penaltyValue = typeof obj.penalty_value === 'string' ? obj.penalty_value : undefined;
 
+  // [ADR-004] snapshot เก่าไม่มีคีย์นี้ ⇒ ใช้ค่า fallback
+  // นี่คือเหตุผลที่เพิ่มคีย์ได้โดยไม่ต้องขึ้น snapshot_version
+  const rawRatio = Number(obj.midway_cancel_ratio);
+  const midwayCancelRatio =
+    Number.isFinite(rawRatio) && rawRatio >= 0 && rawRatio <= 1
+      ? rawRatio
+      : DEFAULT_MIDWAY_CANCEL_RATIO;
+
   return {
     cutoffHours: Number.isFinite(cutoffHours) && cutoffHours >= 0 ? cutoffHours : 0,
     allowCancelAfterCutoff: obj.allow_cancel_after_cutoff !== false,
     penaltyType,
+    midwayCancelRatio,
     ...(penaltyValue !== undefined ? { penaltyValue } : {}),
   };
 }
@@ -95,6 +122,17 @@ export function validate(policy: CancellationPolicy): ValidationIssue[] {
   }
   if (policy.cutoffHours > 24 * 14) {
     issues.push({ field: 'cutoffHours', message: 'ชั่วโมง cutoff ยาวเกินไป (เกิน 14 วัน)' });
+  }
+
+  if (
+    !Number.isFinite(policy.midwayCancelRatio) ||
+    policy.midwayCancelRatio < 0 ||
+    policy.midwayCancelRatio > 1
+  ) {
+    issues.push({
+      field: 'midwayCancelRatio',
+      message: 'สัดส่วนที่เก็บเมื่อยกเลิกกลางคันต้องอยู่ระหว่าง 0 ถึง 1',
+    });
   }
 
   if (!PENALTY_TYPES.includes(policy.penaltyType)) {

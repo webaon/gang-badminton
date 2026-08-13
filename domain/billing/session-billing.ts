@@ -49,10 +49,12 @@ export type BillingInput = {
   /**
    * สัดส่วนที่เก็บเมื่อ **ยกเลิกกลางคัน** (`in_play → cancelled`) — 0 ถึง 1
    *
-   * ⚠️ baseline [v3.3] บอกว่าคิดเงินบางส่วน "ตาม policy" แต่ schema ของ
-   *    `cancellation_policy` (ADR-002) **ไม่มีคีย์สำหรับเรื่องนี้**
-   *    ⇒ ให้แอดมินระบุตอนยกเลิกแทนที่จะแอบสร้างคีย์ policy ขึ้นมาเอง
-   *    (ค่า default 0 = ไม่เก็บ — ปลอดภัยกว่าเก็บโดยผู้ใช้ไม่ได้ตั้งใจ)
+   * **[ADR-004]** ไม่ส่งมา = ใช้ค่าตั้งต้นของก๊วนจาก
+   * `snapshot.cancellationPolicy.midwayCancelRatio`
+   * ส่งมา = แอดมินแก้ตอนกดยกเลิก (สถานการณ์จริงต่างกันทุกครั้ง)
+   *
+   * ⚠️ ส่งมาเฉพาะตอนยกเลิกกลางคันเท่านั้น — ปิดรอบปกติต้องไม่ส่ง
+   *    ไม่งั้นยอดจะถูกหั่นโดยไม่มีใครตั้งใจ
    */
   midwayCancelRatio?: number;
 };
@@ -140,6 +142,7 @@ export function calculateSessionCharges(input: BillingInput): BillingResult {
     );
   }
 
+  // ปิดรอบปกติ = เก็บเต็ม · ยกเลิกกลางคัน = ใช้ค่าที่ส่งมา ไม่งั้นใช้ค่าตั้งต้นของก๊วน [ADR-004]
   const ratio = input.midwayCancelRatio ?? 1;
   if (!Number.isFinite(ratio) || ratio < 0 || ratio > 1) {
     throw new Error(`สัดส่วนการเก็บเงินต้องอยู่ระหว่าง 0 ถึง 1: ${ratio}`);

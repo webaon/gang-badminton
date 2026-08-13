@@ -104,7 +104,12 @@ async function loadBillingContext(sessionId: string) {
 export type CloseSessionInput = {
   /** `billing` = ปิดรอบปกติ · `cancelled` = ยกเลิกกลางคัน */
   toStatus?: 'billing' | 'cancelled';
-  /** สัดส่วนที่เก็บเมื่อยกเลิกกลางคัน (0-1) — ดูคอมเมนต์ใน session-billing.ts */
+  /**
+   * สัดส่วนที่เก็บเมื่อยกเลิกกลางคัน (0-1)
+   *
+   * **[ADR-004]** ไม่ส่งมา = ใช้ค่าตั้งต้นของก๊วนที่แช่แข็งไว้ใน snapshot
+   * ส่งมา = แอดมินแก้ตอนกดยกเลิก
+   */
   midwayCancelRatio?: number;
 };
 
@@ -144,7 +149,15 @@ export async function closeSessionWithBilling(
         snapshot: context.billingSnapshot,
         participants: context.participants,
         startsAt: new Date(context.session.starts_at),
-        ...(toStatus === 'cancelled' ? { midwayCancelRatio: input.midwayCancelRatio ?? 0 } : {}),
+        // [ADR-004] ยกเลิกกลางคัน: ใช้ค่าที่แอดมินระบุ ไม่งั้นใช้ค่าตั้งต้นของก๊วน
+        // ที่แช่แข็งไว้ใน snapshot (ไม่ใช่ค่าปัจจุบันของก๊วน — baseline §Snapshot rule)
+        ...(toStatus === 'cancelled'
+          ? {
+              midwayCancelRatio:
+                input.midwayCancelRatio ??
+                context.billingSnapshot.cancellationPolicy.midwayCancelRatio,
+            }
+          : {}),
       });
 
       const { error } = await supabaseAdmin().rpc('close_session_with_charges', {

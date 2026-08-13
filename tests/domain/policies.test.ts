@@ -34,6 +34,7 @@ describe('cancellation policy — ADR-002', () => {
       allowCancelAfterCutoff: false,
       penaltyType: 'fixed',
       penaltyValue: '100.00',
+      midwayCancelRatio: 0.25,
     };
     expect(fromJson(toJson(policy))).toEqual(policy);
   });
@@ -41,6 +42,30 @@ describe('cancellation policy — ADR-002', () => {
   it('ไม่ใส่ penaltyValue → ไม่โผล่ใน json (ไม่เขียน undefined ลง jsonb)', () => {
     const json = toJson(DEFAULT_CANCELLATION_POLICY);
     expect('penalty_value' in json).toBe(false);
+  });
+
+  it('🔴 [ADR-004] snapshot เก่าที่ไม่มี midway_cancel_ratio → ใช้ค่า fallback 0.5', () => {
+    // เพิ่มคีย์แบบ additive ได้โดยไม่ต้องขึ้น snapshot_version ก็เพราะข้อนี้
+    const old = fromJson({ cutoff_hours: 12, allow_cancel_after_cutoff: true, penalty_type: 'full_share' });
+    expect(old.midwayCancelRatio).toBe(0.5);
+  });
+
+  it('[ADR-004] ค่านอกช่วง 0-1 ใน jsonb → ตกไปใช้ fallback ไม่เชื่อข้อมูลดิบ', () => {
+    expect(fromJson({ midway_cancel_ratio: 5 }).midwayCancelRatio).toBe(0.5);
+    expect(fromJson({ midway_cancel_ratio: -1 }).midwayCancelRatio).toBe(0.5);
+    expect(fromJson({ midway_cancel_ratio: 'ครึ่งนึง' }).midwayCancelRatio).toBe(0.5);
+    // ค่าที่ถูกต้องต้องอ่านได้ตามจริง
+    expect(fromJson({ midway_cancel_ratio: 0 }).midwayCancelRatio).toBe(0);
+    expect(fromJson({ midway_cancel_ratio: 1 }).midwayCancelRatio).toBe(1);
+  });
+
+  it('[ADR-004] validate ปฏิเสธสัดส่วนนอกช่วง 0-1', () => {
+    for (const ratio of [-0.1, 1.1, Number.NaN]) {
+      expect(
+        validate({ ...DEFAULT_CANCELLATION_POLICY, midwayCancelRatio: ratio }),
+      ).not.toEqual([]);
+    }
+    expect(validate({ ...DEFAULT_CANCELLATION_POLICY, midwayCancelRatio: 0 })).toEqual([]);
   });
 
   it('🔴 snapshot เก่าที่ไม่มี penalty_type → ตีความเป็น none ไม่ใช่พัง', () => {

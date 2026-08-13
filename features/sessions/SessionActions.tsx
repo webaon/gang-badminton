@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
+import { TextInput } from '@astryxdesign/core/TextInput';
 
 import { transitionSession } from '@/server/actions/sessions';
 import { closeSessionWithBilling } from '@/server/actions/billing';
@@ -34,11 +35,22 @@ const CLOSABLE = ['open', 'in_play'];
 /** ยกเลิกโดยไม่มีเงินเข้ามาเกี่ยว — ยังไม่เริ่มเล่น */
 const PLAIN_CANCELLABLE = ['draft', 'open'];
 
-export function SessionActions({ sessionId, status }: { sessionId: string; status: string }) {
+export function SessionActions({
+  sessionId,
+  status,
+  midwayCancelRatioDefault,
+}: {
+  sessionId: string;
+  status: string;
+  /** [ADR-004] ค่าตั้งต้นของก๊วนที่แช่แข็งไว้ใน snapshot ของนัดนี้ */
+  midwayCancelRatioDefault: number;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  /** เปิดช่องกรอกสัดส่วนตอนยกเลิกกลางคัน — null = ยังไม่ได้กด */
+  const [midwayPercent, setMidwayPercent] = useState<string | null>(null);
 
   async function go(to: string) {
     setPending(true);
@@ -110,18 +122,54 @@ export function SessionActions({ sessionId, status }: { sessionId: string; statu
           />
         ) : null}
 
-        {status === 'in_play' ? (
-          // ยกเลิกกลางคัน: เก็บครึ่งเดียวเป็นค่าเริ่มต้น (ก๊วนจ่ายค่าคอร์ทไปแล้วบางส่วน)
-          // ⚠️ สัดส่วนนี้ยังไม่มีที่เก็บใน policy — ดู session-billing.ts
+        {status === 'in_play' && midwayPercent === null ? (
           <Button
             size="sm"
             variant="destructive"
-            label="ยกเลิกกลางคัน (เก็บครึ่ง)"
+            label="ยกเลิกกลางคัน"
             isDisabled={pending}
-            onClick={() => close('cancelled', 0.5)}
+            onClick={() =>
+              setMidwayPercent(String(Math.round(midwayCancelRatioDefault * 100)))
+            }
           />
         ) : null}
       </div>
+
+      {/*
+        [ADR-004] แอดมินยืนยันสัดส่วนก่อนยกเลิกจริง
+        เติมค่าตั้งต้นของก๊วนให้ แต่แก้ได้ — สถานการณ์จริงต่างกันทุกครั้ง
+        (เล่นไป 10 นาทีกับเล่นไปเกือบจบ ไม่ควรเก็บเท่ากัน)
+      */}
+      {midwayPercent !== null ? (
+        <div className="mt-3 rounded-lg border p-3">
+          <p className="mb-2 text-sm font-medium">ยกเลิกกลางคัน — เก็บเงินกี่ %</p>
+          <div className="flex items-end gap-2">
+            <div className="w-28">
+              <TextInput
+                label="เปอร์เซ็นต์"
+                size="sm"
+                value={midwayPercent}
+                onChange={setMidwayPercent}
+              />
+            </div>
+            <Button
+              size="sm"
+              variant="destructive"
+              label="ยืนยันยกเลิก"
+              isDisabled={pending}
+              onClick={() => {
+                const percent = Number(midwayPercent);
+                if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+                  setError('เปอร์เซ็นต์ต้องอยู่ระหว่าง 0 ถึง 100');
+                  return;
+                }
+                close('cancelled', percent / 100).then(() => setMidwayPercent(null));
+              }}
+            />
+            <Button size="sm" label="ยกเลิก" onClick={() => setMidwayPercent(null)} />
+          </div>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="mt-2">

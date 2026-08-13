@@ -104,6 +104,20 @@ export function GangSettingsForm({
             isRequired
           />
         ) : null}
+        {/* [ADR-004] ค่าตั้งต้น — แอดมินแก้ได้อีกทีตอนกดยกเลิกจริง */}
+        <TextInput
+          label="ยกเลิกกลางคัน เก็บกี่ % ของยอด"
+          value={String(Math.round(form.cancellationPolicy.midwayCancelRatio * 100))}
+          onChange={(v) => {
+            const percent = Number(v);
+            patchPolicy({
+              midwayCancelRatio: Number.isFinite(percent)
+                ? Math.min(100, Math.max(0, percent)) / 100
+                : 0,
+            });
+          }}
+          description="ค่าตั้งต้นเวลาไฟดับ/ฝนรั่วกลางคัน — ตอนกดยกเลิกจริงยังแก้ได้"
+        />
       </FormLayout>
 
       {/* ADR-002: สองแบบนี้ยังไม่ implement — บอกล่วงหน้าดีกว่าให้บันทึกแล้วค่อย error */}
