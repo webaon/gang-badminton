@@ -184,7 +184,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 212 tests, 23 files
+npm test          # vitest run — 218 tests, 23 files
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -253,7 +253,7 @@ npm test          # vitest run — 212 tests, 23 files
 | **2.3** ก๊วน/สมาชิก/pricing | ✅ **เสร็จ** — **ADR-002** ตรึง flat_rate + penalty full_share |
 | **2.4** สร้างนัด + snapshot | ✅ **เสร็จ** |
 | **2.5** ลงชื่อ + guest + waitlist + realtime | ✅ **เสร็จ** |
-| **2.6** Matching Engine (pure domain) | ✅ **เสร็จ** |
+| **2.6** Matching Engine (pure domain) | ✅ **เสร็จ** — **ADR-003** ตรึงข้อตกลงแบ่งทีม |
 | **2.7** Game Console | ⬜ **ถัดไป** |
 | 2.8 – 2.10 | ⬜ (ดูรายละเอียดใน `AGENT-EXECUTION.md`) |
 

@@ -1,7 +1,11 @@
 /**
  * Matching Engine — pipeline
  *
- *   Queue → SelectPlayers → BalanceSkill → AvoidRepeat → CourtAssignment
+ *   Queue → SelectPlayers → BalanceSkill → AvoidRepeat → PairTeams → CourtAssignment
+ *
+ * (baseline ระบุ 5 ขั้น — `PairTeams` เพิ่มเข้ามาตาม **ADR-003** เพราะ baseline
+ *  ไม่เคยระบุว่าใครคู่กับใครในคอร์ท ทั้งที่ `games` มีช่องผู้เล่น 4 ช่องเรียงกัน
+ *  pipeline ออกแบบมาให้เสียบขั้นเพิ่มได้อยู่แล้ว จึงไม่ต้องรื้อของเดิม)
  *
  * ทุกขั้นเป็น pure function แยกกัน (baseline §สถาปัตยกรรม) ⇒ เสียบขั้นใหม่เพิ่มได้
  * โดยไม่ต้องรื้อของเดิม และทดสอบทีละขั้นได้
@@ -172,7 +176,55 @@ export function avoidRepeat(
 }
 
 // ---------------------------------------------------------------------------
-// ขั้นที่ 5 — CourtAssignment
+// ขั้นที่ 5 — PairTeams  [ADR-003]
+// ---------------------------------------------------------------------------
+
+/**
+ * แบ่งทีมภายในคอร์ท: **มือแข็งสุดคู่กับมืออ่อนสุด**
+ *
+ * 🔴 ข้อตกลงที่ต้องยึดทั้งระบบ (ADR-003):
+ *    `players[0] & players[1]` = ทีม A · `players[2] & players[3]` = ทีม B
+ *    ตรงกับคอลัมน์ `games.player1..player4`
+ *
+ * เหตุผลของการจับแข็ง+อ่อน: ทำให้ผลรวมฝีมือสองฝั่งใกล้กันที่สุด ⇒ เกมสูสี
+ * และมือใหม่ได้เล่นกับมือเก่า ซึ่งเป็นวิธีที่ก๊วนจริงใช้กัน
+ *
+ * ⚠️ ต้องรันขั้นนี้ **หลัง** `avoidRepeat` — ถ้าจัดทีมก่อน การสลับคนข้ามคอร์ท
+ *    เพื่อเลี่ยงคู่ซ้ำจะทำลายสมดุลทีมที่เพิ่งจัดไป
+ */
+export function pairTeams(
+  foursomes: readonly Foursome[],
+  players: readonly MatchPlayer[],
+): Foursome[] {
+  const fallback = medianSkill(players);
+  const skillOf = new Map(players.map((p) => [p.registrationId, effectiveSkill(p, fallback)]));
+
+  return foursomes.map((foursome) => {
+    const bySkill = [...foursome].sort(
+      (a, b) => (skillOf.get(a) ?? 0) - (skillOf.get(b) ?? 0) || a.localeCompare(b),
+    );
+
+    // [อ่อนสุด, กลาง1, กลาง2, แข็งสุด] → ทีม A = อ่อนสุด+แข็งสุด · ทีม B = สองคนกลาง
+    return [bySkill[0], bySkill[3], bySkill[1], bySkill[2]] as unknown as Foursome;
+  });
+}
+
+/**
+ * อ่านทีมออกจากผลลัพธ์ — ใช้ตัวนี้แทนการ index เอง
+ *
+ * ทุกที่ที่ต้องรู้ว่าใครอยู่ฝั่งไหน (UI, การเขียนลง `games`) ต้องเรียกผ่านนี้
+ * ⇒ ถ้าวันหนึ่งข้อตกลงเปลี่ยน แก้ที่เดียว
+ */
+export function teamsOf(players: Foursome): { teamA: [string, string]; teamB: [string, string] } {
+  return {
+    teamA: [players[0], players[1]],
+    teamB: [players[2], players[3]],
+  };
+}
+
+
+// ---------------------------------------------------------------------------
+// ขั้นที่ 6 — CourtAssignment
 // ---------------------------------------------------------------------------
 
 /** ใส่เลขคอร์ทให้แต่ละกลุ่ม เริ่มที่ 1 */
@@ -189,9 +241,11 @@ export function planMatches(input: MatchInput): MatchPlan {
   const { selected, benched } = selectPlayers(queue, input.availableCourts);
   const balanced = balanceSkill(selected);
   const deduped = avoidRepeat(balanced, input.recentGames);
+  // จัดทีมเป็นขั้นสุดท้ายก่อนใส่เลขคอร์ท — หลังการสลับเพื่อเลี่ยงคู่ซ้ำเรียบร้อยแล้ว
+  const paired = pairTeams(deduped, selected);
 
   return {
-    games: assignCourts(deduped),
+    games: assignCourts(paired),
     benched: benched.map((p) => p.registrationId),
   };
 }

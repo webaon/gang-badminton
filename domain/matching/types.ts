@@ -27,7 +27,13 @@ export type MatchPlayer = {
   waitingSince: number;
 };
 
-/** สี่คนที่จะลงเล่นด้วยกัน — เรียงตามที่ engine จัด */
+/**
+ * สี่คนที่ลงคอร์ทเดียวกัน
+ *
+ * 🔴 **ลำดับมีความหมาย** (ADR-003):
+ *    `[0] & [1]` = ทีม A · `[2] & [3]` = ทีม B — ตรงกับ `games.player1..player4`
+ *    ห้าม index เอง ให้เรียก `teamsOf()` จาก pipeline
+ */
 export type Foursome = readonly [string, string, string, string];
 
 export type PlannedGame = {

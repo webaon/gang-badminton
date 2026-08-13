@@ -14,7 +14,9 @@ import {
   avoidRepeat,
   balanceSkill,
   buildQueue,
+  pairTeams,
   planMatches,
+  teamsOf,
 } from '@/domain/matching/pipeline';
 import type { MatchPlayer } from '@/domain/matching/types';
 
@@ -291,5 +293,77 @@ describe('assignCourts + ความคงที่ของผลลัพธ�
     const b = planMatches({ players: [...players].reverse(), availableCourts: 3 });
 
     expect(a).toEqual(b);
+  });
+});
+
+describe('ADR-003 — แบ่งทีมในคอร์ท: แข็งสุดคู่กับอ่อนสุด', () => {
+  const four = [
+    player('มือ1', { skillRank: 1 }),
+    player('มือ2', { skillRank: 2 }),
+    player('มือ3', { skillRank: 3 }),
+    player('มือ4', { skillRank: 4 }),
+  ];
+
+  it('🔴 ทีม A = อ่อนสุด+แข็งสุด · ทีม B = สองคนกลาง', () => {
+    const [game] = pairTeams(balanceSkill(four), four);
+    const { teamA, teamB } = teamsOf(game);
+
+    expect(teamA.sort()).toEqual(['มือ1', 'มือ4']);
+    expect(teamB.sort()).toEqual(['มือ2', 'มือ3']);
+  });
+
+  it('🔴 ผลรวมฝีมือสองฝั่งต่างกันน้อยที่สุดเท่าที่ทำได้', () => {
+    const skillOf = new Map(four.map((p) => [p.registrationId, p.skillRank as number]));
+    const [game] = pairTeams(balanceSkill(four), four);
+    const { teamA, teamB } = teamsOf(game);
+
+    const sum = (team: readonly string[]) =>
+      team.reduce((acc, id) => acc + skillOf.get(id)!, 0);
+
+    // 1+4 = 5 · 2+3 = 5 ⇒ ต่างกัน 0
+    expect(Math.abs(sum(teamA) - sum(teamB))).toBe(0);
+  });
+
+  it('🔴 กันบั๊กเดิม: ไม่ใช่ "สองคนอ่อนเจอสองคนแข็ง"', () => {
+    const skillOf = new Map(four.map((p) => [p.registrationId, p.skillRank as number]));
+    const [game] = pairTeams(balanceSkill(four), four);
+    const { teamA } = teamsOf(game);
+
+    // ถ้ายังเรียงอ่อน→แข็งแบบเดิม teamA จะเป็น [มือ1, มือ2] ซึ่งรวมได้ 3 (แย่สุด)
+    const sumA = teamA.reduce((acc, id) => acc + skillOf.get(id)!, 0);
+    expect(sumA).not.toBe(3);
+  });
+
+  it('ฝีมือเท่ากันหมด → ยังแบ่งทีมได้ ผลคงที่', () => {
+    const same = ['a', 'b', 'c', 'd'].map((id) => player(id, { skillRank: 2 }));
+    const [game] = pairTeams(balanceSkill(same), same);
+
+    expect(new Set(game).size).toBe(4);
+    // เรียกซ้ำต้องได้ผลเดิม
+    expect(pairTeams(balanceSkill(same), same)).toEqual([game]);
+  });
+
+  it('planMatches ใส่ขั้นแบ่งทีมให้แล้ว — ทุกเกมสมดุล', () => {
+    const players = [1, 2, 3, 4, 1, 2, 3, 4].map((rank, i) =>
+      player(`p${i}`, { skillRank: rank }),
+    );
+    const skillOf = new Map(players.map((p) => [p.registrationId, p.skillRank as number]));
+
+    for (const game of planMatches({ players, availableCourts: 2 }).games) {
+      const { teamA, teamB } = teamsOf(game.players);
+      const sum = (t: readonly string[]) => t.reduce((a, id) => a + skillOf.get(id)!, 0);
+      expect(Math.abs(sum(teamA) - sum(teamB))).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('แบ่งทีมไม่ทำให้คนหายหรือซ้ำ', () => {
+    const players = Array.from({ length: 8 }, (_, i) =>
+      player(`p${i}`, { skillRank: (i % 4) + 1 }),
+    );
+    const plan = planMatches({ players, availableCourts: 2 });
+    const all = plan.games.flatMap((g) => g.players);
+
+    expect(all).toHaveLength(8);
+    expect(new Set(all).size).toBe(8);
   });
 });
