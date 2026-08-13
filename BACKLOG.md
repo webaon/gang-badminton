@@ -104,9 +104,7 @@
 
 ### Phase 2 — ของที่ WO-1.3 จงใจไม่ทำ
 
-- [ ] **`guest_access_token_hash` ยังไม่ถูก generate** — `register_to_session()` ไม่สร้าง
-      guest access token ให้ (ไม่อยู่ใน scope WO-1.3) ⇒ หน้า guest ดู/ยกเลิกเองยังทำไม่ได้
-      ตอนทำต้องคืน plaintext ครั้งเดียวตอนสร้าง (เก็บแค่ hash) และ **ห้าม log**
+- [x] ~~**`guest_access_token_hash` ยังไม่ถูก generate**~~ — ✅ WO-2.5 (`register_guest()`)
 - [ ] **สวิตช์ปิด waitlist ต่อนัด** — `SESSION_FULL` ใน `docs/errors.md` ต้องมีสวิตช์นี้ถึงจะ
       raise ได้จริง ตอนนี้คนมาช้าเข้า waitlist เสมอ ⇒ ถ้าก๊วนอยากปิด ต้องเพิ่มคอลัมน์/flag
 - [ ] **penalty เป็นตัวเงิน** — [D-9] `cancel_registration()` บันทึกแค่ `is_late_cancel` ลง event
@@ -255,6 +253,39 @@
       แต่ baseline [v3.3] บอกว่ายกเลิกกลางคันต้องคิดเงินบางส่วนแบบ atomic
       ⇒ WO-2.8 ต้องเปลี่ยนปุ่มนี้ให้เรียก `close_session_with_charges(..., 'cancelled')`
       เมื่อนัดอยู่ใน `in_play`
+
+---
+
+## จาก WO-2.5 (ลงชื่อ + guest + waitlist + realtime)
+
+### 🔴 ข้อจำกัดด้านความปลอดภัยที่ยอมรับไว้ใน MVP-0
+
+- [ ] **guest token อยู่ใน query string** (`/guest/<id>?t=<token>`)
+      ⇒ อาจติดไปกับ `Referer` ที่ส่งไปเว็บอื่น และไปโผล่ใน log ของ proxy/CDN
+      ยอมรับใน MVP-0 เพราะ guest ไม่มีบัญชีให้ผูก session
+      **ทางแก้**: แลก token เป็น cookie (httpOnly) ครั้งแรกที่เปิดหน้า แล้ว redirect
+      ทิ้ง query string — ทำได้โดยไม่แตะ schema
+- [ ] **ยังไม่มีวิธีขอลิงก์ guest ใหม่ถ้าทำหาย** — token แสดงครั้งเดียว ระบบเก็บแค่ hash
+      ถ้า guest ปิดหน้าไปโดยไม่เก็บลิงก์ ต้องให้แอดมินยกเลิกให้แทน
+      ⇒ ควรมีปุ่ม "ออกลิงก์ใหม่" ฝั่งแอดมิน (เขียน hash ใหม่ทับของเดิม)
+
+### UI ที่ยังไม่ได้ทำ (server action พร้อมแล้ว)
+
+- [ ] **แอดมินลงชื่อแทนสมาชิก** — `registerMember()` เขียนแล้วแต่ยังไม่มีปุ่มในหน้านัด
+- [ ] **แอดมินยกเลิกแทนสมาชิก** — `cancelRegistration()` รองรับแล้ว (ตรวจ
+      `registration.cancel.other`) แต่หน้ารายชื่อยังไม่มีปุ่ม
+- [ ] **ยังไม่เตือนก่อนยกเลิกหลัง cutoff** — DB คิด penalty ให้ถูกต้องแล้ว
+      (`is_late_cancel` ใน event) แต่ผู้ใช้กดยกเลิกโดยไม่รู้ว่าจะโดนคิดเงิน
+      ⇒ ต้องอ่าน `cutoff_hours` จาก snapshot มาเตือนก่อนกด
+
+### realtime
+
+- [ ] **realtime เปิดเฉพาะ `session_registrations`** (migration 0018)
+      ถ้า Phase ถัดไปอยากให้ `games` sync สดด้วย ต้องเพิ่มเข้า publication เอง
+      ⚠️ ทุกตารางใน publication กิน quota ของ free tier — เพิ่มเท่าที่จำเป็น
+- [ ] **ยังไม่ได้ทดสอบ fallback ในเบราว์เซอร์จริง** — ตรรกะมี unit test คุมครบ
+      (`lib/sync/fallback.ts`) แต่การต่อ/หลุดจริงยังไม่ได้ลองปิด realtime แล้วดูหน้าจอ
+      ⇒ ทำตอน E2E (Playwright) ใน Phase 5
 
 ---
 

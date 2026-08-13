@@ -96,7 +96,12 @@ export default async function SessionsPage({ params }: { params: Promise<{ gangI
               <Card padding={4}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-medium">{s.title}</p>
+                    <Link
+                      href={`/gangs/${gangId}/sessions/${s.id}`}
+                      className="font-medium underline"
+                    >
+                      {s.title}
+                    </Link>
                     {/* 🔴 แสดงตาม timezone ของก๊วน ไม่ใช่ของเครื่องผู้ใช้ */}
                     <p className="text-sm">
                       {formatInTimeZone(new Date(s.starts_at), gang.timezone)} –{' '}
