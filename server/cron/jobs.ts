@@ -27,6 +27,9 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
  * ✅ **WO-2.5-C ต่อ MembershipBilling เข้ามา** (`monthly-fees`)
  *    เป็น app logic ไม่ใช่ SQL ล้วน (ต้องคิดเงินใน `domain/billing` ตาม ADR-001)
  *    ⇒ อยู่ฝั่ง Vercel Cron ตาม baseline §การแบ่งงาน cron
+ *
+ * ✅ **WO-2.5-E ต่อ generate นัดประจำ** (`session-generate`)
+ *    ต้องประกอบ snapshot ด้วย `domain/` + แปลง timezone ⇒ เป็น app logic เช่นกัน
  */
 /** งานที่เป็น SQL ล้วน — เรียก DB function ตรง */
 export const CRON_JOBS = {
@@ -39,7 +42,11 @@ export const CRON_JOBS = {
  * งานที่ต้องใช้ runtime ของแอป — ไม่ใช่ SQL ล้วน จึงอยู่ใน Vercel Cron
  * (baseline §การแบ่งงาน cron แยกสองประเภทนี้ไว้ชัดเจน)
  */
-export const APP_CRON_JOBS = ['notification-dispatch', 'monthly-fees'] as const;
+export const APP_CRON_JOBS = [
+  'notification-dispatch',
+  'monthly-fees',
+  'session-generate',
+] as const;
 export type AppCronJobName = (typeof APP_CRON_JOBS)[number];
 
 export type CronJobName = keyof typeof CRON_JOBS;

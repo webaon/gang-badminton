@@ -20,6 +20,10 @@
     {
       "path": "/api/cron/monthly-fees",
       "schedule": "10 17 * * *"
+    },
+    {
+      "path": "/api/cron/session-generate",
+      "schedule": "30 18 * * *"
     }
   ]
 }

@@ -521,7 +521,7 @@ DoD ทั้ง 5 ข้อผ่านจริง:
 
 ---
 
-## WO-2.5-E: Session templates + auto-generate
+## WO-2.5-E: Session templates + auto-generate ✅ **เสร็จ (13 ส.ค. 2026)**
 
 **Goal**: ก๊วนที่เล่นประจำไม่ต้องสร้างนัดมือทุกสัปดาห์
 
@@ -540,6 +540,27 @@ DoD ทั้ง 5 ข้อผ่านจริง:
 - ห้าม generate นัดที่ `status` ไม่ใช่ `draft` · ห้ามอ่านราคาปัจจุบันตอนคิดเงิน (snapshot ตอน generate)
 
 **References**: baseline §การตัดสินใจสะสม (นัดประจำสัปดาห์) · §Verification (Job tests)
+
+**ผลลัพธ์** — migration `0027` (unique index `sessions_template_slot_key`) ·
+`domain/sessions/recurrence.ts` · `server/templates/generate.ts` ·
+cron `/api/cron/session-generate` (รายวัน) · หน้า `/gangs/[gangId]/templates` ·
+เทสต์ใหม่ 23 ตัว (domain 10 + integration 13)
+
+DoD ทั้ง 5 ข้อผ่านจริง:
+- idempotent — รันซ้ำไม่ได้นัดซ้ำ และ INSERT ตรงยังชน unique index (กันที่ระดับ DB)
+- แก้ตารางมีผลเฉพาะรอบที่ยังไม่สร้าง — นัดเดิมไม่ขยับเวลา/จำนวนคน
+- snapshot ครบเหมือนสร้างมือ — ใช้ `buildSessionSnapshot()` **ตัวเดียวกับ** `createSession()`
+- เวลาแปลงตาม `gangs.timezone` — ก๊วนไทยกับก๊วน UTC ได้ instant ต่างกัน 7 ชั่วโมง
+- นัดที่ generate เป็น `draft` เสมอ
+
+**การตัดสินใจที่บันทึกไว้**:
+- ⚠️ **Deviation จาก CLAUDE.md §2.6** — unique index **จงใจไม่กรอง `deleted_at`**
+  เพราะตัวตนของนัดที่ generate คือ "template + เวลา" ⇒ ถ้ากรอง แอดมินที่ลบนัดที่งดเล่น
+  จะโดน cron สร้างกลับมาใหม่ (มีเทสต์คุมข้อนี้)
+- refactor: ย้ายการประกอบ snapshot ออกจาก `createSession()` มาเป็น
+  `server/sessions/snapshot.ts` — ถ้าปล่อยให้สองทางประกอบเอง วันหนึ่งจะเบี่ยงจากกัน
+  แล้วนัดที่ generate จะปิดรอบไม่ได้โดยไม่มีใครรู้จนถึงหน้างาน
+- cron รายวัน (ไม่ใช่รายสัปดาห์) เพื่อให้ขอบ 2 สัปดาห์เลื่อนตามทุกวัน
 
 ---
 

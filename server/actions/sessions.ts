@@ -8,17 +8,8 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
 import { assertCan } from '@/domain/permissions/can';
 import type { GangRole } from '@/domain/permissions/types';
-import { fromJson as cancellationFromJson } from '@/domain/policies/cancellation';
-import {
-  courtPlusShuttleFromJson,
-  flatRateFromJson,
-  isImplemented as isPricingImplemented,
-  roundingFromJson,
-  SESSION_PRICING_TYPES,
-  type PricingType,
-} from '@/domain/policies/pricing';
-import { buildSnapshot } from '@/domain/sessions/snapshot';
-import { isValidTimeZone, zonedTimeToUtc } from '@/domain/time/timezone';
+import { zonedTimeToUtc } from '@/domain/time/timezone';
+import { buildSessionSnapshot } from '@/server/sessions/snapshot';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { AppError, assertOne, runAction, unwrap } from '@/shared/action';
 
@@ -83,17 +74,9 @@ export async function createSession(
 
     const supabase = await supabaseServer();
 
-    const { data: gang } = await supabase
-      .from('gangs')
-      .select('id, timezone, promptpay_id, cancellation_policy')
-      .eq('id', gangId)
-      .is('deleted_at', null)
-      .maybeSingle();
-
-    if (!gang) throw new AppError('NOT_FOUND', 'ไม่พบก๊วนนี้');
-    if (!isValidTimeZone(gang.timezone)) {
-      throw new AppError('INTERNAL_ERROR', `ก๊วนตั้ง timezone ที่ไม่ถูกต้อง: ${gang.timezone}`);
-    }
+    // 🔴 snapshot ประกอบที่เดียวกับที่ cron generate ใช้ (server/sessions/snapshot.ts)
+    //    ⇒ นัดที่สร้างมือกับนัดที่ generate มี snapshot รูปแบบเดียวกันเสมอ
+    const { snapshot, gang } = await buildSessionSnapshot(supabase, gangId);
 
     // แปลงเวลาที่แอดมินกรอก (เวลาของก๊วน) เป็น instant จริง
     let startsAt: Date;
@@ -108,66 +91,6 @@ export async function createSession(
     if (endsAt.getTime() <= startsAt.getTime()) {
       throw new AppError('VALIDATION_ERROR', 'เวลาจบต้องหลังเวลาเริ่ม');
     }
-
-    const { data: plan } = await supabase
-      .from('gang_pricing_plans')
-      .select('id, name, type, params, rounding_policy, monthly_member_pays_shuttle')
-      .eq('gang_id', gangId)
-      .eq('is_active', true)
-      // 🔴 [ADR-006] แผน `monthly` เป็นค่าสมาชิกรายเดือน ไม่ใช่ราคาของนัด
-      //    ถ้าหยิบมาใช้ นัดจะแช่แข็ง snapshot ที่คิดเงินไม่ได้
-      .in('type', SESSION_PRICING_TYPES)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!plan) {
-      // 🔴 ปล่อยให้สร้างนัดโดยไม่มีแผนราคาไม่ได้ — snapshot จะไม่มีข้อมูลคิดเงิน
-      //    แล้วจะไปพังตอนปิดรอบ ซึ่งสายเกินไป (คนเล่นจบแล้ว เก็บเงินไม่ได้)
-      throw new AppError(
-        'VALIDATION_ERROR',
-        'ก๊วนนี้ยังไม่ได้ตั้งแผนราคา — ตั้งราคาก่อนสร้างนัด',
-      );
-    }
-
-    const { data: skillLevels } = await supabase
-      .from('gang_skill_levels')
-      .select('label, rank')
-      .eq('gang_id', gangId)
-      .order('rank');
-
-    const planType = plan.type as PricingType;
-
-    // 🔴 กันไม่ให้แช่แข็ง snapshot ของโมเดลที่คิดเงินไม่ได้
-    //    ถ้าปล่อยผ่าน คนจะเล่นจบทั้งนัดแล้วเพิ่งรู้ตอนกดปิดรอบว่าเก็บเงินไม่ได้
-    if (!isPricingImplemented(planType)) {
-      throw new AppError(
-        'VALIDATION_ERROR',
-        `แผนราคาของก๊วนเป็นแบบที่ระบบยังคิดเงินให้ไม่ได้ (${planType}) — เปลี่ยนแผนราคาก่อนสร้างนัด`,
-      );
-    }
-
-    const snapshot = buildSnapshot({
-      pricingPlan:
-        planType === 'court_plus_shuttle'
-          ? {
-              id: plan.id,
-              name: plan.name,
-              type: 'court_plus_shuttle',
-              courtPlusShuttle: courtPlusShuttleFromJson(plan.params),
-            }
-          : {
-              id: plan.id,
-              name: plan.name,
-              type: 'flat_rate',
-              flatRate: flatRateFromJson(plan.params),
-            },
-      monthlyMemberPaysShuttle: plan.monthly_member_pays_shuttle ?? true,
-      roundingPolicy: roundingFromJson(plan.rounding_policy),
-      promptpayId: gang.promptpay_id,
-      cancellationPolicy: cancellationFromJson(gang.cancellation_policy),
-      skillLevels: skillLevels ?? [],
-    });
 
     const rows = unwrap(
       await supabase

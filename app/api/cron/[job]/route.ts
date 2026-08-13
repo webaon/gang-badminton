@@ -11,6 +11,7 @@ import { isAuthorizedCronRequest } from '@/server/cron/auth';
 import { isAppCronJobName, isCronJobName, runCronJob } from '@/server/cron/jobs';
 import { dispatchNotifications } from '@/server/cron/notifications';
 import { billAllGangs } from '@/server/membership/billing';
+import { generateAllTemplates } from '@/server/templates/generate';
 
 // งาน cron แตะฐานข้อมูลจริงทุกครั้ง — ห้าม prerender หรือ cache
 export const dynamic = 'force-dynamic';
@@ -32,6 +33,9 @@ export async function GET(
   if (isAppCronJobName(job)) {
     if (job === 'monthly-fees') {
       return respond(correlationId, () => billAllGangs(correlationId));
+    }
+    if (job === 'session-generate') {
+      return respond(correlationId, () => generateAllTemplates(correlationId));
     }
     return respond(correlationId, () => dispatchNotifications(correlationId));
   }

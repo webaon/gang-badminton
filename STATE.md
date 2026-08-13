@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — `WO-2.5-A` … `WO-2.5-D` เสร็จแล้ว
+> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — `WO-2.5-A` … `WO-2.5-E` เสร็จแล้ว
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -311,7 +311,18 @@ auto-generate → QR check-in → reminder jobs
 - แก้ยอดหลัง verify ต้องผ่าน `add_payment_adjustment()` — มี trigger กัน UPDATE
   `session_charges.amount` ของหนี้ที่จ่ายแล้ว
 
-**ต่อไป: `WO-2.5-E`** — session templates + auto-generate
+✅ **`WO-2.5-E` เสร็จแล้ว** (13 ส.ค. 2026) — migration `0027` push cloud แล้ว (27/27)
+ตรวจของจริงบน cloud: unique index `sessions_template_slot_key` ตรงกับ local
+
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- **snapshot ของนัดประกอบที่เดียว**: `server/sessions/snapshot.ts`
+  ⇒ ❌ ห้ามประกอบ snapshot เองที่อื่นอีก (นัดที่ generate ต้องปิดรอบได้เหมือนนัดที่สร้างมือ)
+- `sessions.template_id` + unique `(template_id, starts_at)` = กุญแจ idempotency ของ cron
+  **จงใจไม่กรอง `deleted_at`** ⇒ นัดที่ลบแล้วจะไม่ถูกสร้างกลับ
+- cron ใหม่ `/api/cron/session-generate` (Vercel Cron, รายวัน, ล่วงหน้า 14 วัน)
+- `domain/sessions/recurrence.ts` ใช้เลขวันแบบ JS (0 = อาทิตย์) และรองรับจบข้ามเที่ยงคืน
+
+**ต่อไป: `WO-2.5-F`** — QR check-in + guest token ย้ายเข้า cookie
 
 ### สิ่งที่ควรทำก่อนเริ่ม Phase 2.5
 
