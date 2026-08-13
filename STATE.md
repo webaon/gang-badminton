@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 13 ส.ค. 2026** · เขียนตอนจบ **WO-2.10 — Phase 2 (MVP-0) ครบทุกใบ**
+> **อัปเดตล่าสุด: 13 ส.ค. 2026** · 🎉 **MVP-0 เสร็จ — merge เข้า main + tag `v0.1.0` แล้ว**
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -31,7 +31,8 @@ branch: claude/badminton-group-system-4pfs7o   (ทำงานอยู่บ�
         main                                    (มีแค่ commit เอกสาร baseline)
 ```
 
-✅ **push ได้แล้ว — ทั้งสอง branch ขึ้น `webaon/gang-badminton` เรียบร้อย (11 ส.ค. 2026)**
+✅ **PR #1 merge เข้า `main` แล้ว + tag `v0.1.0`** (13 ส.ค. 2026)
+branch `claude/...` ยังใช้ทำงานต่อได้ — Phase 2.5 ค่อยเปิด PR ใบใหม่
 
 ปัญหา 403 เดิมแก้ด้วยการสลับบัญชี `gh` ที่ active มาเป็น **`webaon`** (เจ้าของ repo)
 ไม่ได้แก้ด้วยการเพิ่ม `triple-tgg` เป็น collaborator ⇒ ถ้าวันหนึ่ง push แล้วเจอ 403 อีก
@@ -249,54 +250,27 @@ npm test          # vitest run — 305 tests, 30 files
 
 ---
 
-## 7. ทำอะไรต่อ — E2E เส้นเต็ม แล้ว merge PR + tag v0.1.0
+## 7. ทำอะไรต่อ — Phase 2.5
 
-**Phase 2 แตก WO ไว้ครบ 10 ใบใน `AGENT-EXECUTION.md`** — WO-2.1 เสร็จแล้ว
+MVP-0 จบแล้ว (tag `v0.1.0`) — baseline §Roadmap กำหนด Phase ถัดไปไว้ว่า:
 
-| WO | สถานะ |
-|---|---|
-| **2.1** App foundation | ✅ **เสร็จ** |
-| **2.2** Auth + โปรไฟล์ | ✅ **เสร็จ** |
-| **2.3** ก๊วน/สมาชิก/pricing | ✅ **เสร็จ** — **ADR-002** ตรึง flat_rate + penalty full_share |
-| **2.4** สร้างนัด + snapshot | ✅ **เสร็จ** |
-| **2.5** ลงชื่อ + guest + waitlist + realtime | ✅ **เสร็จ** |
-| **2.6** Matching Engine (pure domain) | ✅ **เสร็จ** — **ADR-003** ตรึงข้อตกลงแบ่งทีม |
-| **2.7** Game Console | ✅ **เสร็จ** |
-| **2.8** SessionBilling + money invariants | ✅ **เสร็จ** — **ADR-004** สัดส่วนยกเลิกกลางคัน |
-| **2.9** Payments — PromptPay + สลิป + verify | ✅ **เสร็จ** |
-| **2.10** In-app notifications + worker | ✅ **เสร็จ** |
+**Phase 2.5 — Core ครบ**: billing strategies ที่เหลือ + MembershipBilling (monthly) →
+`payment_allocations` (จ่ายแทนเพื่อน) + adjustments/refund → session templates +
+auto-generate → QR check-in → reminder jobs
 
+🔴 **ยังไม่แตก WO ของ Phase 2.5** — baseline ให้แตกตอนจบ Phase ก่อนหน้า
+เหมือนที่ทำกับ Phase 2 (แตกล่วงหน้าแล้วจะเจอ deviation ที่เปลี่ยนรายละเอียด)
 
-### WO-2.1 ทิ้งอะไรไว้ให้ใช้
+### สิ่งที่ควรทำก่อนเริ่ม Phase 2.5
 
-| ของ | ใช้ยังไง |
-|---|---|
-| `supabaseServer()` | **ค่าเริ่มต้น** ของ server action/RSC — อยู่ใต้ RLS `auth.uid()` เป็นของผู้ใช้จริง |
-| `supabaseAdmin()` | เฉพาะตอนต้องเรียก DB function (grant ให้ `service_role` เท่านั้น) — **ต้อง `can()` ก่อนเสมอ** |
-| `supabaseBrowser()` | อ่านข้อมูลฝั่ง client ตาม policy · เรียก DB function ไม่ได้แล้ว |
-| `can(ctx, action)` | แหล่งเดียวของสิทธิ์ — ❌ ห้าม `if (role === 'admin')` ที่อื่น |
-| `runAction()` + `assertAffected()` | ทุก mutation ต้องผ่าน `assertAffected()` ไม่งั้นตอบ "บันทึกแล้ว" ทั้งที่ RLS กรองทิ้ง |
-| `lib/storage/paths.ts` | ประกอบ path ที่เดียว — **ห้ามรับ path จาก client** |
-
-⚠️ **`can()` ไม่ใช่ชั้นความปลอดภัย** — กำแพงจริงคือ RLS + EXECUTE grant
-`can()` มีไว้ให้ตอบถูกและซ่อนปุ่มให้ตรงความจริง **ห้ามผ่อน RLS เพราะ "เช็คที่ can() แล้ว"**
-
-### CI
-
-`.github/workflows/ci.yml` — typecheck → lint → vitest (Supabase จริง) → build · รัน ~3 นาที
-ใช้ `supabase start` ไม่ใช่ `services: postgres` เพราะเทสต์แตะ `auth.users` · `storage.objects` ·
-schema `cron` และต่อผ่าน pooled port · **ห้ามตัด supavisor ออกจาก `-x`**
-
-### WO-2.2 ต้องทำอะไร
-
-Supabase Auth (email/password + magic link) · หน้า sign up/in/out · สร้างแถว `profiles`
-ให้ผู้ใช้ใหม่ · แก้โปรไฟล์ตัวเอง · middleware กันหน้าที่ต้องล็อกอิน
-
-**จุดที่ต้องตัดสินใจแล้วบันทึกเหตุผล**: สร้าง `profiles` ด้วย DB trigger บน `auth.users`
-หรือด้วย server action — DoD ของ WO-2.2 ระบุไว้ว่าต้องเลือกและเขียนเหตุผลกำกับ
-
-⚠️ `middleware.ts` ที่ root **ยังไม่ได้สร้าง** — `lib/supabase/middleware.ts` มี `updateSession()`
-พร้อมแล้ว แต่ยังไม่มีใครเรียก ⇒ WO-2.2 ต้องสร้าง `middleware.ts` ที่ root แล้วต่อเข้าไป
+- [ ] **Playwright** — E2E ผ่านเบราว์เซอร์จริง (`tests/e2e/mvp0-full-path.test.ts`
+      เดินเส้นเดียวกันแล้วแต่ไม่ครอบการ render/กดปุ่ม/อัปโหลดไฟล์)
+- [ ] **ให้ก๊วนจริงลองใช้** แล้วเก็บ feedback ก่อนตัดสินว่า Phase 2.5 ต้องทำอะไรก่อน
+      — รายการใน BACKLOG ยาวกว่าที่ควรทำทั้งหมด
+- [ ] **ปิดช่องที่ยังค้าง** (ดู `BACKLOG.md`) ที่สำคัญที่สุด:
+      guest token อยู่ใน query string · ออกใบจ่ายซ้ำได้ ·
+      `confirmed` ที่ไม่เคยเช็คอินถูกคิดเหมือน no-show (ถ้าแอดมินลืมเปิดคอนโซล
+      ทุกคนจะโดนเก็บเงินหมด)
 
 ---
 
