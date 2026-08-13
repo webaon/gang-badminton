@@ -23,7 +23,10 @@
       `@typescript-eslint/no-restricted-imports` + ห้ามพึ่งชั้นนอกด้วย
       พิสูจน์ด้วย `tests/domain/layer-boundary.test.ts` ที่รัน eslint จริง (ถอด rule = เทสต์พัง)
 - [x] ~~**vitest setup**~~ — ✅ เสร็จใน WO-1.3 (`npm test`)
-- [ ] **Playwright setup** — E2E (Phase 5 แต่ smoke test อยู่ใน CI gates บน main)
+- [ ] **Playwright setup** — E2E ผ่านเบราว์เซอร์จริง (Phase 5)
+      ⚠️ `tests/e2e/mvp0-full-path.test.ts` เดินเส้นเต็มตาม baseline แล้วผ่าน **DB + domain จริง**
+      ซึ่งเป็นชั้นที่ correctness อยู่ แต่ **ไม่ครอบการ render / กดปุ่ม / อัปโหลดไฟล์จริง**
+      ⇒ ยังต้องมี Playwright ตามที่ baseline กำหนด ห้ามถือว่าเทสต์นั้นแทนกันได้
 - [x] ~~**GitHub Actions workflow (PR gate)**~~ — ✅ WO-2.1 · `.github/workflows/ci.yml`
       typecheck → lint → vitest (Supabase จริง ไม่ใช่ Postgres เปล่า) → build
       ยังไม่มี: job แยกสำหรับ main+nightly และ Playwright smoke (รอ WO ที่มี E2E)
