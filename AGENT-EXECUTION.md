@@ -442,7 +442,7 @@ DoD ทั้ง 5 ข้อผ่านจริง:
 
 ---
 
-## WO-2.5-C: MembershipBilling (รายเดือน)
+## WO-2.5-C: MembershipBilling (รายเดือน) ✅ **เสร็จ (13 ส.ค. 2026)**
 
 **Goal**: ก๊วนที่เก็บรายเดือนออกบิลได้อัตโนมัติและไม่ซ้ำ
 
@@ -460,6 +460,21 @@ DoD ทั้ง 5 ข้อผ่านจริง:
 - ห้าม insert `session_charges` ประเภท `monthly_fee` ที่อื่น
 
 **References**: **ADR-001** · baseline §Verification (MembershipBilling idempotent)
+
+**ผลลัพธ์** — **ADR-006** (`monthly` เป็นแผนแยกแถว + กติกาเข้ากลางเดือน) ·
+migration `0026`… ไม่มี — ใช้ `0025_membership_billing.sql` (`commit_monthly_fees()`) ·
+เทสต์ใหม่ 29 ตัว (domain 14 + DB 9 + cron path 6) · หน้า `/gangs/[gangId]/membership`
+
+DoD ทั้ง 4 ข้อผ่านจริง:
+- idempotent ต่อสมาชิก+เดือน — เทสต์รันซ้ำได้ `created = 0` และ INSERT ตรงยังชน
+  `session_charges_monthly_member_month_key` (กันที่ระดับ DB ไม่ใช่แค่ในโค้ด)
+- ครบทุกสมาชิก `is_monthly_member` · **เข้ากลางเดือนเก็บเต็มเดือน** (กติกาที่ตกลง)
+- commit ผ่าน `commit_monthly_fees()` เท่านั้น · charge ไม่ผูก session
+- เป็น Vercel Cron (`/api/cron/monthly-fees`) ไม่ใช่ pg_cron
+
+⚠️ **Deviation**: ตั้ง cron เป็น **รายวัน** ไม่ใช่รายเดือน — เพราะกติกา "เก็บเต็มเดือน"
+แปลว่าคนที่สมัครวันที่ 20 ต้องได้บิลของเดือนนั้น ถ้ารันเดือนละครั้งเขาจะได้เดือนหน้าแทน
+ปลอดภัยเพราะ idempotent ต่อสมาชิก+เดือน (บันทึกใน ADR-006)
 
 ---
 

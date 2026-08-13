@@ -14,10 +14,26 @@ export const PRICING_TYPES = ['flat_rate', 'court_plus_shuttle', 'monthly'] as c
 export type PricingType = (typeof PRICING_TYPES)[number];
 
 /**
- * โมเดลที่ทำจริงแล้ว
+ * โมเดลที่ใช้คิดเงิน **ต่อนัด** — `monthly` ไม่อยู่ในนี้โดยตั้งใจ [ADR-006]
+ *
+ * 🔴 `monthly` ไม่ใช่ "วิธีคิดเงินของนัด" แต่เป็น **ค่าสมาชิกรายเดือน** ที่ไม่ผูกกับนัดใดเลย
+ *    (`session_charges.type = 'monthly_fee'`, ไม่มี `session_id`)
+ *    ⇒ ก๊วนที่เก็บรายเดือนยังต้องมีแผนราคาต่อนัดสำหรับคนที่ไม่ใช่สมาชิกรายเดือน
+ *    ⇒ แผน `monthly` เป็น**คนละแถว**กับแผนของนัด และ `createSession()` ต้องไม่หยิบไปใช้
+ */
+export const SESSION_PRICING_TYPES: readonly PricingType[] = ['flat_rate', 'court_plus_shuttle'];
+
+export function isSessionPricingType(type: PricingType): boolean {
+  return SESSION_PRICING_TYPES.includes(type);
+}
+
+/**
+ * โมเดล**ต่อนัด**ที่ทำจริงแล้ว
  *
  * 🔴 เปิดชื่อไหนที่นี่ = `domain/billing` ต้องคิดเงินโมเดลนั้นได้จริง
  *    ห้ามเปิดล่วงหน้า — ก๊วนจะตั้งราคาไว้ทั้งเดือนแล้วเพิ่งรู้ตอนปิดรอบว่าคิดให้ไม่ได้
+ *
+ * ⚠️ `monthly` จะไม่มีวันอยู่ในลิสต์นี้ — มันคิดผ่าน MembershipBilling ไม่ใช่ตอนปิดรอบ [ADR-006]
  */
 export const IMPLEMENTED_PRICING_TYPES: readonly PricingType[] = [
   'flat_rate',
@@ -45,6 +61,17 @@ export type FlatRateParams = {
 export type CourtPlusShuttleParams = {
   courtFeeTotal: string;
   shuttlePrice: string;
+};
+
+/**
+ * พารามิเตอร์ของแผน `monthly` — ค่าสมาชิกรายเดือน **[WO-2.5-C]**
+ *
+ * เก็บเป็นแผนราคาแยกแถวของก๊วน (type = `monthly`) ไม่ใช่คอลัมน์ใน `gangs`
+ * เพราะ schema ออกแบบไว้แบบนั้นตั้งแต่ migration 0003 และทำให้เปลี่ยนราคาทีหลัง
+ * มีประวัติเหมือนแผนอื่น
+ */
+export type MonthlyParams = {
+  monthlyFee: string;
 };
 
 export const ROUNDING_MODES = ['ceil_baht', 'ceil_satang', 'absorb'] as const;
@@ -114,6 +141,10 @@ function validateMoneyField(
   return [];
 }
 
+export function validateMonthly(params: MonthlyParams): ValidationIssue[] {
+  return validateMoneyField(params.monthlyFee, 'monthlyFee', 'ค่าสมาชิกรายเดือน', { max: 100000 });
+}
+
 export function validateCourtPlusShuttle(params: CourtPlusShuttleParams): ValidationIssue[] {
   return [
     // ค่าสนาม 0 เป็นไปได้จริง (สนามของก๊วนเอง / มีสปอนเซอร์) ⇒ ไม่บล็อก
@@ -138,6 +169,15 @@ export function courtPlusShuttleToJson(params: CourtPlusShuttleParams): {
     court_fee_total: params.courtFeeTotal.trim(),
     shuttle_price: params.shuttlePrice.trim(),
   };
+}
+
+export function monthlyToJson(params: MonthlyParams): { monthly_fee: string } {
+  return { monthly_fee: params.monthlyFee.trim() };
+}
+
+export function monthlyFromJson(raw: unknown): MonthlyParams {
+  const obj = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+  return { monthlyFee: typeof obj.monthly_fee === 'string' ? obj.monthly_fee : '0' };
 }
 
 export function courtPlusShuttleFromJson(raw: unknown): CourtPlusShuttleParams {

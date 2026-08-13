@@ -14,6 +14,7 @@ import {
   flatRateFromJson,
   isImplemented as isPricingImplemented,
   roundingFromJson,
+  SESSION_PRICING_TYPES,
   type PricingType,
 } from '@/domain/policies/pricing';
 import { buildSnapshot } from '@/domain/sessions/snapshot';
@@ -113,6 +114,9 @@ export async function createSession(
       .select('id, name, type, params, rounding_policy, monthly_member_pays_shuttle')
       .eq('gang_id', gangId)
       .eq('is_active', true)
+      // 🔴 [ADR-006] แผน `monthly` เป็นค่าสมาชิกรายเดือน ไม่ใช่ราคาของนัด
+      //    ถ้าหยิบมาใช้ นัดจะแช่แข็ง snapshot ที่คิดเงินไม่ได้
+      .in('type', SESSION_PRICING_TYPES)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();

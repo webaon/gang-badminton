@@ -23,6 +23,10 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
  *
  * ✅ **WO-2.10 ต่อ worker ส่ง notification เข้ามาแล้ว** (`notification-dispatch`)
  *    ตอน Phase 1 จงใจไม่ต่อเพราะยังไม่มีตัวส่ง — claim แล้วไม่ส่ง = ข้อความหาย
+ *
+ * ✅ **WO-2.5-C ต่อ MembershipBilling เข้ามา** (`monthly-fees`)
+ *    เป็น app logic ไม่ใช่ SQL ล้วน (ต้องคิดเงินใน `domain/billing` ตาม ADR-001)
+ *    ⇒ อยู่ฝั่ง Vercel Cron ตาม baseline §การแบ่งงาน cron
  */
 /** งานที่เป็น SQL ล้วน — เรียก DB function ตรง */
 export const CRON_JOBS = {
@@ -35,7 +39,7 @@ export const CRON_JOBS = {
  * งานที่ต้องใช้ runtime ของแอป — ไม่ใช่ SQL ล้วน จึงอยู่ใน Vercel Cron
  * (baseline §การแบ่งงาน cron แยกสองประเภทนี้ไว้ชัดเจน)
  */
-export const APP_CRON_JOBS = ['notification-dispatch'] as const;
+export const APP_CRON_JOBS = ['notification-dispatch', 'monthly-fees'] as const;
 export type AppCronJobName = (typeof APP_CRON_JOBS)[number];
 
 export type CronJobName = keyof typeof CRON_JOBS;

@@ -4,11 +4,13 @@ import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
+import { CheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { Selector } from '@astryxdesign/core/Selector';
 import { TextInput } from '@astryxdesign/core/TextInput';
 
 import { GANG_ROLES, type GangRole } from '@/domain/permissions/types';
 import { addMemberByEmail, changeMemberRole, removeMember } from '@/server/actions/members';
+import { setMonthlyMembership } from '@/server/actions/membership';
 
 const ROLE_LABELS: Record<GangRole, string> = {
   owner: 'เจ้าของก๊วน',
@@ -21,6 +23,8 @@ export type MemberRow = {
   userId: string;
   displayName: string;
   role: GangRole;
+  /** สมาชิกรายเดือน — ค่าสนามเป็น 0 ตอนปิดรอบ และถูกออกบิลรายเดือน [WO-2.5-C] */
+  isMonthlyMember: boolean;
 };
 
 export function MembersPanel({
@@ -100,6 +104,17 @@ export function MembersPanel({
 
             {canManage ? (
               <>
+                {/*
+                  [WO-2.5-C] ติ๊กแล้วมีผลสองอย่าง: ค่าสนามเป็น 0 ตอนปิดรอบ (ADR-005)
+                  และถูกออกบิลรายเดือนตั้งแต่เดือนนี้ (เก็บเต็มเดือน)
+                */}
+                <CheckboxInput
+                  label="รายเดือน"
+                  size="sm"
+                  value={m.isMonthlyMember}
+                  isDisabled={pending}
+                  onChange={(next) => run(() => setMonthlyMembership(gangId, m.id, next))}
+                />
                 <div className="w-40">
                   <Selector
                     label="บทบาท"
@@ -119,7 +134,10 @@ export function MembersPanel({
                 />
               </>
             ) : (
-              <span className="text-sm">{ROLE_LABELS[m.role]}</span>
+              <span className="text-sm">
+                {ROLE_LABELS[m.role]}
+                {m.isMonthlyMember ? ' · รายเดือน' : ''}
+              </span>
             )}
           </li>
         ))}

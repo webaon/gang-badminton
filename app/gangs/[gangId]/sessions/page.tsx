@@ -6,6 +6,7 @@ import { Card } from '@astryxdesign/core/Card';
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseServer } from '@/lib/supabase/server';
 import { can } from '@/domain/permissions/can';
+import { SESSION_PRICING_TYPES } from '@/domain/policies/pricing';
 import type { GangRole } from '@/domain/permissions/types';
 import { formatInTimeZone } from '@/domain/time/timezone';
 import { fromJson as policyFromJson } from '@/domain/policies/cancellation';
@@ -54,6 +55,8 @@ export default async function SessionsPage({ params }: { params: Promise<{ gangI
     .select('id')
     .eq('gang_id', gangId)
     .eq('is_active', true)
+    // แผน `monthly` ไม่นับว่า "ตั้งราคานัดแล้ว" [ADR-006]
+    .in('type', SESSION_PRICING_TYPES)
     .limit(1)
     .maybeSingle();
 

@@ -30,17 +30,24 @@ export default async function GangMembersPage({
 
   const { data } = await supabase
     .from('gang_members')
-    .select('id, user_id, role, profiles!inner(display_name)')
+    .select('id, user_id, role, is_monthly_member, profiles!inner(display_name)')
     .eq('gang_id', gangId)
     .is('deleted_at', null)
     .order('role');
 
-  type Row = { id: string; user_id: string; role: GangRole; profiles: { display_name: string } };
+  type Row = {
+    id: string;
+    user_id: string;
+    role: GangRole;
+    is_monthly_member: boolean;
+    profiles: { display_name: string };
+  };
   const members: MemberRow[] = ((data ?? []) as unknown as Row[]).map((r) => ({
     id: r.id,
     userId: r.user_id,
     displayName: r.profiles.display_name,
     role: r.role,
+    isMonthlyMember: r.is_monthly_member,
   }));
 
   const myRole = (members.find((m) => m.userId === user.id)?.role ?? null) as GangRole | null;
@@ -49,9 +56,14 @@ export default async function GangMembersPage({
     <main className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">สมาชิก · {gang.name}</h1>
-        <Link href={`/gangs/${gangId}/settings`} className="underline">
-          ตั้งค่า
-        </Link>
+        <span className="flex gap-3">
+          <Link href={`/gangs/${gangId}/membership`} className="underline">
+            บิลรายเดือน
+          </Link>
+          <Link href={`/gangs/${gangId}/settings`} className="underline">
+            ตั้งค่า
+          </Link>
+        </span>
       </div>
 
       <Card padding={6}>

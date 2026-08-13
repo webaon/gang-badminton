@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — `WO-2.5-A`, `WO-2.5-B` เสร็จแล้ว
+> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — `WO-2.5-A` … `WO-2.5-C` เสร็จแล้ว
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -285,7 +285,20 @@ auto-generate → QR check-in → reminder jobs
 - `calculateSessionCharges()` ต้องได้ `shuttlesUsedTotal` เมื่อเป็น `court_plus_shuttle`
   — **throw ถ้าไม่ส่ง** ห้าม default 0
 
-**ต่อไป: `WO-2.5-C`** — MembershipBilling (รายเดือน)
+✅ **`WO-2.5-C` เสร็จแล้ว** (13 ส.ค. 2026) — migration `0025` push cloud แล้ว (25/25)
+ตรวจของจริงบน cloud: `commit_monthly_fees()` เป็น security definer · EXECUTE = `postgres`, `service_role`
+
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- **ADR-006**: `monthly` เป็นแผนราคา**คนละแถว**กับแผนของนัด — ทุก query ที่หา
+  "แผนราคาของนัด" ต้องกรอง `SESSION_PRICING_TYPES` ไม่งั้นจะหยิบแผนรายเดือนไปแช่แข็งใน snapshot
+- ค่าสมาชิกรายเดือน: **เข้ากลางเดือนเก็บเต็มเดือน** · ออกบิลต้นเดือนสำหรับเดือนนั้น
+- `commit_monthly_fees()` เป็นจุด commit เดียวของ `monthly_fee` (ADR-001)
+  ⇒ ❌ ห้าม insert `session_charges` ประเภทนี้ที่อื่น
+- cron ใหม่ `/api/cron/monthly-fees` (Vercel Cron, **รายวัน** — ดูเหตุผลใน ADR-006)
+- โฟลเดอร์ใหม่ `server/membership/` ใช้ร่วมกันระหว่าง cron กับ server action
+  (แนวเดียวกับ `server/guest/`)
+
+**ต่อไป: `WO-2.5-D`** — `payment_allocations` + adjustments/refund
 
 ### สิ่งที่ควรทำก่อนเริ่ม Phase 2.5
 

@@ -16,6 +16,10 @@
     {
       "path": "/api/cron/rate-limits-purge",
       "schedule": "20 4 * * *"
+    },
+    {
+      "path": "/api/cron/monthly-fees",
+      "schedule": "10 17 * * *"
     }
   ]
 }

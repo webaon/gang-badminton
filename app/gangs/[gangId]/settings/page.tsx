@@ -9,10 +9,13 @@ import type { GangRole } from '@/domain/permissions/types';
 import { fromJson as policyFromJson } from '@/domain/policies/cancellation';
 import { GangSettingsForm } from '@/features/gangs/GangSettingsForm';
 import { PricingAndSkills } from '@/features/gangs/PricingAndSkills';
+import { MonthlyPlanForm } from '@/features/billing/MonthlyPlanForm';
 import {
   courtPlusShuttleFromJson,
   flatRateFromJson,
+  monthlyFromJson,
   roundingFromJson,
+  SESSION_PRICING_TYPES,
   type PricingType,
 } from '@/domain/policies/pricing';
 
@@ -68,6 +71,18 @@ export default async function GangSettingsPage({
     .from('gang_pricing_plans')
     .select('id, name, type, params, rounding_policy, monthly_member_pays_shuttle')
     .eq('gang_id', gangId)
+    .eq('is_active', true)
+    .in('type', SESSION_PRICING_TYPES)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // [ADR-006] ค่าสมาชิกรายเดือนเป็นแผนแยกแถว ไม่ปนกับแผนราคาของนัด
+  const { data: monthlyPlan } = await supabase
+    .from('gang_pricing_plans')
+    .select('id, params')
+    .eq('gang_id', gangId)
+    .eq('type', 'monthly')
     .eq('is_active', true)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -127,6 +142,24 @@ export default async function GangSettingsPage({
             }
             skillLevels={skillLevels ?? []}
           />
+        </Card>
+      </div>
+
+      <div className="mt-4">
+        <Card padding={6}>
+          <MonthlyPlanForm
+            gangId={gangId}
+            plan={
+              monthlyPlan
+                ? { id: monthlyPlan.id, monthlyFee: monthlyFromJson(monthlyPlan.params).monthlyFee }
+                : null
+            }
+          />
+          <p className="mt-3 text-sm">
+            <Link href={`/gangs/${gangId}/membership`} className="underline">
+              ดูรอบบิลรายเดือน
+            </Link>
+          </p>
         </Card>
       </div>
     </main>
