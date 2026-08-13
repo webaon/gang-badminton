@@ -73,10 +73,14 @@ export async function createUser(displayName: string): Promise<string> {
   } = await pool.query<{ id: string }>(
     `insert into auth.users (id) values (gen_random_uuid()) returning id`,
   );
-  await pool.query(`insert into public.profiles (id, display_name) values ($1, $2)`, [
-    id,
-    displayName,
-  ]);
+  // trigger `on_auth_user_created` สร้างแถว profile ให้แล้ว (WO-2.2)
+  // ⇒ ต้อง upsert ไม่ใช่ insert และต้องเขียนทับชื่อ เพราะ trigger ใส่ค่า fallback
+  //   ให้ (user ในเทสต์ไม่มี email) แต่เทสต์อยากได้ชื่อที่ตัวเองกำหนด
+  await pool.query(
+    `insert into public.profiles (id, display_name) values ($1, $2)
+     on conflict (id) do update set display_name = excluded.display_name`,
+    [id, displayName],
+  );
   return id;
 }
 
@@ -230,6 +234,38 @@ export async function asRole<T>(
     // rollback เสมอ ไม่ว่าสำเร็จหรือไม่ — เทสต์ RLS เป็นการ "อ่าน" เป็นหลัก
     // และการทิ้ง state ไว้จะทำให้เทสต์ถัดไปเพี้ยน
     await client.query('rollback').catch(() => {});
+    client.release();
+  }
+}
+
+/**
+ * เหมือน `asRole()` แต่ **commit** แทน rollback
+ *
+ * ใช้เฉพาะเทสต์ที่ต้องพิสูจน์ว่า "เขียนติดจริง" — `asRole()` ที่ rollback เสมอจะทำให้
+ * เทสต์แบบนั้นอ่านผลไม่ได้ (rowCount บอกว่า 1 แต่ค่าไม่เปลี่ยนหลังจบ transaction)
+ *
+ * ⚠️ ทิ้ง state ไว้ในฐานข้อมูล ⇒ ใช้กับ fixture ที่สร้างใหม่เฉพาะเทสต์นั้นเท่านั้น
+ *    ห้ามใช้แก้ข้อมูลที่เทสต์อื่นพึ่งพา
+ */
+export async function asRoleCommitted<T>(
+  role: 'anon' | 'authenticated',
+  userId: string | null,
+  fn: (client: PoolClient) => Promise<T>,
+): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    await client.query(`select set_config('request.jwt.claims', $1, true)`, [
+      JSON.stringify({ sub: userId, role }),
+    ]);
+    await client.query(`set local role ${role}`);
+    const result = await fn(client);
+    await client.query('commit');
+    return result;
+  } catch (err) {
+    await client.query('rollback').catch(() => {});
+    throw err;
+  } finally {
     client.release();
   }
 }

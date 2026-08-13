@@ -55,9 +55,13 @@ begin
 
     insert into auth.users (id) values (v_uid) on conflict (id) do nothing;
 
+    -- trigger on_auth_user_created สร้างแถวให้แล้วพร้อมชื่อ fallback
+    -- ⇒ upsert เพื่อเขียนทับด้วยชื่อจริงของ seed
     insert into public.profiles (id, display_name, phone)
     values (v_uid, v_names[i], '08' || lpad(i::text, 8, '0'))
-    on conflict (id) do nothing;
+    on conflict (id) do update
+      set display_name = excluded.display_name,
+          phone        = excluded.phone;
   end loop;
 
   ---------------------------------------------------------------------------

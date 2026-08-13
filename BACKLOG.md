@@ -200,6 +200,26 @@
 
 ---
 
+## จาก WO-2.2 (Auth + โปรไฟล์)
+
+- [ ] **Astryx `TextInput` ไม่มี prop `autoComplete`** และไม่มีช่องส่ง HTML attribute ดิบ
+      ⇒ ฟอร์ม auth ใช้ `htmlName` ให้เบราว์เซอร์เดาแทน ซึ่งอ่อนกว่า `autocomplete` จริง
+      (password manager บางตัวไม่เติมรหัสให้อัตโนมัติ / ไม่เสนอบันทึกรหัสใหม่)
+      ทางเลือก: `npm run astryx -- swizzle TextInput` แล้วเพิ่ม prop เอง — แต่จะกลายเป็น
+      component ที่เราดูแลเองและหลุดจาก upgrade path ⇒ **ยังไม่ทำ** รอดูว่า Astryx
+      เวอร์ชันหน้าเพิ่มให้ไหม (ตอนนี้ pin 0.3.0 ซึ่งเป็น Beta)
+- [ ] **ยังไม่ได้ทำ avatar upload** — WO-2.2 ระบุว่าทำได้ถ้า helper พร้อม ซึ่งพร้อมแล้ว
+      (`lib/storage/paths.ts` มี `avatarPath()`) แต่กันขอบเขตไว้ให้ WO ที่ทำ storage จริง
+- [ ] **ยังไม่มี mapping `ErrorCode` → ข้อความไทยรวมศูนย์** — ตอนนี้หน้าจอโชว์ `message`
+      ที่ server ส่งมาตรงๆ CLAUDE.md §4 บอกว่า frontend ต้องแปลจาก code
+      ⇒ ทำตอนที่มีหน้าจอมากพอจะเห็นรูปแบบซ้ำ (Phase 2 กลางๆ)
+- [ ] **ทุกหน้าที่อ่าน session ต้องมี `export const dynamic = 'force-dynamic'`**
+      เจอตอน build: `/profile` ถูกพยายาม prerender แล้วพัง ถ้าบังเอิญ build ผ่าน
+      จะแย่กว่านั้นมาก (หน้าโปรไฟล์ของคนหนึ่งถูก cache เสิร์ฟให้ทุกคน)
+      ⇒ ควรหาวิธีบังคับด้วย lint/CI แทนที่จะพึ่งความจำ
+
+---
+
 ## จาก baseline ที่ยังไม่มี WO (บันทึกกันลืม)
 
 - [ ] Phase 2 ยังไม่แตก WO — baseline สั่งให้แตกตอนจบ Phase 1 (อย่าแตกล่วงหน้า)
