@@ -258,8 +258,13 @@ MVP-0 จบแล้ว (tag `v0.1.0`) — baseline §Roadmap กำหนด P
 `payment_allocations` (จ่ายแทนเพื่อน) + adjustments/refund → session templates +
 auto-generate → QR check-in → reminder jobs
 
-🔴 **ยังไม่แตก WO ของ Phase 2.5** — baseline ให้แตกตอนจบ Phase ก่อนหน้า
-เหมือนที่ทำกับ Phase 2 (แตกล่วงหน้าแล้วจะเจอ deviation ที่เปลี่ยนรายละเอียด)
+✅ **แตก WO ของ Phase 2.5 แล้ว** — 7 ใบ (`WO-2.5-A` … `WO-2.5-G`) อยู่ท้าย `AGENT-EXECUTION.md`
+(ใช้ตัวอักษรเพราะ Phase 2 มีใบชื่อ WO-2.5 อยู่แล้ว)
+
+**เริ่มที่ `WO-2.5-A`** — Game Console แก้ผลได้ + no-show ที่เชื่อถือได้
+เป็นใบที่ปลดล็อก blocker 4 ข้อจาก 6 ที่ Phase 2 ทิ้งไว้ โดยเฉพาะ
+**แก้จำนวนลูกย้อนหลังไม่ได้** ซึ่งจะกลายเป็น "คิดเงินผิดถาวร" ทันทีที่เปิด
+`court_plus_shuttle` ในใบถัดไป
 
 ### สิ่งที่ควรทำก่อนเริ่ม Phase 2.5
 
