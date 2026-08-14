@@ -261,9 +261,16 @@ npm test          # vitest run — 305 tests, 30 files
 6 ใบ (`WO-3.A` … `WO-3.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 7 ข้อ
 จาก Phase ก่อนหน้าที่ทุกใบต้องยึด
 
-**เริ่มที่ `WO-3.A`** — rollup job (`member_statistics` + `daily_metrics`)
-ต้องมาก่อนเพราะรายงานและหน้าสถิติ**อ่านจาก rollup** (baseline: เป็นแหล่งเดียวสำหรับการแสดงผล)
-ถ้าทำรายงานก่อนจะต้องเขียน query สดชั่วคราวแล้วรื้อทีหลัง
+✅ **`WO-3.A` เสร็จแล้ว** (14 ส.ค. 2026) — migration `0030` push cloud แล้ว (30/30)
+ตรวจของจริงบน cloud: 3 ฟังก์ชัน + pg_cron job `gang-badminton-rollup` active + grants
+
+**ต่อไป: `WO-3.B`** — รายงานรายรับ-รายจ่าย-กำไร (อ่านจาก rollup + ledger)
+
+นิยามที่ตรึงไว้แล้วใน migration `0030` (หน้าจอห้ามนิยามเอง):
+- `shuttles_used` = ส่วนแบ่งลูกของเกมที่ลง (`/4`)
+- `total_paid` = allocation ของสลิปที่ `verified` **หัก refund** (credit/correction ไม่นับ)
+- `attendance_rate` = มาเล่น ÷ **นัดที่เคยได้ที่** × 100
+- `daily_metrics` ใช้นาฬิกาไทย
 
 <details><summary>ที่มาของลำดับ (เดิม)</summary>
 

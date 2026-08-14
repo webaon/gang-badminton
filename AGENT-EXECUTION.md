@@ -693,7 +693,7 @@ baseline เรียง "rollup → รายงาน → ประกาศ �
 
 ---
 
-## WO-3.A: Rollup job (`member_statistics` + `daily_metrics`)
+## WO-3.A: Rollup job (`member_statistics` + `daily_metrics`) ✅ **เสร็จ (14 ส.ค. 2026)**
 
 **Goal**: มีแหล่งข้อมูลเดียวสำหรับสถิติและรายงาน ที่รันซ้ำได้โดยไม่เพี้ยน
 
@@ -714,6 +714,26 @@ baseline เรียง "rollup → รายงาน → ประกาศ �
 - ห้ามคำนวณเงินด้วย float ใน SQL (ใช้ `numeric` ล้วน) · ห้ามอ่านเงินผ่าน `supabase-js` โดยไม่ผ่าน `moneyFromDb()`
 
 **References**: baseline §ตาราง (`member_statistics`, `daily_metrics`) · §Verification (Job tests) · ข้อจำกัด 1, 2, 5, 6
+
+**ผลลัพธ์** — migration `0030` (3 ฟังก์ชัน + pg_cron `gang-badminton-rollup`) ·
+cron `/api/cron/rollup` (Vercel Cron คู่ขนาน) · ปุ่ม "คำนวณสถิติใหม่" ในหน้าตั้งค่าก๊วน ·
+เทสต์ใหม่ 13 ตัว (`tests/reports/rollup.test.ts`)
+
+DoD ทั้ง 6 ข้อผ่านจริง:
+- idempotent — รันซ้ำได้ผลเท่าเดิม และมีแถวเดียวต่อสมาชิกเสมอ
+- ตัวเลขตรงกับข้อมูลดิบในเคสที่รู้คำตอบ (มาเล่น/เกม/ลูก/เงิน/อัตราการมา)
+- `total_paid` จาก ledger — สลิปที่ยังไม่ `verified` ไม่นับ · refund หักออก
+- `daily_metrics.revenue` รวมนัดที่ **ยกเลิกกลางคัน** (เทสต์ยืนยัน +200 จากนัด `cancelled`)
+- `attendance_rate` มีนิยามเดียวในคอมเมนต์ของ migration และเทสต์ยึดตามนั้น
+- ก๊วนที่ปิด `features.statistics` ไม่ถูก rollup (และปุ่มของแอดมินตอบ `FEATURE_DISABLED`)
+
+**นิยามที่ตรึงไว้ (อยู่ในคอมเมนต์ของ `0030` — หน้าจอห้ามนิยามเอง)**
+- `shuttles_used` = **ส่วนแบ่ง** ลูกของเกมที่ลง (`/4`) ⇒ ผลรวมทุกคน = ลูกจริงของก๊วน
+- `total_paid` = allocation ของสลิปที่ `verified` **หัก refund** — `credit`/`correction`
+  ไม่นับเพราะไม่ใช่การเคลื่อนเงินสด
+- `attendance_rate` = มาเล่น ÷ **นัดที่เคยได้ที่** (`checked_in|confirmed|no_show`) × 100
+  ไม่ใช่นัดทั้งหมดของก๊วน
+- `daily_metrics` ใช้ **นาฬิกาไทย** เพราะเป็นตัวเลขระดับแพลตฟอร์ม ไม่ใช่ของก๊วนใดก๊วนหนึ่ง
 
 ---
 
