@@ -253,11 +253,10 @@
 
 ### 🔴 ข้อจำกัดด้านความปลอดภัยที่ยอมรับไว้ใน MVP-0
 
-- [ ] **guest token อยู่ใน query string** (`/guest/<id>?t=<token>`)
-      ⇒ อาจติดไปกับ `Referer` ที่ส่งไปเว็บอื่น และไปโผล่ใน log ของ proxy/CDN
-      ยอมรับใน MVP-0 เพราะ guest ไม่มีบัญชีให้ผูก session
-      **ทางแก้**: แลก token เป็น cookie (httpOnly) ครั้งแรกที่เปิดหน้า แล้ว redirect
-      ทิ้ง query string — ทำได้โดยไม่แตะ schema
+- [x] ~~**guest token อยู่ใน query string**~~ — ✅ **WO-2.5-F**
+      เปิดลิงก์ครั้งแรก → `/guest/<id>/claim` ตรวจ token → ตั้ง cookie httpOnly
+      (path ผูกกับ registration นั้นคนเดียว) → redirect ไป URL ที่ไม่มี token
+      · `cancelAsGuest()` อ่านจาก cookie ไม่รับ token จาก client อีกต่อไป
 - [ ] **ยังไม่มีวิธีขอลิงก์ guest ใหม่ถ้าทำหาย** — token แสดงครั้งเดียว ระบบเก็บแค่ hash
       ถ้า guest ปิดหน้าไปโดยไม่เก็บลิงก์ ต้องให้แอดมินยกเลิกให้แทน
       ⇒ ควรมีปุ่ม "ออกลิงก์ใหม่" ฝั่งแอดมิน (เขียน hash ใหม่ทับของเดิม)

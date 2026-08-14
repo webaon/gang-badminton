@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — `WO-2.5-A` … `WO-2.5-E` เสร็จแล้ว
+> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — `WO-2.5-A` … `WO-2.5-F` เสร็จแล้ว
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -322,7 +322,18 @@ auto-generate → QR check-in → reminder jobs
 - cron ใหม่ `/api/cron/session-generate` (Vercel Cron, รายวัน, ล่วงหน้า 14 วัน)
 - `domain/sessions/recurrence.ts` ใช้เลขวันแบบ JS (0 = อาทิตย์) และรองรับจบข้ามเที่ยงคืน
 
-**ต่อไป: `WO-2.5-F`** — QR check-in + guest token ย้ายเข้า cookie
+✅ **`WO-2.5-F` เสร็จแล้ว** (14 ส.ค. 2026) — migration `0028` push cloud แล้ว (28/28)
+ตรวจของจริงบน cloud: 2 ฟังก์ชัน + คอลัมน์ `checkin_token_hash` · EXECUTE = `postgres`, `service_role`
+
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- **guest token อยู่ใน cookie httpOnly แล้ว** (path ผูกกับ `/guest/<registrationId>`)
+  ⇒ `cancelAsGuest(registrationId)` ไม่รับ token จาก client อีกต่อไป
+  ลิงก์เดิมที่มี `?t=` ยังใช้ได้ — หน้าจะเด้งไป `/claim` แลกเป็น cookie ให้เอง
+- QR เช็คอิน: `issue_checkin_token()` / `check_in_by_token()` — **ผูกกับนัดเสมอ**
+  ⇒ ❌ ห้ามเขียนทางเช็คอินที่หา registration จาก token ล้วนโดยไม่เทียบ `session_id`
+- `issueCheckinQr()` คืน **ภาพ QR** ไม่ใช่ token — ห้ามเปลี่ยนให้คืน token กลับไปที่ client
+
+**ต่อไป: `WO-2.5-G`** — reminder jobs + E2E ของ Phase 2.5 แล้วแท็ก `v0.2.0`
 
 ### สิ่งที่ควรทำก่อนเริ่ม Phase 2.5
 

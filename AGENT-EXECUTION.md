@@ -564,7 +564,7 @@ DoD ทั้ง 5 ข้อผ่านจริง:
 
 ---
 
-## WO-2.5-F: QR check-in + guest token ย้ายเข้า cookie
+## WO-2.5-F: QR check-in + guest token ย้ายเข้า cookie ✅ **เสร็จ (14 ส.ค. 2026)**
 
 **Goal**: เช็คอินหน้างานเร็วขึ้น และลิงก์ของ guest ไม่รั่วผ่าน referrer
 
@@ -582,6 +582,29 @@ DoD ทั้ง 5 ข้อผ่านจริง:
 - ห้ามใช้ UUID เป็น token · ห้ามให้เช็คอินจาก `waitlist` ตรง
 
 **References**: BACKLOG §WO-2.5 (ข้อจำกัดความปลอดภัย) · CLAUDE.md §2.5
+
+**ผลลัพธ์** — migration `0028` (`checkin_token_hash` + 2 ฟังก์ชัน) ·
+`lib/guest/session.ts` + route `/guest/[registrationId]/claim` ·
+หน้า `/gangs/[gangId]/sessions/[sessionId]/scan` · error code ใหม่ `CHECKIN_TOKEN_INVALID` ·
+เทสต์ใหม่ 17 ตัว (QR 11 + cookie 6)
+
+DoD ทั้ง 4 ข้อผ่านจริง:
+- QR ของนัดหนึ่งใช้เช็คอินอีกนัดไม่ได้ — `check_in_by_token()` รับ `session_id` เข้าไปกรองเสมอ
+- QR หมดอายุตามนัด (`billing`/`cancelled` → `SESSION_NOT_OPEN`) · สแกนซ้ำได้ `already = true`
+  โดยไม่เกิด event ซ้ำ
+- `/guest/<id>?t=` เปิดครั้งแรก → ตั้ง cookie httpOnly → redirect ไป URL ที่ไม่มี token
+  (เทสต์ assert ทั้ง `location` และ `set-cookie` ของ route handler จริง)
+- token เก็บเป็น SHA-256 เท่านั้น · ไม่มี plaintext ใน `event_logs`
+
+**การตัดสินใจที่บันทึกไว้**:
+- 🔴 **client ไม่เคยถือ check-in token** — `issueCheckinQr()` คืน **ภาพ QR (data URL)**
+  ไม่ใช่ token ⇒ token ไม่ผ่าน JavaScript ฝั่งเบราว์เซอร์เลย
+- ขอ QR ใหม่ = ของเดิมใช้ไม่ได้ทันที ⇒ ภาพ QR ที่หลุดในแชทกลุ่มไม่ใช่กุญแจถาวร
+- **ไม่ฝังไลบรารีอ่าน QR ในหน้าเว็บ** — QR บรรจุ URL ของหน้าสแกนฝั่งแอดมิน
+  แอดมินใช้กล้องเนทีฟของเครื่อง (iOS Safari ยังไม่รองรับ `BarcodeDetector`)
+  แล้วหน้าสแกนยิง server action + ล้าง `?c=` ออกจาก URL ทันที
+- `CHECKIN_TOKEN_INVALID` ไม่แยกกรณี "ไม่มีจริง / เป็นของนัดอื่น / หมดอายุ"
+  เพราะการแยกเท่ากับยืนยันว่า token มีอยู่จริง
 
 ---
 

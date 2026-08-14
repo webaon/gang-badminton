@@ -1,7 +1,9 @@
+import { redirect } from 'next/navigation';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Card } from '@astryxdesign/core/Card';
 
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { readGuestCookie } from '@/lib/guest/session';
 import { formatInTimeZone } from '@/domain/time/timezone';
 import { GuestCancelButton } from '@/features/sessions/GuestCancelButton';
 
@@ -17,11 +19,13 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 /**
- * หน้าสถานะของ guest — เข้าได้ด้วย `?t=<guest token>` เท่านั้น
+ * หน้าสถานะของ guest — **[WO-2.5-F]** อ่าน token จาก cookie httpOnly
  *
- * 🔴 token อยู่ใน query string ⇒ อาจติดไปกับ referrer/log ของ proxy
- *    ยอมรับข้อจำกัดนี้ใน MVP-0 เพราะ guest ไม่มีบัญชีให้ผูก session
- *    (บันทึกใน BACKLOG — ทางแก้คือแลก token เป็น cookie ครั้งแรกที่เปิด)
+ * 🔴 เปิดด้วยลิงก์ที่มี `?t=` ครั้งแรก → เด้งไป `/claim` เพื่อแลกเป็น cookie
+ *    แล้วกลับมาที่ URL สะอาด ⇒ token ไม่ติดไปกับ referrer / log ของ proxy /
+ *    ประวัติเบราว์เซอร์ / ลิงก์ที่แขกแชร์ต่อ
+ *
+ * ⚠️ เปิดซ้ำครั้งต่อไปไม่ต้องมี token ใน URL เลย — cookie ทำงานแทน
  */
 export default async function GuestStatusPage({
   params,
@@ -31,7 +35,14 @@ export default async function GuestStatusPage({
   searchParams: Promise<{ t?: string }>;
 }) {
   const { registrationId } = await params;
-  const { t: guestToken } = await searchParams;
+  const { t: tokenInUrl } = await searchParams;
+
+  // มี token ใน URL = เพิ่งกดลิงก์ครั้งแรก ⇒ แลกเป็น cookie ก่อนแล้วค่อยกลับมา
+  if (tokenInUrl) {
+    redirect(`/guest/${registrationId}/claim?t=${encodeURIComponent(tokenInUrl)}`);
+  }
+
+  const guestToken = await readGuestCookie();
 
   const denied = (
     <main className="mx-auto max-w-md p-4">
@@ -43,6 +54,7 @@ export default async function GuestStatusPage({
   );
 
   if (!guestToken) return denied;
+
 
   const { data, error } = await supabaseAdmin().rpc('guest_registration', {
     p_registration_id: registrationId,
@@ -82,7 +94,8 @@ export default async function GuestStatusPage({
 
         {canCancel ? (
           <div className="mt-4">
-            <GuestCancelButton registrationId={registrationId} guestToken={guestToken} />
+            {/* ⚠️ ไม่ส่ง token ลงไปที่ client — server action อ่านจาก cookie เอง */}
+            <GuestCancelButton registrationId={registrationId} />
           </div>
         ) : null}
       </Card>

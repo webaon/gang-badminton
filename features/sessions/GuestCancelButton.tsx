@@ -6,13 +6,11 @@ import { Button } from '@astryxdesign/core/Button';
 
 import { cancelAsGuest } from '@/server/actions/guest';
 
-export function GuestCancelButton({
-  registrationId,
-  guestToken,
-}: {
-  registrationId: string;
-  guestToken: string;
-}) {
+/**
+ * ⚠️ **[WO-2.5-F]** ไม่รับ token อีกต่อไป — server action อ่านจาก cookie httpOnly
+ *    (token ที่ผ่านมือ client ได้ = token ที่หลุดไปกับ log/extension ได้)
+ */
+export function GuestCancelButton({ registrationId }: { registrationId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [cancelled, setCancelled] = useState(false);
   const [pending, setPending] = useState(false);
@@ -21,7 +19,7 @@ export function GuestCancelButton({
     setPending(true);
     setError(null);
 
-    const result = await cancelAsGuest(registrationId, guestToken);
+    const result = await cancelAsGuest(registrationId);
 
     if (result.success) setCancelled(true);
     else setError(result.error.message);

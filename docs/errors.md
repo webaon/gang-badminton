@@ -70,6 +70,7 @@ RAISE EXCEPTION USING
 | `INVITE_TOKEN_EXPIRED` | 401 | เลย `expires_at` | `register_to_session()` (guest path) |
 | `INVITE_TOKEN_EXHAUSTED` | 409 | ใช้ครบ `max_uses` แล้ว | `register_to_session()` (guest path) |
 | `GUEST_ACCESS_DENIED` | 403 | `guest_access_token_hash` ไม่ตรง หรือใช้ token ข้าม session | server action ของหน้า guest |
+| `CHECKIN_TOKEN_INVALID` | 403 | QR เช็คอินไม่ถูกต้อง หมดอายุ หรือเป็นของนัดอื่น — **[WO-2.5-F]** ข้อความไม่แยกสามกรณีโดยตั้งใจ (บอกว่า "เป็นของนัดอื่น" = ยืนยันว่า token มีจริง) | `check_in_by_token()` |
 
 ## Permission / Tenancy / Feature flag
 

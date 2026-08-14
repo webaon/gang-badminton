@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { readGuestCookie } from '@/lib/guest/session';
 import { enforceGuestRateLimit } from '@/server/guest/rate-limit';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { AppError, runAction } from '@/shared/action';
@@ -87,9 +88,15 @@ export async function registerAsGuest(
   });
 }
 
+/**
+ * แขกยกเลิกการลงชื่อของตัวเอง
+ *
+ * 🔴 **[WO-2.5-F]** อ่าน token จาก cookie httpOnly ไม่รับจาก client อีกต่อไป
+ *    cookie ผูก path ไว้กับ `/guest/<registrationId>` ⇒ เบราว์เซอร์ส่งมาเฉพาะ
+ *    ตอนอยู่หน้าของแขกคนนั้นจริงๆ
+ */
 export async function cancelAsGuest(
   registrationId: string,
-  guestToken: string,
 ): Promise<ApiResponse<{ status: string }>> {
   const requestHeaders = await headers();
   const correlationId = correlationIdFrom(requestHeaders);
@@ -101,6 +108,11 @@ export async function cancelAsGuest(
       headers: requestHeaders,
       limit: 10,
     });
+
+    const guestToken = await readGuestCookie();
+    if (!guestToken) {
+      throw new AppError('GUEST_ACCESS_DENIED', 'ลิงก์หมดอายุ — เปิดจากลิงก์ที่ได้ตอนลงชื่ออีกครั้ง');
+    }
 
     const { data, error } = await supabaseAdmin().rpc('cancel_registration_as_guest', {
       p_registration_id: registrationId,
