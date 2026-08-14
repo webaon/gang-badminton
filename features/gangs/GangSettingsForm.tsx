@@ -104,7 +104,37 @@ export function GangSettingsForm({
             isRequired
           />
         ) : null}
-        {/* [ADR-004] ค่าตั้งต้น — แอดมินแก้ได้อีกทีตอนกดยกเลิกจริง */}
+        {/* [WO-2.5-G] เวลาเตือน — 0 = ปิดการเตือนนั้น */}
+        <TextInput
+          label="เตือนก่อนถึงนัดกี่ชั่วโมง"
+          value={String(form.reminder?.sessionHoursBefore ?? 24)}
+          onChange={(v) =>
+            setForm((f) => ({
+              ...f,
+              reminder: {
+                sessionHoursBefore: Number(v) || 0,
+                paymentDueAfterHours: f.reminder?.paymentDueAfterHours ?? 24,
+              },
+            }))
+          }
+          description="0 = ไม่เตือน · เตือนเฉพาะคนที่ได้ที่แล้ว"
+        />
+        <TextInput
+          label="เตือนยอดค้างหลังนัดจบกี่ชั่วโมง"
+          value={String(form.reminder?.paymentDueAfterHours ?? 24)}
+          onChange={(v) =>
+            setForm((f) => ({
+              ...f,
+              reminder: {
+                sessionHoursBefore: f.reminder?.sessionHoursBefore ?? 24,
+                paymentDueAfterHours: Number(v) || 0,
+              },
+            }))
+          }
+          description="0 = ไม่เตือน · เตือนเฉพาะคนที่ยังค้างจริงหลังหักที่จ่ายแล้ว"
+        />
+
+                {/* [ADR-004] ค่าตั้งต้น — แอดมินแก้ได้อีกทีตอนกดยกเลิกจริง */}
         <TextInput
           label="ยกเลิกกลางคัน เก็บกี่ % ของยอด"
           value={String(Math.round(form.cancellationPolicy.midwayCancelRatio * 100))}

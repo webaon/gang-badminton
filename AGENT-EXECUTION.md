@@ -329,3 +329,336 @@ Phase 1 เปลี่ยนกติกาการเข้าถึงข้
 
 **ยังไม่อยู่ใน MVP-0** (Phase 2.5): billing strategies ที่เหลือ · MembershipBilling ·
 allocations/adjustments/refund · session templates + auto-generate · QR check-in · reminder jobs
+
+---
+
+# Work Orders — Phase 2.5 (Core ครบ)
+
+> แตกเมื่อ **13 ส.ค. 2026** ตอนจบ MVP-0 (`v0.1.0`) ตามกติกาเดิม — ไม่แตกล่วงหน้า
+>
+> baseline §Roadmap: "billing strategies ที่เหลือ + MembershipBilling (monthly) →
+> `payment_allocations` (จ่ายแทนเพื่อน) + adjustments/refund → session templates +
+> auto-generate → QR check-in → reminder jobs" · จบ Phase นี้ = tag **`v0.2.0`**
+
+## เรื่องชื่อ WO
+
+Phase นี้ชื่อ "2.5" และ Phase 2 มีใบชื่อ WO-2.5 อยู่แล้ว (ลงชื่อ+guest+waitlist)
+⇒ ใบของ Phase 2.5 ใช้ **ตัวอักษร**: `WO-2.5-A` … `WO-2.5-G` เพื่อไม่ให้สับสน
+
+## 🔴 สิ่งที่ Phase 2 ทิ้งไว้และกลายเป็น "ต้องทำก่อน" ของ Phase นี้
+
+| # | เรื่อง | ทำไมถึงเป็น blocker |
+|---|---|---|
+| 1 | **แก้จำนวนลูกย้อนหลังไม่ได้** | `court_plus_shuttle` คิดเงินจากจำนวนลูก ⇒ กรอกผิดแล้วแก้ไม่ได้ = คิดเงินผิดถาวร |
+| 2 | **`confirmed` ที่ไม่เคยเช็คอินถูกคิดเหมือน no-show** | แอดมินลืมเปิดคอนโซลทั้งวัน = ทุกคนโดนเก็บเงิน |
+| 3 | **ไม่มีหน้าสรุปยอดก่อนปิดรอบ** | กดแล้วย้อนไม่ได้ (`CHARGES_ALREADY_COMMITTED`) — ยิ่งอันตรายเมื่อสูตรซับซ้อนขึ้น |
+| 4 | **`markNoShow` ไม่มี DB function** | ไม่มี event log และไม่มี state guard ระดับ DB — จะคิด penalty จาก no-show ต้องเชื่อถือได้ก่อน |
+| 5 | **`rounding.ts` ยังไม่ถูกใช้จริง** | `flat_rate` ไม่มีการหาร ⇒ invariant ที่ baseline เรียกว่า blocker ยังไม่มีเคสจริง |
+| 6 | **guest token อยู่ใน query string** | ติดไปกับ `Referer` และ log ของ proxy — ยิ่งมี QR check-in ยิ่งมีลิงก์วิ่งไปมา |
+
+## ลำดับและการพึ่งพา
+
+```
+2.5-A  Game Console แก้ผลได้ + no-show ที่เชื่อถือได้   (ปลดล็อก #1 #2 #3 #4)
+ └─ 2.5-B  court_plus_shuttle + rounding มีผลจริง        (ปลดล็อก #5)
+     └─ 2.5-C  MembershipBilling (monthly)
+         └─ 2.5-D  allocations + adjustments/refund
+2.5-E  session templates + auto-generate      (ขนานได้ ไม่พึ่ง billing)
+2.5-F  QR check-in + guest token เป็น cookie  (ขนานได้ · ปลดล็อก #6)
+2.5-G  reminder jobs                          (พึ่ง 2.5-D สำหรับ "เตือนค้างจ่าย")
+        └─ ✅ checkpoint: E2E Phase 2.5 + tag v0.2.0
+```
+
+---
+
+## WO-2.5-A: Game Console แก้ผลได้ + no-show ที่เชื่อถือได้ ✅ **เสร็จ (13 ส.ค. 2026)**
+
+**Goal**: ตัวเลขที่ billing จะใช้ในใบถัดไปแก้ได้ก่อนปิดรอบ และสถานะ no-show ตรวจสอบย้อนหลังได้
+
+**Scope**
+- ทำเฉพาะ: แก้ `shuttles_used` ของเกมที่จบแล้ว (เฉพาะตอนนัดยัง**ไม่**ปิดรอบ) · `mark_no_show()` เป็น DB function พร้อม event + state guard · ปุ่ม "เช็คอินทุกคนที่ได้ที่" · **หน้าสรุปยอดก่อนกดปิดรอบ**
+- ไม่แตะ: สูตรคิดเงิน (ใบถัดไป) · QR check-in (WO-2.5-F)
+
+**Definition of Done**
+- แก้จำนวนลูกได้เมื่อนัดอยู่ `in_play` · **แก้ไม่ได้หลัง `billing`** (raise ไม่ใช่เงียบ)
+- `mark_no_show()` เขียน `event_logs` และปฏิเสธ transition ที่ไม่อนุญาต — เทสต์ระดับ DB
+- ปิดรอบตอนที่**ไม่มีใครเช็คอินเลย** ต้องเตือนก่อน ไม่ใช่เก็บเงินทุกคนเงียบๆ
+- หน้าสรุปยอดแสดงยอดต่อคน + เหตุผล (`attended`/`late_cancel`/`no_show`) ก่อนยืนยัน
+
+**Forbidden**
+- ห้ามให้แก้จำนวนลูกหลัง commit charges · ห้ามเขียน `session_registrations` ตรงโดยไม่ผ่าน DB function
+
+**References**: BACKLOG §WO-2.7, §WO-2.8 · baseline §Verification (เช็คอินแต่ไม่ลงเกม)
+
+**ผลลัพธ์** — migration `0024_console_corrections.sql` (3 ฟังก์ชัน) · 11 เทสต์ DB ใหม่
+(`tests/sessions/console-corrections.test.ts`) + 4 เทสต์ domain · หน้า
+`/gangs/[gangId]/sessions/[sessionId]/close` · error code ใหม่ `CONFIRMATION_REQUIRED`
+
+DoD ทั้ง 4 ข้อผ่านจริง:
+- แก้จำนวนลูกได้ตอน `in_play` · หลัง `billing` raise `INVALID_TRANSITION` และค่าเดิมไม่ถูกแตะ
+- `mark_no_show()` เขียน event พร้อม `from_status` · ปฏิเสธ `waitlist`/`cancelled` → `no_show`
+- ไม่มีใครเช็คอินเลย → `CONFIRMATION_REQUIRED` ต้องติ๊กยืนยันก่อนถึงปิดได้
+- หน้าสรุปยอดแสดง **ทุกคน** พร้อมเหตุผลต่อคน ก่อนกดยืนยัน
+
+⚠️ **Deviation**: ปุ่ม "ปิดรอบ เก็บเงิน" ในหน้ารายการนัด **ไม่ปิดรอบทันทีอีกต่อไป** —
+พาไปหน้าสรุปยอดก่อน (เจตนาของ DoD ข้อสุดท้าย: ต้องเห็นยอดต่อคนก่อนยืนยัน)
+
+---
+
+## WO-2.5-B: `court_plus_shuttle` + นโยบายปัดเศษมีผลจริง ✅ **เสร็จ (13 ส.ค. 2026)**
+
+**Goal**: ก๊วนที่คิดค่าคอร์ท+ค่าลูกตามจริงใช้ระบบได้ และ invariant ปัดเศษถูกพิสูจน์ด้วยเคสจริง
+
+**Scope**
+- ทำเฉพาะ: strategy `court_plus_shuttle` ใน `domain/billing` · เปิดใน `IMPLEMENTED_PRICING_TYPES` · UI ตั้งราคาแบบใหม่ · ใช้ `splitEvenly()` ที่เขียนไว้แล้วใน WO-2.8
+- ไม่แตะ: `monthly` (WO-2.5-C)
+
+**Definition of Done**
+- **money invariant มีเคสจริง**: `sum(charges) − ต้นทุนจริง = surplus` ที่ 3 / 7 / 13 คน โดย `surplus ≠ 0`
+- `rounding_surplus` ใน `breakdown` เป็นค่าจริง ไม่ใช่ `0.00` อีกต่อไป
+- 🔴 **นัดเก่าที่ snapshot เป็น `flat_rate` ยังคิดเงินเหมือนเดิมทุกบาท** — มีเทสต์
+- ค่าลูกของสมาชิกรายเดือนคิดตาม `monthly_member_pays_shuttle` (ค่าสนาม = 0 เสมอ)
+- `rounding_policy` ทั้งสามโหมดใช้ได้จริงจาก UI
+
+**Forbidden**
+- ห้ามแก้ snapshot ที่แช่แข็งแล้ว · ห้ามใช้ float กับเงิน (ใช้ `money.ts`)
+- ห้ามลบ guard `isImplemented()` — เปิดเฉพาะตัวที่ทำเสร็จจริง
+
+**References**: **ADR-002** · baseline §การตัดสินใจสะสม (นโยบายปัดเศษ — blocker) · `domain/billing/rounding.ts`
+
+**ผลลัพธ์** — **ADR-005** (หารค่าสนาม/ค่าลูกแยกก้อน + เศษรายคนแบบ largest remainder) ·
+ไม่มี migration ใหม่ (คอลัมน์ `court_fee_total`/`shuttle_price`/`monthly_member_pays_shuttle`
+มีมาตั้งแต่ 0003) · เทสต์ใหม่ 30 ตัว (`tests/domain/court-plus-shuttle.test.ts` 22 +
+`tests/sessions/court-billing.test.ts` 6 + policies 2)
+
+DoD ทั้ง 5 ข้อผ่านจริง:
+- money invariant ที่ 3/7/13 คน × 3 โหมดปัดเศษ — **surplus ≠ 0 จริง** (เทสต์ assert ข้อนี้ตรงๆ
+  ไม่งั้นเทสต์จะผ่านแบบไม่ได้พิสูจน์อะไร)
+- `rounding_surplus` ต่อ charge เป็นค่าจริง และ**บวกกันได้ surplus ของนัดเป๊ะ**
+- นัดเก่าที่ snapshot เป็น `flat_rate` คิดได้ยอดเดิมทุกบาท — มีเทสต์ที่ใช้ snapshot
+  รูปแบบก่อน WO นี้ (ไม่มี `courtPlusShuttle`/`roundingPolicy`) โดยตรง
+- ค่าลูกของสมาชิกรายเดือนตาม `monthly_member_pays_shuttle` · ค่าสนาม = 0 เสมอ
+- เลือกโมเดล + โหมดปัดเศษได้จากหน้าตั้งค่าก๊วน
+
+---
+
+## WO-2.5-C: MembershipBilling (รายเดือน) ✅ **เสร็จ (13 ส.ค. 2026)**
+
+**Goal**: ก๊วนที่เก็บรายเดือนออกบิลได้อัตโนมัติและไม่ซ้ำ
+
+**Scope**
+- ทำเฉพาะ: `monthly_fee` charges ต่อสมาชิก+เดือน · cron job รายเดือน · หน้าดูรอบบิล
+- ไม่แตะ: การจ่ายเงิน (มีอยู่แล้วจาก WO-2.9)
+
+**Definition of Done**
+- **idempotent ต่อสมาชิก+เดือน** — รันซ้ำได้ ไม่สร้างซ้ำ (มี partial unique index อยู่แล้วใน 0004)
+- ครบทุกสมาชิก `is_monthly_member` ที่ active ในเดือนนั้น · คนที่เข้ากลางเดือนคิดตามกติกาที่ตกลง
+- 🔴 **commit ผ่านฟังก์ชันของ MembershipBilling เอง ไม่ใช่ `close_session_with_charges()`** (ADR-001 — `monthly_fee` ไม่มี session ให้ transition)
+- เป็น Vercel Cron ไม่ใช่ pg_cron (baseline §การแบ่งงาน cron — เป็น app logic)
+
+**Forbidden**
+- ห้าม insert `session_charges` ประเภท `monthly_fee` ที่อื่น
+
+**References**: **ADR-001** · baseline §Verification (MembershipBilling idempotent)
+
+**ผลลัพธ์** — **ADR-006** (`monthly` เป็นแผนแยกแถว + กติกาเข้ากลางเดือน) ·
+migration `0026`… ไม่มี — ใช้ `0025_membership_billing.sql` (`commit_monthly_fees()`) ·
+เทสต์ใหม่ 29 ตัว (domain 14 + DB 9 + cron path 6) · หน้า `/gangs/[gangId]/membership`
+
+DoD ทั้ง 4 ข้อผ่านจริง:
+- idempotent ต่อสมาชิก+เดือน — เทสต์รันซ้ำได้ `created = 0` และ INSERT ตรงยังชน
+  `session_charges_monthly_member_month_key` (กันที่ระดับ DB ไม่ใช่แค่ในโค้ด)
+- ครบทุกสมาชิก `is_monthly_member` · **เข้ากลางเดือนเก็บเต็มเดือน** (กติกาที่ตกลง)
+- commit ผ่าน `commit_monthly_fees()` เท่านั้น · charge ไม่ผูก session
+- เป็น Vercel Cron (`/api/cron/monthly-fees`) ไม่ใช่ pg_cron
+
+⚠️ **Deviation**: ตั้ง cron เป็น **รายวัน** ไม่ใช่รายเดือน — เพราะกติกา "เก็บเต็มเดือน"
+แปลว่าคนที่สมัครวันที่ 20 ต้องได้บิลของเดือนนั้น ถ้ารันเดือนละครั้งเขาจะได้เดือนหน้าแทน
+ปลอดภัยเพราะ idempotent ต่อสมาชิก+เดือน (บันทึกใน ADR-006)
+
+---
+
+## WO-2.5-D: `payment_allocations` + adjustments/refund ✅ **เสร็จ (13 ส.ค. 2026)**
+
+**Goal**: จ่ายแทนเพื่อนได้ และแก้ยอดหลัง verify ได้โดยไม่แตะ record เดิม
+
+**Scope**
+- ทำเฉพาะ: จ่าย 1 สลิปครอบหลาย charge (ข้ามคน) · `payment_adjustments` (refund/correction/credit) ระดับ **charge** · dashboard ยอดสุทธิคำนวณจาก ledger
+- ไม่แตะ: coupon (Phase หลัง)
+
+**Definition of Done**
+- **invariant**: `sum(allocations ของ payment) ≤ payment.amount` — trigger มีอยู่แล้ว ต้องมีเทสต์ยิงชน
+- ยอดสุทธิต่อคน = `charge − allocations + adjustments` ถูกต้องทุกเคส
+- refund 1 รายการระดับ charge แล้ว dashboard สะท้อนทันที
+- **แก้ปัญหาออกใบจ่ายซ้ำ** — กด "ขอ QR" ซ้ำต้องใช้ใบเดิมถ้ายังไม่ `verified`
+- E2E: 1 สลิป 2 คน (baseline ระบุเคสนี้ตรงๆ)
+
+**Forbidden**
+- ห้ามแก้ `payments` / `session_charges` ที่ verify แล้ว — ต้องผ่าน ledger เท่านั้น
+- ห้ามอ่านยอดสุทธิจาก `status` (baseline §การตัดสินใจสะสม — Allocated/Adjusted ไม่ใช่ state)
+
+**References**: baseline §การตัดสินใจสะสม (Refund/แก้ยอดหลัง verify) · §Verification (Money invariants)
+
+**ผลลัพธ์** — migration `0026_payment_ledger.sql` · `domain/billing/ledger.ts` ·
+เทสต์ใหม่ 27 ตัว (DB 15 + domain 12) · dashboard เขียนใหม่ให้คิดจาก ledger
+
+DoD ทั้ง 5 ข้อผ่านจริง:
+- invariant `sum(allocations) ≤ payment.amount` — ยิงชนแล้วได้ `ALLOCATION_EXCEEDS_PAYMENT`
+  และเคส "เท่ากันพอดี" ต้องผ่าน (`≤` ไม่ใช่ `<`)
+- ยอดสุทธิ = `charge − allocations + adjustments` — ทั้งใน `charge_outstanding()` (SQL)
+  และ `domain/billing/ledger.ts` (หน้าจอ)
+- refund ระดับ charge แล้ว dashboard สะท้อนทันที (ยอดติดลบ = ก๊วนต้องคืน)
+- กด "ขอ QR" ซ้ำได้ใบเดิมถ้ายังไม่ `verified`
+- E2E 1 สลิป 2 คน: verify ครั้งเดียว หนี้ทั้งสองคนเป็น 0
+
+**การตัดสินใจที่บันทึกไว้** (ไม่ถึงขั้น ADR เพราะตามกติกาที่ baseline วางไว้แล้ว):
+- 🔴 นับ allocation **เฉพาะสลิปที่ `verified`** — ถ้านับสลิปที่ยังไม่ยืนยันด้วย
+  คนอัปสลิปปลอมจะทำให้หนี้หายทันที
+- 🔴 "ค้างเก็บ" กับ "ต้องคืน" **ไม่หักกลบกัน** ในสรุป — ก๊วนที่มีคนค้าง 500
+  และอีกคนจ่ายเกิน 500 ต้องไม่เห็นเป็น "เก็บครบแล้ว"
+- `event_logs.aggregate_type` เพิ่มค่า `'charge'` (expand — additive)
+  เพราะการปรับยอดเกิดกับหนี้ก้อนหนึ่ง ไม่ใช่กับ payment (สลิปใบเดียวครอบหลายคน)
+
+---
+
+## WO-2.5-E: Session templates + auto-generate ✅ **เสร็จ (13 ส.ค. 2026)**
+
+**Goal**: ก๊วนที่เล่นประจำไม่ต้องสร้างนัดมือทุกสัปดาห์
+
+**Scope**
+- ทำเฉพาะ: CRUD template (recurrence, คอร์ท, max_players, pricing plan) · cron generate ล่วงหน้า **2 สัปดาห์**
+- ไม่แตะ: การลงชื่อ/คิดเงิน (ใช้ของเดิม)
+
+**Definition of Done**
+- **idempotent** — รันซ้ำไม่ generate นัดซ้ำ (baseline §Verification "Job tests")
+- แก้ template **มีผลเฉพาะนัดที่ยังไม่ generate** · แก้นัดที่ generate แล้ว = แก้เฉพาะนัดนั้น
+- 🔴 **นัดที่ generate ต้องมี snapshot ครบเหมือนสร้างมือ** — ไม่งั้นปิดรอบไม่ได้
+- เวลาที่ generate แปลงตาม `gangs.timezone` (ใช้ `domain/time`) — มีเทสต์ข้าม timezone
+- นัดที่ generate เป็น `draft` เสมอ [D-14]
+
+**Forbidden**
+- ห้าม generate นัดที่ `status` ไม่ใช่ `draft` · ห้ามอ่านราคาปัจจุบันตอนคิดเงิน (snapshot ตอน generate)
+
+**References**: baseline §การตัดสินใจสะสม (นัดประจำสัปดาห์) · §Verification (Job tests)
+
+**ผลลัพธ์** — migration `0027` (unique index `sessions_template_slot_key`) ·
+`domain/sessions/recurrence.ts` · `server/templates/generate.ts` ·
+cron `/api/cron/session-generate` (รายวัน) · หน้า `/gangs/[gangId]/templates` ·
+เทสต์ใหม่ 23 ตัว (domain 10 + integration 13)
+
+DoD ทั้ง 5 ข้อผ่านจริง:
+- idempotent — รันซ้ำไม่ได้นัดซ้ำ และ INSERT ตรงยังชน unique index (กันที่ระดับ DB)
+- แก้ตารางมีผลเฉพาะรอบที่ยังไม่สร้าง — นัดเดิมไม่ขยับเวลา/จำนวนคน
+- snapshot ครบเหมือนสร้างมือ — ใช้ `buildSessionSnapshot()` **ตัวเดียวกับ** `createSession()`
+- เวลาแปลงตาม `gangs.timezone` — ก๊วนไทยกับก๊วน UTC ได้ instant ต่างกัน 7 ชั่วโมง
+- นัดที่ generate เป็น `draft` เสมอ
+
+**การตัดสินใจที่บันทึกไว้**:
+- ⚠️ **Deviation จาก CLAUDE.md §2.6** — unique index **จงใจไม่กรอง `deleted_at`**
+  เพราะตัวตนของนัดที่ generate คือ "template + เวลา" ⇒ ถ้ากรอง แอดมินที่ลบนัดที่งดเล่น
+  จะโดน cron สร้างกลับมาใหม่ (มีเทสต์คุมข้อนี้)
+- refactor: ย้ายการประกอบ snapshot ออกจาก `createSession()` มาเป็น
+  `server/sessions/snapshot.ts` — ถ้าปล่อยให้สองทางประกอบเอง วันหนึ่งจะเบี่ยงจากกัน
+  แล้วนัดที่ generate จะปิดรอบไม่ได้โดยไม่มีใครรู้จนถึงหน้างาน
+- cron รายวัน (ไม่ใช่รายสัปดาห์) เพื่อให้ขอบ 2 สัปดาห์เลื่อนตามทุกวัน
+
+---
+
+## WO-2.5-F: QR check-in + guest token ย้ายเข้า cookie ✅ **เสร็จ (14 ส.ค. 2026)**
+
+**Goal**: เช็คอินหน้างานเร็วขึ้น และลิงก์ของ guest ไม่รั่วผ่าน referrer
+
+**Scope**
+- ทำเฉพาะ: QR ต่อ registration สำหรับเช็คอิน · หน้าสแกนของแอดมิน · **แลก guest token เป็น cookie httpOnly ครั้งแรกที่เปิดหน้า แล้ว redirect ทิ้ง query string**
+- ไม่แตะ: LINE LIFF (Phase 4)
+
+**Definition of Done**
+- 🔴 **QR ของนัดหนึ่งใช้เช็คอินอีกนัดไม่ได้** (เทียบเคียง `INVITE_TOKEN_INVALID` ที่มีเทสต์แล้ว)
+- QR หมดอายุตามนัด · สแกนซ้ำไม่เปลี่ยนอะไร (idempotent)
+- `/guest/<id>?t=` เปิดครั้งแรก → ตั้ง cookie → URL ไม่มี token อีก · เปิดซ้ำใช้ cookie
+- token ยังเก็บเป็น hash เท่านั้น · ❌ ห้าม log plaintext
+
+**Forbidden**
+- ห้ามใช้ UUID เป็น token · ห้ามให้เช็คอินจาก `waitlist` ตรง
+
+**References**: BACKLOG §WO-2.5 (ข้อจำกัดความปลอดภัย) · CLAUDE.md §2.5
+
+**ผลลัพธ์** — migration `0028` (`checkin_token_hash` + 2 ฟังก์ชัน) ·
+`lib/guest/session.ts` + route `/guest/[registrationId]/claim` ·
+หน้า `/gangs/[gangId]/sessions/[sessionId]/scan` · error code ใหม่ `CHECKIN_TOKEN_INVALID` ·
+เทสต์ใหม่ 17 ตัว (QR 11 + cookie 6)
+
+DoD ทั้ง 4 ข้อผ่านจริง:
+- QR ของนัดหนึ่งใช้เช็คอินอีกนัดไม่ได้ — `check_in_by_token()` รับ `session_id` เข้าไปกรองเสมอ
+- QR หมดอายุตามนัด (`billing`/`cancelled` → `SESSION_NOT_OPEN`) · สแกนซ้ำได้ `already = true`
+  โดยไม่เกิด event ซ้ำ
+- `/guest/<id>?t=` เปิดครั้งแรก → ตั้ง cookie httpOnly → redirect ไป URL ที่ไม่มี token
+  (เทสต์ assert ทั้ง `location` และ `set-cookie` ของ route handler จริง)
+- token เก็บเป็น SHA-256 เท่านั้น · ไม่มี plaintext ใน `event_logs`
+
+**การตัดสินใจที่บันทึกไว้**:
+- 🔴 **client ไม่เคยถือ check-in token** — `issueCheckinQr()` คืน **ภาพ QR (data URL)**
+  ไม่ใช่ token ⇒ token ไม่ผ่าน JavaScript ฝั่งเบราว์เซอร์เลย
+- ขอ QR ใหม่ = ของเดิมใช้ไม่ได้ทันที ⇒ ภาพ QR ที่หลุดในแชทกลุ่มไม่ใช่กุญแจถาวร
+- **ไม่ฝังไลบรารีอ่าน QR ในหน้าเว็บ** — QR บรรจุ URL ของหน้าสแกนฝั่งแอดมิน
+  แอดมินใช้กล้องเนทีฟของเครื่อง (iOS Safari ยังไม่รองรับ `BarcodeDetector`)
+  แล้วหน้าสแกนยิง server action + ล้าง `?c=` ออกจาก URL ทันที
+- `CHECKIN_TOKEN_INVALID` ไม่แยกกรณี "ไม่มีจริง / เป็นของนัดอื่น / หมดอายุ"
+  เพราะการแยกเท่ากับยืนยันว่า token มีอยู่จริง
+
+---
+
+## WO-2.5-G: Reminder jobs ✅ **เสร็จ (14 ส.ค. 2026)**
+
+**Goal**: คนไม่ลืมนัดและไม่ลืมจ่าย
+
+**Scope**
+- ทำเฉพาะ: เตือนก่อนนัด (ตามเวลาที่ก๊วนตั้ง) · เตือนยอดค้างจ่าย · ใช้คิว `notifications` เดิม
+- ไม่แตะ: LINE (Phase 4 — ใช้คิวเดียวกันอยู่แล้ว)
+
+**Definition of Done**
+- **ไม่ส่งซ้ำ** — เตือนนัดเดิม/ยอดเดิมสองครั้งไม่ได้ (idempotent key)
+- เตือนค้างจ่ายส่งเฉพาะคนที่ยังค้างจริง **หลังหักallocations/adjustments แล้ว** (พึ่ง WO-2.5-D)
+- เป็น Vercel Cron (app logic) · แถวค้าง `processing` ยังถูก sweep ได้เหมือนเดิม
+
+**Forbidden**
+- ห้ามสร้าง worker ตัวใหม่ — ใช้ `claim_notifications()` + `dispatchNotifications()` เดิม
+
+**References**: baseline §Verification (Job tests) · §Notification worker
+
+**ผลลัพธ์** — migration `0029` (`notifications.dedupe_key` + `enqueue_notifications()`) ·
+`domain/gangs/settings.ts` · `server/notifications/reminders.ts` ·
+cron `/api/cron/reminders` (รายชั่วโมง) · เทสต์ใหม่ 23 ตัว (DB 14 + domain 8 + E2E 1)
+
+DoD ทั้ง 3 ข้อผ่านจริง:
+- ไม่ส่งซ้ำ — dedupe key + unique index · INSERT ตรงยังชน (กันที่ระดับ DB)
+- เตือนค้างจ่ายเฉพาะคนที่ค้างจริงหลังหัก allocations/adjustments (ผูกกับ ledger ของ WO-2.5-D)
+- เป็น Vercel Cron และ **ไม่มี worker ใหม่** — เทสต์ยืนยันว่าแถวที่เข้าคิว
+  ถูก `claim_notifications()` + `mark_notification_sent()` เดิมหยิบไปส่งได้
+
+**🔴 บั๊กที่เจอระหว่างทางและแก้ไปด้วย**: PostgREST serialize `numeric` เป็น **JSON number**
+ไม่ใช่ string ⇒ `toSatang()` (ที่จงใจรับเฉพาะ string) พังตอน runtime
+กระทบหน้า payments dashboard + หน้าจ่ายเงิน + `addChargeAdjustment()` ที่ทำใน WO-2.5-D
+เทสต์ระดับ DB ไม่เจอเพราะ `pg` driver คืน `numeric` เป็น string
+⇒ เพิ่ม `lib/supabase/money.ts` (`moneyFromDb()`) เป็นตัวแปลงที่ **ขอบระบบ**
+โดยไม่ผ่อนกฎของ `domain/billing/money.ts`
+
+---
+
+## ✅ Phase 2.5 checkpoint
+
+ก่อนประกาศจบ ต้องผ่าน **E2E ของ Phase 2.5** ที่ baseline §Verification เพิ่มไว้:
+
+> จ่ายแทนเพื่อน 1 สลิป 2 คน · template generate · QR check-in
+> (บวกเส้นเต็มของ MVP-0 ที่ต้องยังผ่านอยู่)
+
+แล้ว tag **`v0.2.0`** ตาม §Release Versioning
+
+✅ **E2E ผ่านแล้ว** (14 ส.ค. 2026) — `tests/e2e/phase25-full-path.test.ts`
+เดิน: ตารางประจำ generate (idempotent) → QR check-in (สแกนซ้ำ/ข้ามนัด) →
+แก้จำนวนลูกก่อนปิดรอบ → ปิดรอบ `court_plus_shuttle` (เศษ 3 บาทจริง) →
+**จ่ายแทนเพื่อน 1 สลิป 2 คน** → คืนเงินบางส่วน → ค่าสมาชิกรายเดือน (idempotent) →
+เตือนยอดค้างเฉพาะคนที่ค้างจริง · E2E ของ MVP-0 ยังผ่านครบเหมือนเดิม
+
+**ยังไม่อยู่ใน Phase 2.5** (Phase 3 ขึ้นไป): `member_statistics` rollup · `daily_metrics` ·
+รายงาน · ประกาศ · Discovery + join request · Landing page · LINE ทั้งชุด · Playwright เต็มรูป

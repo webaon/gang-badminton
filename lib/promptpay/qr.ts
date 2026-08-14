@@ -54,3 +54,13 @@ export async function promptPayQrDataUrl(promptPayId: string, amount: string): P
     width: 320,
   });
 }
+
+/**
+ * QR ของข้อความทั่วไป (ไม่ใช่ PromptPay) — **[WO-2.5-F]**
+ *
+ * ใช้กับ QR เช็คอิน: เนื้อใน QR เป็น URL ของหน้าสแกนฝั่งแอดมิน
+ * ⚠️ ไม่ log ค่าที่ encode — URL มี token อยู่ข้างใน (CLAUDE.md §2.5)
+ */
+export async function textQrDataUrl(text: string): Promise<string> {
+  return QRCode.toDataURL(text, { errorCorrectionLevel: 'M', margin: 1, width: 320 });
+}

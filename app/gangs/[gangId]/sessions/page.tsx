@@ -6,6 +6,7 @@ import { Card } from '@astryxdesign/core/Card';
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseServer } from '@/lib/supabase/server';
 import { can } from '@/domain/permissions/can';
+import { SESSION_PRICING_TYPES } from '@/domain/policies/pricing';
 import type { GangRole } from '@/domain/permissions/types';
 import { formatInTimeZone } from '@/domain/time/timezone';
 import { fromJson as policyFromJson } from '@/domain/policies/cancellation';
@@ -54,6 +55,8 @@ export default async function SessionsPage({ params }: { params: Promise<{ gangI
     .select('id')
     .eq('gang_id', gangId)
     .eq('is_active', true)
+    // แผน `monthly` ไม่นับว่า "ตั้งราคานัดแล้ว" [ADR-006]
+    .in('type', SESSION_PRICING_TYPES)
     .limit(1)
     .maybeSingle();
 
@@ -68,9 +71,16 @@ export default async function SessionsPage({ params }: { params: Promise<{ gangI
     <main className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">นัดของ {gang.name}</h1>
-        <Link href={`/gangs/${gangId}/settings`} className="underline">
-          ตั้งค่า
-        </Link>
+        <span className="flex gap-3">
+          {canCreate ? (
+            <Link href={`/gangs/${gangId}/templates`} className="underline">
+              ตารางประจำ
+            </Link>
+          ) : null}
+          <Link href={`/gangs/${gangId}/settings`} className="underline">
+            ตั้งค่า
+          </Link>
+        </span>
       </div>
 
       {canCreate && !plan ? (
@@ -120,6 +130,7 @@ export default async function SessionsPage({ params }: { params: Promise<{ gangI
                   <div className="mt-3">
                     <SessionActions
                       sessionId={s.id}
+                      gangId={gangId}
                       status={s.status}
                       midwayCancelRatioDefault={
                         policyFromJson(

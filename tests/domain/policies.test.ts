@@ -14,10 +14,13 @@ import {
 } from '@/domain/policies/cancellation';
 import {
   DEFAULT_ROUNDING_POLICY,
+  courtPlusShuttleFromJson,
+  courtPlusShuttleToJson,
   flatRateFromJson,
   flatRateToJson,
   isImplemented as isPricingImplemented,
   roundingFromJson,
+  validateCourtPlusShuttle,
   validateFlatRate,
 } from '@/domain/policies/pricing';
 
@@ -125,11 +128,27 @@ describe('cancellation policy — ADR-002', () => {
   });
 });
 
-describe('pricing — ADR-002 เลือก flat_rate โมเดลเดียวใน MVP-0', () => {
-  it('flat_rate implement แล้ว ที่เหลือยัง', () => {
+describe('pricing — flat_rate (ADR-002) + court_plus_shuttle (WO-2.5-B)', () => {
+  it('เปิดเฉพาะโมเดลที่ domain/billing คิดเงินได้จริง', () => {
     expect(isPricingImplemented('flat_rate')).toBe(true);
-    expect(isPricingImplemented('court_plus_shuttle')).toBe(false);
+    expect(isPricingImplemented('court_plus_shuttle')).toBe(true);
+    // 🔴 monthly ยังไม่มี MembershipBilling (WO-2.5-C) — เปิดก่อน = ก๊วนตั้งราคาแล้วเก็บเงินไม่ได้
     expect(isPricingImplemented('monthly')).toBe(false);
+  });
+
+  it('court_plus_shuttle — ตรวจค่าสนาม/ราคาลูก', () => {
+    expect(validateCourtPlusShuttle({ courtFeeTotal: '800', shuttlePrice: '25.50' })).toEqual([]);
+    // ค่าสนาม 0 เป็นไปได้จริง (สนามของก๊วนเอง) แต่ราคาลูก 0 แทบแน่นอนว่ากรอกผิด
+    expect(validateCourtPlusShuttle({ courtFeeTotal: '0', shuttlePrice: '25' })).toEqual([]);
+    expect(validateCourtPlusShuttle({ courtFeeTotal: '800', shuttlePrice: '0' })).toHaveLength(1);
+    expect(validateCourtPlusShuttle({ courtFeeTotal: '-1', shuttlePrice: 'abc' })).toHaveLength(2);
+  });
+
+  it('court_plus_shuttle — แปลงไป-กลับ jsonb ได้ค่าเดิม', () => {
+    const params = { courtFeeTotal: '800.00', shuttlePrice: '25.00' };
+    expect(courtPlusShuttleFromJson(courtPlusShuttleToJson(params))).toEqual(params);
+    // jsonb ที่ไม่มีคีย์ → '0' ไม่ใช่ undefined (คิดเงินต่อได้ แล้วให้ validate เป็นคนปฏิเสธ)
+    expect(courtPlusShuttleFromJson({})).toEqual({ courtFeeTotal: '0', shuttlePrice: '0' });
   });
 
   it('ราคาปกติผ่าน', () => {

@@ -16,6 +16,18 @@
     {
       "path": "/api/cron/rate-limits-purge",
       "schedule": "20 4 * * *"
+    },
+    {
+      "path": "/api/cron/monthly-fees",
+      "schedule": "10 17 * * *"
+    },
+    {
+      "path": "/api/cron/session-generate",
+      "schedule": "30 18 * * *"
+    },
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "5 * * * *"
     }
   ]
 }

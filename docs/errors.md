@@ -60,7 +60,7 @@ RAISE EXCEPTION USING
 | `ALLOCATION_EXCEEDS_PAYMENT` | 409 | `sum(allocations) > payment.amount` — ผิด invariant | CHECK/trigger บน `payment_allocations` |
 | `CHARGE_NOT_FOUND` | 404 | ไม่พบ `session_charge` ที่ adjustment อ้างถึง | `payment_adjustments` FK |
 | `CHARGES_ALREADY_COMMITTED` | 409 | session นี้ commit charges ไปแล้ว — เรียก `close_session_with_charges()` ซ้ำไม่ได้ | `close_session_with_charges()` ✅ |
-| `MONTHLY_FEE_ALREADY_GENERATED` | 409 | สมาชิก+เดือนนี้ generate `monthly_fee` ไปแล้ว (idempotency guard) | MembershipBilling function |
+| `MONTHLY_FEE_ALREADY_GENERATED` | 409 | สมาชิก+เดือนนี้ generate `monthly_fee` ไปแล้ว (idempotency guard) | MembershipBilling function — ⚠️ **[WO-2.5-C] ยังไม่ถูก raise ที่ไหน**: `commit_monthly_fees()` เลือก `on conflict do nothing` แล้วคืนจำนวน `skipped` แทน เพราะ cron รันซ้ำเป็นเรื่องปกติ ไม่ใช่ความผิดพลาดที่ต้องแจ้งเป็น error · เก็บ code ไว้ให้เส้นทาง "สั่งออกบิลรายคน" ในอนาคตที่การซ้ำคือความผิดพลาดจริง |
 
 ## Guest / Invite token
 
@@ -70,6 +70,7 @@ RAISE EXCEPTION USING
 | `INVITE_TOKEN_EXPIRED` | 401 | เลย `expires_at` | `register_to_session()` (guest path) |
 | `INVITE_TOKEN_EXHAUSTED` | 409 | ใช้ครบ `max_uses` แล้ว | `register_to_session()` (guest path) |
 | `GUEST_ACCESS_DENIED` | 403 | `guest_access_token_hash` ไม่ตรง หรือใช้ token ข้าม session | server action ของหน้า guest |
+| `CHECKIN_TOKEN_INVALID` | 403 | QR เช็คอินไม่ถูกต้อง หมดอายุ หรือเป็นของนัดอื่น — **[WO-2.5-F]** ข้อความไม่แยกสามกรณีโดยตั้งใจ (บอกว่า "เป็นของนัดอื่น" = ยืนยันว่า token มีจริง) | `check_in_by_token()` |
 
 ## Permission / Tenancy / Feature flag
 
@@ -88,6 +89,7 @@ RAISE EXCEPTION USING
 | `CRON_UNAUTHORIZED` | 401 | `CRON_SECRET` ไม่ตรง | cron route handler |
 | `WEBHOOK_SIGNATURE_INVALID` | 401 | LINE signature verify ไม่ผ่าน | `/api/line/webhook/[gangId]` |
 | `VALIDATION_ERROR` | 400 | input ไม่ผ่าน schema validation | server action / route handler |
+| `CONFIRMATION_REQUIRED` | 409 | การกระทำถูกต้องตามกติกาแต่ผลลัพธ์ผิดปกติจนต้องให้คนยืนยันก่อน (เช่นปิดรอบทั้งที่ไม่มีใครเช็คอินเลย) — ยิงซ้ำพร้อมธงยืนยันเพื่อดำเนินการต่อ | server action |
 | `NOT_FOUND` | 404 | resource ทั่วไปไม่พบ (ใช้เมื่อไม่มี code เฉพาะทาง) | ทุกที่ |
 | `INTERNAL_ERROR` | 500 | ข้อผิดพลาดที่ไม่ได้จัดหมวด — **ต้อง log ต้นฉบับเต็มพร้อม correlation id เสมอ** | ทุกที่ |
 

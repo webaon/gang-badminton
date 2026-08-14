@@ -37,10 +37,12 @@ const PLAIN_CANCELLABLE = ['draft', 'open'];
 
 export function SessionActions({
   sessionId,
+  gangId,
   status,
   midwayCancelRatioDefault,
 }: {
   sessionId: string;
+  gangId: string;
   status: string;
   /** [ADR-004] ค่าตั้งต้นของก๊วนที่แช่แข็งไว้ใน snapshot ของนัดนี้ */
   midwayCancelRatioDefault: number;
@@ -102,13 +104,18 @@ export function SessionActions({
             onClick={() => go(step.to)}
           />
         ))}
+        {/*
+          🔴 [WO-2.5-A] ปุ่มนี้ **ไม่ปิดรอบทันที** — พาไปหน้าสรุปยอดก่อน
+             ปิดรอบคือจุดที่เงินถูก commit แล้วแก้ไม่ได้ (ADR-001)
+             การกดครั้งเดียวจากหน้ารายการนัดแล้วเก็บเงินเลย คือทางที่ผิดพลาดแล้วกู้ไม่ได้
+        */}
         {CLOSABLE.includes(status) ? (
           <Button
             size="sm"
             variant="primary"
             label="ปิดรอบ เก็บเงิน"
             isDisabled={pending}
-            onClick={() => close('billing')}
+            onClick={() => router.push(`/gangs/${gangId}/sessions/${sessionId}/close`)}
           />
         ) : null}
 

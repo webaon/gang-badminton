@@ -9,6 +9,7 @@ import { can } from '@/domain/permissions/can';
 import type { GangRole } from '@/domain/permissions/types';
 import { formatInTimeZone } from '@/domain/time/timezone';
 import { RegistrationActions } from '@/features/sessions/RegistrationActions';
+import { CheckinQrButton } from '@/features/sessions/CheckinQrButton';
 import { RosterSync } from '@/features/sessions/RosterSync';
 
 export const dynamic = 'force-dynamic';
@@ -83,6 +84,11 @@ export default async function SessionDetailPage({
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{session.title}</h1>
         <span className="flex gap-3">
+          {can({ role }, 'registration.checkin') ? (
+            <Link href={`/gangs/${gangId}/sessions/${sessionId}/scan`} className="underline">
+              สแกนเช็คอิน
+            </Link>
+          ) : null}
           {can({ role }, 'game.manage') ? (
             <Link href={`/gangs/${gangId}/sessions/${sessionId}/console`} className="underline">
               คอนโซล
@@ -107,6 +113,13 @@ export default async function SessionDetailPage({
           ได้ที่แล้ว {confirmed.length}/{session.max_players} คน
           {waitlist.length > 0 ? ` · รอคิว ${waitlist.length} คน` : ''}
         </p>
+
+        {/* [WO-2.5-F] QR ของตัวเอง — ออกได้เฉพาะคนที่ได้ที่แล้ว */}
+        {mine && ['confirmed', 'checked_in'].includes(mine.status) ? (
+          <div className="mt-4">
+            <CheckinQrButton registrationId={mine.id} />
+          </div>
+        ) : null}
 
         <div className="mt-4">
           <RegistrationActions

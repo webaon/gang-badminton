@@ -6,7 +6,11 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
 import { can } from '@/domain/permissions/can';
 import type { GangRole } from '@/domain/permissions/types';
-import { GameConsole, type ConsoleGame } from '@/features/sessions/GameConsole';
+import {
+  GameConsole,
+  type ConsoleGame,
+  type FinishedGame,
+} from '@/features/sessions/GameConsole';
 import { RosterSync } from '@/features/sessions/RosterSync';
 import type { ConsoleQueueRow } from '@/server/actions/game-console';
 
@@ -81,6 +85,21 @@ export default async function ConsolePage({
     .is('ended_at', null)
     .order('court_no');
 
+  // เกมที่จบแล้ว — ให้แอดมินแก้จำนวนลูกก่อนปิดรอบ [WO-2.5-A]
+  const { data: endedGames } = await admin
+    .from('games')
+    .select('id, court_no, shuttles_used')
+    .eq('session_id', sessionId)
+    .not('ended_at', 'is', null)
+    .order('ended_at', { ascending: false })
+    .limit(50);
+
+  const finishedGames: FinishedGame[] = (endedGames ?? []).map((g) => ({
+    id: g.id,
+    courtNo: g.court_no,
+    shuttlesUsed: String(g.shuttles_used ?? '0'),
+  }));
+
   const nameOf = new Map(queue.map((r) => [r.registration_id, r.display_name]));
 
   const games: ConsoleGame[] = (activeGames ?? []).map((g) => ({
@@ -120,6 +139,8 @@ export default async function ConsolePage({
           currentGameId: r.current_game_id,
         }))}
         courtCount={session.court_count}
+        finishedGames={finishedGames}
+        canEditShuttles={['open', 'in_play'].includes(session.status)}
       />
     </main>
   );

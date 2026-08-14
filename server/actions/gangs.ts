@@ -13,6 +13,11 @@ import {
   validate as validateCancellation,
   type CancellationPolicy,
 } from '@/domain/policies/cancellation';
+import {
+  reminderToJson,
+  validateReminder,
+  type ReminderSettings,
+} from '@/domain/gangs/settings';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { AppError, assertOne, runAction, unwrap } from '@/shared/action';
 
@@ -89,6 +94,8 @@ export type GangSettingsInput = {
   promptpayId: string | null;
   timezone: string;
   cancellationPolicy: CancellationPolicy;
+  /** **[WO-2.5-G]** เวลาเตือน — ไม่ส่งมา = คงค่าเดิมไว้ */
+  reminder?: ReminderSettings;
 };
 
 export async function updateGangSettings(
@@ -107,12 +114,23 @@ export async function updateGangSettings(
       throw new AppError('VALIDATION_ERROR', 'ต้องระบุชื่อก๊วน');
     }
 
-    const issues = validateCancellation(input.cancellationPolicy);
+    const issues = [
+      ...validateCancellation(input.cancellationPolicy),
+      ...(input.reminder ? validateReminder(input.reminder) : []),
+    ];
     if (issues.length > 0) {
       throw new AppError('VALIDATION_ERROR', issues.map((i) => i.message).join(' · '));
     }
 
     const supabase = await supabaseServer();
+
+    const { data: existing } = await supabase
+      .from('gangs')
+      .select('settings')
+      .eq('id', gangId)
+      .maybeSingle();
+
+    const currentSettings = (existing?.settings ?? {}) as Record<string, unknown>;
 
     // ใช้ client ที่ผูก session ⇒ RLS เป็นด่านสุดท้ายถ้า can() พลาด
     const rows = unwrap(
@@ -125,6 +143,10 @@ export async function updateGangSettings(
           promptpay_id: input.promptpayId?.trim() || null,
           timezone: input.timezone,
           cancellation_policy: cancellationToJson(input.cancellationPolicy),
+          // ⚠️ merge ไม่ทับทั้งก้อน — `settings` มีคีย์อื่นที่ WO ถัดไปจะเพิ่มเข้ามา
+          ...(input.reminder
+            ? { settings: { ...(currentSettings ?? {}), ...reminderToJson(input.reminder) } }
+            : {}),
           updated_by: user.id,
         })
         .eq('id', gangId)

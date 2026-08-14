@@ -10,11 +10,25 @@ import { assertCan } from '@/domain/permissions/can';
 import type { GangRole } from '@/domain/permissions/types';
 import { planMatches } from '@/domain/matching/pipeline';
 import type { MatchPlayer } from '@/domain/matching/types';
+import { textQrDataUrl } from '@/lib/promptpay/qr';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { AppError, assertOne, runAction, unwrap } from '@/shared/action';
 
 async function cid(): Promise<string> {
   return correlationIdFrom(await headers());
+}
+
+/**
+ * origin ของ request นี้ — QR ต้องเป็น URL เต็มถึงจะสแกนแล้วเปิดได้
+ *
+ * ⚠️ อ่านจาก header ของ proxy เพราะ deploy อยู่หลัง Vercel
+ *    (ไม่มี env ที่บอก public URL ในโปรเจกต์นี้)
+ */
+async function requestOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get('x-forwarded-host') ?? h.get('host') ?? 'localhost:3000';
+  const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
+  return `${proto}://${host}`;
 }
 
 async function sessionContext(sessionId: string, userId: string) {
@@ -83,11 +97,11 @@ export async function checkIn(registrationId: string): Promise<ApiResponse<{ sta
 }
 
 /**
- * mark no-show
+ * mark no-show — **[WO-2.5-A]** ย้ายไปเป็น DB function
  *
- * ⚠️ ไม่ใช่ transition ที่มี DB function เฉพาะ — เขียนตรงผ่าน RLS ไม่ได้เพราะ
- *    `session_registrations` ไม่มี policy เขียน [D-13] ⇒ ใช้ admin client
- *    และตรวจสิทธิ์เองที่นี่
+ * ⚠️ เดิม action นี้ `UPDATE` แถวตรงๆ ผ่าน admin client ⇒ ไม่มี event log
+ *    และ state guard อยู่ใน TypeScript ที่ bypass ได้ทุกทางที่ไม่ผ่าน action นี้
+ *    ตอนนี้ `mark_no_show()` เป็นคนตัดสิน state + เขียน event ให้ครบ
  */
 export async function markNoShow(registrationId: string): Promise<ApiResponse<{ id: string }>> {
   const correlationId = await cid();
@@ -99,23 +113,47 @@ export async function markNoShow(registrationId: string): Promise<ApiResponse<{ 
 
     assertCan({ role }, 'registration.no_show');
 
-    if (!['confirmed', 'checked_in'].includes(reg.status)) {
-      throw new AppError(
-        'INVALID_REGISTRATION_TRANSITION',
-        'ทำเครื่องหมายไม่มาได้เฉพาะคนที่ได้ที่หรือเช็คอินแล้ว',
-      );
-    }
+    const { data, error } = await supabaseAdmin().rpc('mark_no_show', {
+      p_registration_id: registrationId,
+      p_actor_id: user.id,
+      p_correlation_id: correlationId,
+    });
 
-    const rows = unwrap(
-      await supabaseAdmin()
-        .from('session_registrations')
-        .update({ status: 'no_show', updated_by: user.id })
-        .eq('id', registrationId)
-        .select('id'),
-    );
+    if (error) throw error;
 
     revalidatePath(`/gangs/${session.gang_id}/sessions/${reg.session_id}/console`);
-    return assertOne<{ id: string }>(rows);
+    return { id: (data as { id: string }).id };
+  });
+}
+
+/**
+ * เช็คอินทุกคนที่ได้ที่รวดเดียว
+ *
+ * 🔴 เหตุผลที่ต้องมี: `confirmed` ที่ไม่เคยเช็คอินถูกคิดเงินเท่ากับคนไม่มา
+ *    (`penalty_type = full_share`) ⇒ วันที่แอดมินไม่ได้เปิดคอนโซล ทุกคน
+ *    จะโดนเก็บเงินในฐานะ "ไม่เช็คอิน" ทั้งที่มากันครบ
+ */
+export async function checkInEveryone(
+  sessionId: string,
+): Promise<ApiResponse<{ checkedIn: number }>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const user = await requireUser();
+    const { session, role } = await sessionContext(sessionId, user.id);
+
+    assertCan({ role }, 'registration.checkin');
+
+    const { data, error } = await supabaseAdmin().rpc('check_in_all', {
+      p_session_id: sessionId,
+      p_actor_id: user.id,
+      p_correlation_id: correlationId,
+    });
+
+    if (error) throw error;
+
+    revalidatePath(`/gangs/${session.gang_id}/sessions/${sessionId}/console`);
+    return { checkedIn: Number(data ?? 0) };
   });
 }
 
@@ -279,6 +317,55 @@ export async function finishGame(
   });
 }
 
+/**
+ * แก้จำนวนลูกของเกมที่จบไปแล้ว — **[WO-2.5-A]**
+ *
+ * 🔴 ทำไมต้องมีก่อนเปิด `court_plus_shuttle`
+ *    โมเดลนั้นคิดเงินจากจำนวนลูก ⇒ กรอกผิดหน้างานแล้วแก้ไม่ได้ = คิดเงินผิดถาวร
+ *    DB function เป็นคนบังคับว่าแก้ได้เฉพาะก่อนปิดรอบ
+ */
+export async function updateGameShuttles(
+  gameId: string,
+  shuttlesUsed: string,
+): Promise<ApiResponse<{ id: string; shuttlesUsed: string }>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const user = await requireUser();
+    const admin = supabaseAdmin();
+
+    const { data: game } = await admin
+      .from('games')
+      .select('id, session_id')
+      .eq('id', gameId)
+      .maybeSingle();
+
+    if (!game) throw new AppError('NOT_FOUND', 'ไม่พบเกมนี้');
+
+    const { session, role } = await sessionContext(game.session_id, user.id);
+    assertCan({ role }, 'game.manage');
+
+    const shuttles = Number(shuttlesUsed);
+    if (!Number.isFinite(shuttles) || shuttles < 0) {
+      throw new AppError('VALIDATION_ERROR', 'จำนวนลูกต้องเป็นตัวเลขไม่ติดลบ');
+    }
+
+    const { data, error } = await admin.rpc('update_game_shuttles', {
+      p_game_id: gameId,
+      p_shuttles: shuttles,
+      p_actor_id: user.id,
+      p_correlation_id: correlationId,
+    });
+
+    if (error) throw error;
+
+    const updated = data as { id: string; shuttles_used: string };
+
+    revalidatePath(`/gangs/${session.gang_id}/sessions/${game.session_id}/console`);
+    return { id: updated.id, shuttlesUsed: updated.shuttles_used };
+  });
+}
+
 /** แอดมินสลับตัวในคอร์ท — override ผลของ engine ได้เสมอ */
 export async function substitutePlayer(
   gameId: string,
@@ -314,5 +401,96 @@ export async function substitutePlayer(
 
     revalidatePath(`/gangs/${session.gang_id}/sessions/${game.session_id}/console`);
     return { id: (data as { id: string }).id };
+  });
+}
+
+/**
+ * ออก QR เช็คอินของการลงชื่อหนึ่งรายการ — **[WO-2.5-F]**
+ *
+ * 🔴 คืน plaintext token **ครั้งเดียว** — ฐานข้อมูลเก็บแค่ SHA-256 (CLAUDE.md §2.5)
+ *    ❌ ห้าม log ค่านี้ · ❌ ห้ามใช้ `registration.id` แทน (uuidv7 เดาได้)
+ *
+ * ⚠️ ขอใหม่ = ออกอันใหม่ ของเดิมใช้ไม่ได้ทันที (กันกรณีภาพ QR หลุด)
+ */
+export async function issueCheckinQr(
+  registrationId: string,
+): Promise<ApiResponse<{ dataUrl: string }>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const user = await requireUser();
+    const reg = await registrationSession(registrationId);
+    const { session, role } = await sessionContext(reg.session_id, user.id);
+
+    // เจ้าตัวขอ QR ของตัวเองได้ · แอดมินขอแทนคนอื่นได้ (เช่นแขกที่ไม่มีบัญชี)
+    const isMine = await ownsRegistration(registrationId, user.id);
+    if (!isMine) assertCan({ role }, 'registration.checkin');
+
+    const { data, error } = await supabaseAdmin().rpc('issue_checkin_token', {
+      p_registration_id: registrationId,
+      p_actor_id: user.id,
+      p_correlation_id: correlationId,
+    });
+
+    if (error) throw error;
+
+    // URL ที่แอดมินจะเปิดตอนสแกน — token อยู่ใน query string ของ **ฝั่งแอดมิน**
+    // ซึ่งถูกล้างทิ้งทันทีที่เช็คอินเสร็จ (ดู ScanCheckin)
+    const path = `/gangs/${session.gang_id}/sessions/${reg.session_id}/scan?c=${encodeURIComponent(
+      String(data),
+    )}`;
+
+    // 🔴 คืนเป็น **ภาพ QR** ไม่ใช่ URL — client ไม่เคยถือ token ไว้ในตัวแปรเลย
+    //    (token ที่ผ่านมือ client ได้ = token ที่ extension/log ดูดไปได้)
+    return { dataUrl: await textQrDataUrl(new URL(path, await requestOrigin()).toString()) };
+  });
+}
+
+/** เจ้าของการลงชื่อนี้คือผู้ใช้คนนี้หรือไม่ */
+async function ownsRegistration(registrationId: string, userId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin()
+    .from('session_registrations')
+    .select('user_id')
+    .eq('id', registrationId)
+    .maybeSingle();
+
+  return data?.user_id === userId;
+}
+
+/**
+ * แอดมินสแกน QR แล้วเช็คอินให้ — **[WO-2.5-F]**
+ *
+ * 🔴 ส่ง `sessionId` เข้าไปเสมอ ⇒ QR ของนัดอื่นใช้ที่นี่ไม่ได้ (DB เป็นคนบังคับ)
+ * 🔴 สแกนซ้ำไม่เปลี่ยนอะไร — DB คืน `already = true` แทนที่จะ raise
+ */
+export async function checkInByQr(
+  sessionId: string,
+  token: string,
+): Promise<ApiResponse<{ displayName: string; already: boolean }>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const user = await requireUser();
+    const { session, role } = await sessionContext(sessionId, user.id);
+
+    assertCan({ role }, 'registration.checkin');
+
+    const { data, error } = await supabaseAdmin().rpc('check_in_by_token', {
+      p_session_id: sessionId,
+      p_token: token,
+      p_actor_id: user.id,
+      p_correlation_id: correlationId,
+    });
+
+    if (error) throw error;
+
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | { display_name: string; already: boolean }
+      | undefined;
+
+    if (!row) throw new AppError('CHECKIN_TOKEN_INVALID', 'QR นี้ใช้ไม่ได้');
+
+    revalidatePath(`/gangs/${session.gang_id}/sessions/${sessionId}/console`);
+    return { displayName: row.display_name, already: row.already };
   });
 }

@@ -4,19 +4,33 @@ import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
+import { CheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { FormLayout } from '@astryxdesign/core/FormLayout';
+import { RadioList, RadioListItem } from '@astryxdesign/core/RadioList';
 import { TextInput } from '@astryxdesign/core/TextInput';
 
+import type { PricingType, RoundingMode } from '@/domain/policies/pricing';
 import { addSkillLevel, removeSkillLevel, upsertPricingPlan } from '@/server/actions/gang-config';
 
 export type SkillLevel = { id: string; label: string; rank: number };
-export type PricingPlan = { id: string; name: string; amountPerPerson: string } | null;
+export type PricingPlan = {
+  id: string;
+  name: string;
+  type: PricingType;
+  amountPerPerson: string;
+  courtFeeTotal: string;
+  shuttlePrice: string;
+  roundingMode: RoundingMode;
+  monthlyMemberPaysShuttle: boolean;
+} | null;
 
 /**
  * แผนราคา + ระดับฝีมือ
  *
- * MVP-0 มีแผนราคาแบบเดียว (flat_rate) ตาม ADR-002 ⇒ ฟอร์มไม่มีให้เลือกชนิด
- * เพิ่มชนิดอื่นเมื่อ Phase 2.5 เปิด `court_plus_shuttle`
+ * **[WO-2.5-B]** เลือกได้ 2 โมเดล: เหมาจ่ายต่อหัว (ADR-002) และ ค่าสนาม+ค่าลูกตามจริง
+ * `monthly` ยังไม่เปิด — `isImplemented()` ใน domain เป็นคนกั้น ไม่ใช่แค่ UI
+ *
+ * 🔴 โหมดปัดเศษมีผลจริงเฉพาะโมเดลที่**มีการหาร** — เหมาจ่ายต่อหัวไม่มีเศษให้ปัด
  */
 export function PricingAndSkills({
   gangId,
@@ -30,7 +44,14 @@ export function PricingAndSkills({
   const router = useRouter();
 
   const [planName, setPlanName] = useState(plan?.name ?? 'เหมาจ่ายต่อหัว');
+  const [planType, setPlanType] = useState<PricingType>(plan?.type ?? 'flat_rate');
   const [amount, setAmount] = useState(plan?.amountPerPerson ?? '');
+  const [courtFee, setCourtFee] = useState(plan?.courtFeeTotal ?? '');
+  const [shuttlePrice, setShuttlePrice] = useState(plan?.shuttlePrice ?? '');
+  const [roundingMode, setRoundingMode] = useState<RoundingMode>(plan?.roundingMode ?? 'ceil_baht');
+  const [monthlyPaysShuttle, setMonthlyPaysShuttle] = useState(
+    plan?.monthlyMemberPaysShuttle ?? true,
+  );
   const [planError, setPlanError] = useState<string | null>(null);
   const [planSaved, setPlanSaved] = useState(false);
   const [planPending, setPlanPending] = useState(false);
@@ -47,7 +68,21 @@ export function PricingAndSkills({
 
     const result = await upsertPricingPlan(
       gangId,
-      { name: planName, type: 'flat_rate', flatRate: { amountPerPerson: amount } },
+      planType === 'court_plus_shuttle'
+        ? {
+            name: planName,
+            type: 'court_plus_shuttle',
+            courtPlusShuttle: { courtFeeTotal: courtFee, shuttlePrice },
+            roundingMode,
+            monthlyMemberPaysShuttle: monthlyPaysShuttle,
+          }
+        : {
+            name: planName,
+            type: 'flat_rate',
+            flatRate: { amountPerPerson: amount },
+            roundingMode,
+            monthlyMemberPaysShuttle: monthlyPaysShuttle,
+          },
       plan?.id,
     );
 
@@ -94,13 +129,79 @@ export function PricingAndSkills({
       <form onSubmit={onSavePlan} noValidate>
         <FormLayout direction="vertical">
           <TextInput label="ชื่อแผน" value={planName} onChange={setPlanName} isRequired />
-          <TextInput
-            label="ราคาต่อคน (บาท)"
-            value={amount}
-            onChange={setAmount}
-            isRequired
-            description="ทุกคนจ่ายเท่ากัน — โมเดลอื่นจะเปิดในเฟสถัดไป"
-          />
+
+          <RadioList
+            label="โมเดลคิดเงิน"
+            value={planType}
+            onChange={(v) => setPlanType(v as PricingType)}
+          >
+            <RadioListItem
+              label="เหมาจ่ายต่อหัว"
+              value="flat_rate"
+              description="ทุกคนจ่ายเท่ากัน ไม่ต้องนับลูก"
+            />
+            <RadioListItem
+              label="ค่าสนาม + ค่าลูกตามจริง"
+              value="court_plus_shuttle"
+              description="หารค่าสนามทั้งนัด + ค่าลูกตามจำนวนที่บันทึกในคอนโซล"
+            />
+          </RadioList>
+
+          {planType === 'flat_rate' ? (
+            <TextInput
+              label="ราคาต่อคน (บาท)"
+              value={amount}
+              onChange={setAmount}
+              isRequired
+              description="ทุกคนจ่ายเท่ากัน"
+            />
+          ) : (
+            <>
+              <TextInput
+                label="ค่าสนามทั้งนัด (บาท)"
+                value={courtFee}
+                onChange={setCourtFee}
+                isRequired
+                description="ยอดรวมของทั้งนัด ไม่ใช่ต่อคน — ระบบหารให้ตอนปิดรอบ"
+              />
+              <TextInput
+                label="ราคาลูกละ (บาท)"
+                value={shuttlePrice}
+                onChange={setShuttlePrice}
+                isRequired
+                description="คูณกับจำนวนลูกที่บันทึกไว้ในคอนโซลวันเล่น"
+              />
+              <CheckboxInput
+                label="สมาชิกรายเดือนจ่ายค่าลูกตามจริง"
+                description="ค่าสนามของสมาชิกรายเดือนเป็น 0 เสมอ · ติ๊กออก = ค่าลูกรวมอยู่ในค่ารายเดือนแล้ว"
+                value={monthlyPaysShuttle}
+                onChange={setMonthlyPaysShuttle}
+              />
+            </>
+          )}
+
+          <RadioList
+            label="ปัดเศษยังไงเมื่อหารไม่ลงตัว"
+            value={roundingMode}
+            onChange={(v) => setRoundingMode(v as RoundingMode)}
+            description={
+              planType === 'flat_rate'
+                ? 'เหมาจ่ายต่อหัวไม่มีการหาร ⇒ โหมดนี้ยังไม่มีผลจนกว่าจะเปลี่ยนโมเดล'
+                : 'เศษที่เกินจากการปัดบันทึกเป็นรายรับก๊วน'
+            }
+          >
+            <RadioListItem label="ปัดขึ้นเป็นบาท" value="ceil_baht" description="เช่น 250.33 → 251" />
+            <RadioListItem
+              label="ปัดขึ้นเป็นสตางค์"
+              value="ceil_satang"
+              description="เช่น 250.333 → 250.34"
+            />
+            <RadioListItem
+              label="ปัดลง ก๊วนรับส่วนต่างเอง"
+              value="absorb"
+              description="เก็บได้น้อยกว่าต้นทุนเล็กน้อย"
+            />
+          </RadioList>
         </FormLayout>
 
         {planError ? (

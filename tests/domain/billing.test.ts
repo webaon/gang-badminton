@@ -13,6 +13,7 @@ import { assertSplitInvariant, splitEvenly, type RoundingMode } from '@/domain/b
 import {
   calculateSessionCharges,
   expectedCost,
+  requiresCloseConfirmation,
   type Participant,
 } from '@/domain/billing/session-billing';
 import { DEFAULT_CANCELLATION_POLICY } from '@/domain/policies/cancellation';
@@ -413,5 +414,52 @@ describe('SessionBilling — flat_rate (ADR-002)', () => {
       expect(charge.breakdown).toHaveProperty('flat_rate');
       expect(charge.breakdown).toHaveProperty('reason');
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+/**
+ * WO-2.5-A DoD — "ปิดรอบตอนที่ไม่มีใครเช็คอินเลย ต้องเตือนก่อน
+ *                  ไม่ใช่เก็บเงินทุกคนเงียบๆ"
+ */
+describe('WO-2.5-A — ด่านยืนยันก่อนปิดรอบ', () => {
+  const person = (status: Participant['status']): Participant => ({
+    registrationId: crypto.randomUUID(),
+    status,
+    cancelledAt: null,
+    isMonthlyMember: false,
+  });
+
+  it('🔴 มีคนได้ที่แต่ไม่มีใครเช็คอินเลย → ต้องให้ยืนยัน', () => {
+    expect(requiresCloseConfirmation([person('confirmed'), person('confirmed')])).toBe(true);
+  });
+
+  it('มีคนเช็คอินแม้คนเดียว → ปิดได้เลย ไม่ต้องถาม', () => {
+    expect(requiresCloseConfirmation([person('confirmed'), person('checked_in')])).toBe(false);
+  });
+
+  it('ไม่มีใครได้ที่เลย (ยกเลิกหมด/มีแต่คิวรอ) → ไม่มีอะไรให้เตือน', () => {
+    expect(requiresCloseConfirmation([])).toBe(false);
+    expect(requiresCloseConfirmation([person('cancelled'), person('waitlist')])).toBe(false);
+    expect(requiresCloseConfirmation([person('no_show')])).toBe(false);
+  });
+
+  it('🔴 เตือนตอนที่ยอดจะถูกเก็บจริงๆ — ผูกกับผลของ calculateSessionCharges()', () => {
+    const participants = [person('confirmed'), person('confirmed')];
+    const result = calculateSessionCharges({
+      snapshot: {
+        pricingType: 'flat_rate',
+        amountPerPerson: '200.00',
+        // full_share = คนไม่เช็คอินถูกเก็บเต็ม ⇒ นี่คือเหตุผลที่ต้องเตือน
+        cancellationPolicy: { ...DEFAULT_CANCELLATION_POLICY, penaltyType: 'full_share' },
+      },
+      participants,
+      startsAt: new Date('2026-08-20T12:00:00Z'),
+    });
+
+    expect(result.charges).toHaveLength(2);
+    expect(result.totalCollected).toBe('400.00');
+    expect(requiresCloseConfirmation(participants)).toBe(true);
   });
 });

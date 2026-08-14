@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 13 ส.ค. 2026** · เขียนตอนจบ **WO-2.10 — Phase 2 (MVP-0) ครบทุกใบ**
+> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — **Phase 2.5 เสร็จครบ 7 ใบ** (`WO-2.5-A` … `WO-2.5-G`)
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -31,7 +31,8 @@ branch: claude/badminton-group-system-4pfs7o   (ทำงานอยู่บ�
         main                                    (มีแค่ commit เอกสาร baseline)
 ```
 
-✅ **push ได้แล้ว — ทั้งสอง branch ขึ้น `webaon/gang-badminton` เรียบร้อย (11 ส.ค. 2026)**
+✅ **PR #1 merge เข้า `main` แล้ว + tag `v0.1.0`** (13 ส.ค. 2026)
+branch `claude/...` ยังใช้ทำงานต่อได้ — Phase 2.5 ค่อยเปิด PR ใบใหม่
 
 ปัญหา 403 เดิมแก้ด้วยการสลับบัญชี `gh` ที่ active มาเป็น **`webaon`** (เจ้าของ repo)
 ไม่ได้แก้ด้วยการเพิ่ม `triple-tgg` เป็น collaborator ⇒ ถ้าวันหนึ่ง push แล้วเจอ 403 อีก
@@ -249,54 +250,118 @@ npm test          # vitest run — 305 tests, 30 files
 
 ---
 
-## 7. ทำอะไรต่อ — E2E เส้นเต็ม แล้ว merge PR + tag v0.1.0
+## 7. ทำอะไรต่อ — Phase 2.5
 
-**Phase 2 แตก WO ไว้ครบ 10 ใบใน `AGENT-EXECUTION.md`** — WO-2.1 เสร็จแล้ว
+MVP-0 จบแล้ว (tag `v0.1.0`) — baseline §Roadmap กำหนด Phase ถัดไปไว้ว่า:
 
-| WO | สถานะ |
-|---|---|
-| **2.1** App foundation | ✅ **เสร็จ** |
-| **2.2** Auth + โปรไฟล์ | ✅ **เสร็จ** |
-| **2.3** ก๊วน/สมาชิก/pricing | ✅ **เสร็จ** — **ADR-002** ตรึง flat_rate + penalty full_share |
-| **2.4** สร้างนัด + snapshot | ✅ **เสร็จ** |
-| **2.5** ลงชื่อ + guest + waitlist + realtime | ✅ **เสร็จ** |
-| **2.6** Matching Engine (pure domain) | ✅ **เสร็จ** — **ADR-003** ตรึงข้อตกลงแบ่งทีม |
-| **2.7** Game Console | ✅ **เสร็จ** |
-| **2.8** SessionBilling + money invariants | ✅ **เสร็จ** — **ADR-004** สัดส่วนยกเลิกกลางคัน |
-| **2.9** Payments — PromptPay + สลิป + verify | ✅ **เสร็จ** |
-| **2.10** In-app notifications + worker | ✅ **เสร็จ** |
+**Phase 2.5 — Core ครบ**: billing strategies ที่เหลือ + MembershipBilling (monthly) →
+`payment_allocations` (จ่ายแทนเพื่อน) + adjustments/refund → session templates +
+auto-generate → QR check-in → reminder jobs
 
+✅ **แตก WO ของ Phase 2.5 แล้ว** — 7 ใบ (`WO-2.5-A` … `WO-2.5-G`) อยู่ท้าย `AGENT-EXECUTION.md`
+(ใช้ตัวอักษรเพราะ Phase 2 มีใบชื่อ WO-2.5 อยู่แล้ว)
 
-### WO-2.1 ทิ้งอะไรไว้ให้ใช้
+✅ **`WO-2.5-A` เสร็จแล้ว** (13 ส.ค. 2026) — migration `0024` + 15 เทสต์ใหม่ · push ขึ้น cloud แล้ว
+(ตรวจของจริงบน cloud: 3 ฟังก์ชันเป็น security definer และ EXECUTE มีแค่ `postgres`, `service_role`)
 
-| ของ | ใช้ยังไง |
-|---|---|
-| `supabaseServer()` | **ค่าเริ่มต้น** ของ server action/RSC — อยู่ใต้ RLS `auth.uid()` เป็นของผู้ใช้จริง |
-| `supabaseAdmin()` | เฉพาะตอนต้องเรียก DB function (grant ให้ `service_role` เท่านั้น) — **ต้อง `can()` ก่อนเสมอ** |
-| `supabaseBrowser()` | อ่านข้อมูลฝั่ง client ตาม policy · เรียก DB function ไม่ได้แล้ว |
-| `can(ctx, action)` | แหล่งเดียวของสิทธิ์ — ❌ ห้าม `if (role === 'admin')` ที่อื่น |
-| `runAction()` + `assertAffected()` | ทุก mutation ต้องผ่าน `assertAffected()` ไม่งั้นตอบ "บันทึกแล้ว" ทั้งที่ RLS กรองทิ้ง |
-| `lib/storage/paths.ts` | ประกอบ path ที่เดียว — **ห้ามรับ path จาก client** |
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- `mark_no_show()` · `update_game_shuttles()` · `check_in_all()` เป็น DB function
+  ⇒ **ห้ามกลับไป UPDATE `session_registrations` / `games` ตรงจาก server action อีก**
+- แก้ `shuttles_used` ได้เฉพาะตอนนัดอยู่ `open`/`in_play` — **หลัง `billing` DB จะ raise**
+  (นี่คือเงื่อนไขที่ทำให้ `court_plus_shuttle` ใน WO-2.5-B ปลอดภัยพอจะเปิดได้)
+- ปิดรอบต้องผ่านหน้า `/gangs/[gangId]/sessions/[sessionId]/close` — `closeSessionWithBilling()`
+  ปฏิเสธด้วย `CONFIRMATION_REQUIRED` ถ้าไม่มีใครเช็คอินและไม่ได้ส่ง `confirmNoCheckIn`
 
-⚠️ **`can()` ไม่ใช่ชั้นความปลอดภัย** — กำแพงจริงคือ RLS + EXECUTE grant
-`can()` มีไว้ให้ตอบถูกและซ่อนปุ่มให้ตรงความจริง **ห้ามผ่อน RLS เพราะ "เช็คที่ can() แล้ว"**
+✅ **`WO-2.5-B` เสร็จแล้ว** (13 ส.ค. 2026) — **ไม่มี migration ใหม่** (schema มีคอลัมน์ครบตั้งแต่ 0003)
+⇒ cloud ยังตรงกับ local ที่ 24 migrations
 
-### CI
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- `IMPLEMENTED_PRICING_TYPES` = `flat_rate` + `court_plus_shuttle` — `monthly` ยัง**ปิดอยู่**
+  จนกว่า WO-2.5-C จะมี MembershipBilling จริง
+- **ADR-005** ตรึงวิธีหาร: ค่าสนามหารเฉพาะคนที่ไม่ใช่สมาชิกรายเดือน · ค่าลูกตาม
+  `monthly_member_pays_shuttle` · ปัดแยกก้อน · เศษรายคนอยู่ใน `breakdown.rounding_surplus`
+  และบวกกันได้ surplus ของนัดเป๊ะ
+- snapshot มีคีย์ใหม่ `pricing_plan.monthly_member_pays_shuttle` (additive ไม่ขึ้น version)
+- `calculateSessionCharges()` ต้องได้ `shuttlesUsedTotal` เมื่อเป็น `court_plus_shuttle`
+  — **throw ถ้าไม่ส่ง** ห้าม default 0
 
-`.github/workflows/ci.yml` — typecheck → lint → vitest (Supabase จริง) → build · รัน ~3 นาที
-ใช้ `supabase start` ไม่ใช่ `services: postgres` เพราะเทสต์แตะ `auth.users` · `storage.objects` ·
-schema `cron` และต่อผ่าน pooled port · **ห้ามตัด supavisor ออกจาก `-x`**
+✅ **`WO-2.5-C` เสร็จแล้ว** (13 ส.ค. 2026) — migration `0025` push cloud แล้ว (25/25)
+ตรวจของจริงบน cloud: `commit_monthly_fees()` เป็น security definer · EXECUTE = `postgres`, `service_role`
 
-### WO-2.2 ต้องทำอะไร
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- **ADR-006**: `monthly` เป็นแผนราคา**คนละแถว**กับแผนของนัด — ทุก query ที่หา
+  "แผนราคาของนัด" ต้องกรอง `SESSION_PRICING_TYPES` ไม่งั้นจะหยิบแผนรายเดือนไปแช่แข็งใน snapshot
+- ค่าสมาชิกรายเดือน: **เข้ากลางเดือนเก็บเต็มเดือน** · ออกบิลต้นเดือนสำหรับเดือนนั้น
+- `commit_monthly_fees()` เป็นจุด commit เดียวของ `monthly_fee` (ADR-001)
+  ⇒ ❌ ห้าม insert `session_charges` ประเภทนี้ที่อื่น
+- cron ใหม่ `/api/cron/monthly-fees` (Vercel Cron, **รายวัน** — ดูเหตุผลใน ADR-006)
+- โฟลเดอร์ใหม่ `server/membership/` ใช้ร่วมกันระหว่าง cron กับ server action
+  (แนวเดียวกับ `server/guest/`)
 
-Supabase Auth (email/password + magic link) · หน้า sign up/in/out · สร้างแถว `profiles`
-ให้ผู้ใช้ใหม่ · แก้โปรไฟล์ตัวเอง · middleware กันหน้าที่ต้องล็อกอิน
+✅ **`WO-2.5-D` เสร็จแล้ว** (13 ส.ค. 2026) — migration `0026` push cloud แล้ว (26/26)
+ตรวจของจริงบน cloud: 3 ฟังก์ชัน + trigger `session_charges_no_edit_after_paid` +
+`event_logs_aggregate_type_check` ที่มี `'charge'` แล้ว
 
-**จุดที่ต้องตัดสินใจแล้วบันทึกเหตุผล**: สร้าง `profiles` ด้วย DB trigger บน `auth.users`
-หรือด้วย server action — DoD ของ WO-2.2 ระบุไว้ว่าต้องเลือกและเขียนเหตุผลกำกับ
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- **ยอดค้างอ่านจาก ledger เท่านั้น** — `charge_outstanding()` (SQL) หรือ
+  `domain/billing/ledger.ts` (หน้าจอ) ❌ ห้ามนับจาก `payments.status`
+- allocation นับเฉพาะสลิปที่ **verified** · "ค้างเก็บ" กับ "ต้องคืน" ไม่หักกลบกัน
+- `create_payment_for_charges()` **ไม่ออกใบซ้ำ** — คืนใบเดิมถ้ายังไม่ verified
+  และเขียน `payment_allocations` ให้อัตโนมัติ
+- แก้ยอดหลัง verify ต้องผ่าน `add_payment_adjustment()` — มี trigger กัน UPDATE
+  `session_charges.amount` ของหนี้ที่จ่ายแล้ว
 
-⚠️ `middleware.ts` ที่ root **ยังไม่ได้สร้าง** — `lib/supabase/middleware.ts` มี `updateSession()`
-พร้อมแล้ว แต่ยังไม่มีใครเรียก ⇒ WO-2.2 ต้องสร้าง `middleware.ts` ที่ root แล้วต่อเข้าไป
+✅ **`WO-2.5-E` เสร็จแล้ว** (13 ส.ค. 2026) — migration `0027` push cloud แล้ว (27/27)
+ตรวจของจริงบน cloud: unique index `sessions_template_slot_key` ตรงกับ local
+
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- **snapshot ของนัดประกอบที่เดียว**: `server/sessions/snapshot.ts`
+  ⇒ ❌ ห้ามประกอบ snapshot เองที่อื่นอีก (นัดที่ generate ต้องปิดรอบได้เหมือนนัดที่สร้างมือ)
+- `sessions.template_id` + unique `(template_id, starts_at)` = กุญแจ idempotency ของ cron
+  **จงใจไม่กรอง `deleted_at`** ⇒ นัดที่ลบแล้วจะไม่ถูกสร้างกลับ
+- cron ใหม่ `/api/cron/session-generate` (Vercel Cron, รายวัน, ล่วงหน้า 14 วัน)
+- `domain/sessions/recurrence.ts` ใช้เลขวันแบบ JS (0 = อาทิตย์) และรองรับจบข้ามเที่ยงคืน
+
+✅ **`WO-2.5-F` เสร็จแล้ว** (14 ส.ค. 2026) — migration `0028` push cloud แล้ว (28/28)
+ตรวจของจริงบน cloud: 2 ฟังก์ชัน + คอลัมน์ `checkin_token_hash` · EXECUTE = `postgres`, `service_role`
+
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- **guest token อยู่ใน cookie httpOnly แล้ว** (path ผูกกับ `/guest/<registrationId>`)
+  ⇒ `cancelAsGuest(registrationId)` ไม่รับ token จาก client อีกต่อไป
+  ลิงก์เดิมที่มี `?t=` ยังใช้ได้ — หน้าจะเด้งไป `/claim` แลกเป็น cookie ให้เอง
+- QR เช็คอิน: `issue_checkin_token()` / `check_in_by_token()` — **ผูกกับนัดเสมอ**
+  ⇒ ❌ ห้ามเขียนทางเช็คอินที่หา registration จาก token ล้วนโดยไม่เทียบ `session_id`
+- `issueCheckinQr()` คืน **ภาพ QR** ไม่ใช่ token — ห้ามเปลี่ยนให้คืน token กลับไปที่ client
+
+✅ **`WO-2.5-G` เสร็จแล้ว** (14 ส.ค. 2026) — migration `0029` push cloud แล้ว (29/29)
+ตรวจของจริงบน cloud: คอลัมน์ `dedupe_key` + unique index + grants
+
+🎉 **Phase 2.5 เสร็จครบทั้ง 7 ใบ** · E2E ของ Phase 2.5 ผ่าน
+(`tests/e2e/phase25-full-path.test.ts`) และ E2E ของ MVP-0 ยังผ่านเหมือนเดิม
+
+**ยังไม่ได้ทำ**: merge เข้า `main` + tag `v0.2.0` — รอเจ้าของงานสั่ง
+
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- 🔴 **PostgREST คืน `numeric` เป็น JSON number ไม่ใช่ string**
+  ⇒ ทุกครั้งที่อ่านคอลัมน์เงินผ่าน `supabase-js` ต้องผ่าน `moneyFromDb()`
+  (`lib/supabase/money.ts`) ก่อนส่งเข้า `domain/billing`
+  ⚠️ เทสต์ระดับ DB จับไม่ได้ เพราะ `pg` driver คืนเป็น string
+- งานเตือนเข้าคิวผ่าน `enqueue_notifications()` พร้อม `dedupe_key`
+  ⇒ ❌ ห้าม insert `notifications` ตรงสำหรับงานที่ต้องกันซ้ำ
+- `gangs.settings.reminder` = `{ session_hours_before, payment_due_after_hours }` (0 = ปิด)
+
+**ต่อไปหลัง merge**: Phase 3 ตาม baseline §Roadmap (รายงาน · ประกาศ · Discovery)
+
+### สิ่งที่ควรทำก่อนเริ่ม Phase 2.5
+
+- [ ] **Playwright** — E2E ผ่านเบราว์เซอร์จริง (`tests/e2e/mvp0-full-path.test.ts`
+      เดินเส้นเดียวกันแล้วแต่ไม่ครอบการ render/กดปุ่ม/อัปโหลดไฟล์)
+- [ ] **ให้ก๊วนจริงลองใช้** แล้วเก็บ feedback ก่อนตัดสินว่า Phase 2.5 ต้องทำอะไรก่อน
+      — รายการใน BACKLOG ยาวกว่าที่ควรทำทั้งหมด
+- [ ] **ปิดช่องที่ยังค้าง** (ดู `BACKLOG.md`) ที่สำคัญที่สุด:
+      guest token อยู่ใน query string (WO-2.5-F) · ออกใบจ่ายซ้ำได้ (WO-2.5-D)
+- [x] ~~`confirmed` ที่ไม่เคยเช็คอินถูกคิดเหมือน no-show~~ — WO-2.5-A ปิดแล้ว
+      (ปุ่ม "เช็คอินทุกคน" + หน้าสรุปยอด + ด่าน `CONFIRMATION_REQUIRED`)
 
 ---
 

@@ -17,8 +17,10 @@
 import type { CancellationPolicyJson } from '../policies/cancellation';
 import { toJson as cancellationToJson, type CancellationPolicy } from '../policies/cancellation';
 import {
+  courtPlusShuttleToJson,
   flatRateToJson,
   roundingToJson,
+  type CourtPlusShuttleParams,
   type FlatRateParams,
   type PricingType,
   type RoundingPolicy,
@@ -32,13 +34,24 @@ import {
  */
 export const SNAPSHOT_VERSION = 1;
 
+/**
+ * ⚠️ **[WO-2.5-B]** เพิ่ม `pricing_plan.monthly_member_pays_shuttle` แบบ **additive**
+ *    ⇒ ไม่ขึ้น `SNAPSHOT_VERSION` (แนวเดียวกับ ADR-004)
+ *    snapshot เก่าที่ไม่มีคีย์นี้อ่านเป็น `true` = ค่า default ของคอลัมน์ใน schema
+ *    ⇒ นัดเก่าคิดเงินได้ผลเท่าเดิมเป๊ะ เพราะ `flat_rate` ไม่ได้ใช้คีย์นี้อยู่แล้ว
+ */
+
 export type SessionSnapshot = {
   snapshot_version: number;
   pricing_plan: {
     id: string | null;
     name: string;
     type: PricingType;
+    /** คีย์ต่างกันตาม type — `flat_rate` ใช้ `amount_per_person`,
+     *  `court_plus_shuttle` ใช้ `court_fee_total` + `shuttle_price` */
     params: Record<string, string>;
+    /** ค่าลูกของสมาชิกรายเดือน: true = คิดตามจริง · false = รวมในค่ารายเดือนแล้ว */
+    monthly_member_pays_shuttle: boolean;
   };
   rounding_policy: { mode: string; surplus_to: string };
   promptpay_id: string | null;
@@ -46,14 +59,17 @@ export type SessionSnapshot = {
   skill_levels: Array<{ label: string; rank: number }>;
 };
 
+/** พารามิเตอร์ราคาแยกตาม type — union บังคับให้ส่งชุดที่ตรงกับ type เท่านั้น */
+export type SnapshotPricingPlan = { id: string | null; name: string } & (
+  | { type: 'flat_rate'; flatRate: FlatRateParams }
+  | { type: 'court_plus_shuttle'; courtPlusShuttle: CourtPlusShuttleParams }
+  | { type: 'monthly'; monthly: Record<string, never> }
+);
+
 export type BuildSnapshotInput = {
-  pricingPlan: {
-    id: string | null;
-    name: string;
-    type: PricingType;
-    /** MVP-0 มีแค่ flat_rate (ADR-002) */
-    flatRate: FlatRateParams;
-  };
+  pricingPlan: SnapshotPricingPlan;
+  /** ค่าจาก `gang_pricing_plans.monthly_member_pays_shuttle` */
+  monthlyMemberPaysShuttle?: boolean;
   roundingPolicy: RoundingPolicy;
   promptpayId: string | null;
   cancellationPolicy: CancellationPolicy;
@@ -67,6 +83,18 @@ export type BuildSnapshotInput = {
  * ราคาคอร์ท/ลูก (อยู่ใน `pricing_plan.params`) · cancellation policy · skill scale ·
  * `snapshot_version`
  */
+function pricingParamsToJson(plan: SnapshotPricingPlan): Record<string, string> {
+  switch (plan.type) {
+    case 'flat_rate':
+      return flatRateToJson(plan.flatRate);
+    case 'court_plus_shuttle':
+      return courtPlusShuttleToJson(plan.courtPlusShuttle);
+    case 'monthly':
+      // ยังไม่ implement (WO-2.5-C) — แต่ห้ามแช่แข็ง params เปล่าเงียบๆ
+      throw new Error('ยังสร้าง snapshot ของแผนราคาแบบรายเดือนไม่ได้ (WO-2.5-C)');
+  }
+}
+
 export function buildSnapshot(input: BuildSnapshotInput): SessionSnapshot {
   return {
     snapshot_version: SNAPSHOT_VERSION,
@@ -74,7 +102,8 @@ export function buildSnapshot(input: BuildSnapshotInput): SessionSnapshot {
       id: input.pricingPlan.id,
       name: input.pricingPlan.name,
       type: input.pricingPlan.type,
-      params: flatRateToJson(input.pricingPlan.flatRate),
+      params: pricingParamsToJson(input.pricingPlan),
+      monthly_member_pays_shuttle: input.monthlyMemberPaysShuttle ?? true,
     },
     rounding_policy: roundingToJson(input.roundingPolicy),
     promptpay_id: input.promptpayId,
