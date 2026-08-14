@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — `WO-2.5-A` … `WO-2.5-F` เสร็จแล้ว
+> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — **Phase 2.5 เสร็จครบ 7 ใบ** (`WO-2.5-A` … `WO-2.5-G`)
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -333,7 +333,24 @@ auto-generate → QR check-in → reminder jobs
   ⇒ ❌ ห้ามเขียนทางเช็คอินที่หา registration จาก token ล้วนโดยไม่เทียบ `session_id`
 - `issueCheckinQr()` คืน **ภาพ QR** ไม่ใช่ token — ห้ามเปลี่ยนให้คืน token กลับไปที่ client
 
-**ต่อไป: `WO-2.5-G`** — reminder jobs + E2E ของ Phase 2.5 แล้วแท็ก `v0.2.0`
+✅ **`WO-2.5-G` เสร็จแล้ว** (14 ส.ค. 2026) — migration `0029` push cloud แล้ว (29/29)
+ตรวจของจริงบน cloud: คอลัมน์ `dedupe_key` + unique index + grants
+
+🎉 **Phase 2.5 เสร็จครบทั้ง 7 ใบ** · E2E ของ Phase 2.5 ผ่าน
+(`tests/e2e/phase25-full-path.test.ts`) และ E2E ของ MVP-0 ยังผ่านเหมือนเดิม
+
+**ยังไม่ได้ทำ**: merge เข้า `main` + tag `v0.2.0` — รอเจ้าของงานสั่ง
+
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- 🔴 **PostgREST คืน `numeric` เป็น JSON number ไม่ใช่ string**
+  ⇒ ทุกครั้งที่อ่านคอลัมน์เงินผ่าน `supabase-js` ต้องผ่าน `moneyFromDb()`
+  (`lib/supabase/money.ts`) ก่อนส่งเข้า `domain/billing`
+  ⚠️ เทสต์ระดับ DB จับไม่ได้ เพราะ `pg` driver คืนเป็น string
+- งานเตือนเข้าคิวผ่าน `enqueue_notifications()` พร้อม `dedupe_key`
+  ⇒ ❌ ห้าม insert `notifications` ตรงสำหรับงานที่ต้องกันซ้ำ
+- `gangs.settings.reminder` = `{ session_hours_before, payment_due_after_hours }` (0 = ปิด)
+
+**ต่อไปหลัง merge**: Phase 3 ตาม baseline §Roadmap (รายงาน · ประกาศ · Discovery)
 
 ### สิ่งที่ควรทำก่อนเริ่ม Phase 2.5
 

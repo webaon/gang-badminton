@@ -20,6 +20,9 @@ const EVENT_LABELS: Record<string, string> = {
   'session.opened': 'เปิดรับสมัครนัดใหม่',
   'waitlist.promoted': 'คิวถึงคุณแล้ว — ได้ที่เล่น',
   'payment.due': 'มียอดที่ต้องจ่าย',
+  // [WO-2.5-G] งานเตือน
+  'session.reminder': 'ใกล้ถึงเวลานัดแล้ว',
+  'payment.overdue': 'ยังมียอดค้างจ่าย',
 };
 
 export function NotificationList({ items }: { items: NotificationRow[] }) {

@@ -608,7 +608,7 @@ DoD ทั้ง 4 ข้อผ่านจริง:
 
 ---
 
-## WO-2.5-G: Reminder jobs
+## WO-2.5-G: Reminder jobs ✅ **เสร็จ (14 ส.ค. 2026)**
 
 **Goal**: คนไม่ลืมนัดและไม่ลืมจ่าย
 
@@ -626,6 +626,23 @@ DoD ทั้ง 4 ข้อผ่านจริง:
 
 **References**: baseline §Verification (Job tests) · §Notification worker
 
+**ผลลัพธ์** — migration `0029` (`notifications.dedupe_key` + `enqueue_notifications()`) ·
+`domain/gangs/settings.ts` · `server/notifications/reminders.ts` ·
+cron `/api/cron/reminders` (รายชั่วโมง) · เทสต์ใหม่ 23 ตัว (DB 14 + domain 8 + E2E 1)
+
+DoD ทั้ง 3 ข้อผ่านจริง:
+- ไม่ส่งซ้ำ — dedupe key + unique index · INSERT ตรงยังชน (กันที่ระดับ DB)
+- เตือนค้างจ่ายเฉพาะคนที่ค้างจริงหลังหัก allocations/adjustments (ผูกกับ ledger ของ WO-2.5-D)
+- เป็น Vercel Cron และ **ไม่มี worker ใหม่** — เทสต์ยืนยันว่าแถวที่เข้าคิว
+  ถูก `claim_notifications()` + `mark_notification_sent()` เดิมหยิบไปส่งได้
+
+**🔴 บั๊กที่เจอระหว่างทางและแก้ไปด้วย**: PostgREST serialize `numeric` เป็น **JSON number**
+ไม่ใช่ string ⇒ `toSatang()` (ที่จงใจรับเฉพาะ string) พังตอน runtime
+กระทบหน้า payments dashboard + หน้าจ่ายเงิน + `addChargeAdjustment()` ที่ทำใน WO-2.5-D
+เทสต์ระดับ DB ไม่เจอเพราะ `pg` driver คืน `numeric` เป็น string
+⇒ เพิ่ม `lib/supabase/money.ts` (`moneyFromDb()`) เป็นตัวแปลงที่ **ขอบระบบ**
+โดยไม่ผ่อนกฎของ `domain/billing/money.ts`
+
 ---
 
 ## ✅ Phase 2.5 checkpoint
@@ -636,6 +653,12 @@ DoD ทั้ง 4 ข้อผ่านจริง:
 > (บวกเส้นเต็มของ MVP-0 ที่ต้องยังผ่านอยู่)
 
 แล้ว tag **`v0.2.0`** ตาม §Release Versioning
+
+✅ **E2E ผ่านแล้ว** (14 ส.ค. 2026) — `tests/e2e/phase25-full-path.test.ts`
+เดิน: ตารางประจำ generate (idempotent) → QR check-in (สแกนซ้ำ/ข้ามนัด) →
+แก้จำนวนลูกก่อนปิดรอบ → ปิดรอบ `court_plus_shuttle` (เศษ 3 บาทจริง) →
+**จ่ายแทนเพื่อน 1 สลิป 2 คน** → คืนเงินบางส่วน → ค่าสมาชิกรายเดือน (idempotent) →
+เตือนยอดค้างเฉพาะคนที่ค้างจริง · E2E ของ MVP-0 ยังผ่านครบเหมือนเดิม
 
 **ยังไม่อยู่ใน Phase 2.5** (Phase 3 ขึ้นไป): `member_statistics` rollup · `daily_metrics` ·
 รายงาน · ประกาศ · Discovery + join request · Landing page · LINE ทั้งชุด · Playwright เต็มรูป

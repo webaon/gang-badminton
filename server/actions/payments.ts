@@ -10,6 +10,7 @@ import { assertCan } from '@/domain/permissions/can';
 import type { GangRole } from '@/domain/permissions/types';
 import { validateAdjustment, type AdjustmentType } from '@/domain/billing/ledger';
 import { fromSatang, sumSatang, toSatang } from '@/domain/billing/money';
+import { moneyFromDb } from '@/lib/supabase/money';
 import { BUCKETS, paymentSlipPath, tenantKeyOf } from '@/lib/storage/paths';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { AppError, runAction } from '@/shared/action';
@@ -326,10 +327,10 @@ export async function addChargeAdjustment(
       .select('amount, payments!inner(status)')
       .eq('session_charge_id', chargeId);
 
-    type AllocationRow = { amount: string; payments: { status: string } };
+    type AllocationRow = { amount: string | number; payments: { status: string } };
     const paid = ((allocations ?? []) as unknown as AllocationRow[])
       .filter((a) => a.payments.status === 'verified')
-      .map((a) => a.amount);
+      .map((a) => moneyFromDb(a.amount));
 
     const { data: existing } = await admin
       .from('payment_adjustments')
@@ -341,7 +342,7 @@ export async function addChargeAdjustment(
       amount: input.amount,
       reason: input.reason,
       allocated: sumMoney(paid),
-      existingAdjustments: (existing ?? []).map((a) => a.amount),
+      existingAdjustments: (existing ?? []).map((a) => moneyFromDb(a.amount)),
     });
 
     if (issues.length > 0) {

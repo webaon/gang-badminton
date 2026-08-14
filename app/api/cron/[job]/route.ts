@@ -12,6 +12,7 @@ import { isAppCronJobName, isCronJobName, runCronJob } from '@/server/cron/jobs'
 import { dispatchNotifications } from '@/server/cron/notifications';
 import { billAllGangs } from '@/server/membership/billing';
 import { generateAllTemplates } from '@/server/templates/generate';
+import { runReminders } from '@/server/notifications/reminders';
 
 // งาน cron แตะฐานข้อมูลจริงทุกครั้ง — ห้าม prerender หรือ cache
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,9 @@ export async function GET(
     }
     if (job === 'session-generate') {
       return respond(correlationId, () => generateAllTemplates(correlationId));
+    }
+    if (job === 'reminders') {
+      return respond(correlationId, () => runReminders(correlationId));
     }
     return respond(correlationId, () => dispatchNotifications(correlationId));
   }

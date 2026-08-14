@@ -9,6 +9,7 @@ import type { GangRole } from '@/domain/permissions/types';
 import { fromJson as policyFromJson } from '@/domain/policies/cancellation';
 import { GangSettingsForm } from '@/features/gangs/GangSettingsForm';
 import { PricingAndSkills } from '@/features/gangs/PricingAndSkills';
+import { reminderFromJson } from '@/domain/gangs/settings';
 import { MonthlyPlanForm } from '@/features/billing/MonthlyPlanForm';
 import {
   courtPlusShuttleFromJson,
@@ -32,7 +33,7 @@ export default async function GangSettingsPage({
 
   const { data: gang } = await supabase
     .from('gangs')
-    .select('id, name, area, is_public, promptpay_id, timezone, cancellation_policy')
+    .select('id, name, area, is_public, promptpay_id, timezone, cancellation_policy, settings')
     .eq('id', gangId)
     .is('deleted_at', null)
     .maybeSingle();
@@ -118,6 +119,7 @@ export default async function GangSettingsPage({
             promptpayId: gang.promptpay_id,
             timezone: gang.timezone,
             cancellationPolicy: policyFromJson(gang.cancellation_policy),
+            reminder: reminderFromJson(gang.settings),
           }}
         />
       </Card>

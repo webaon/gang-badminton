@@ -6,6 +6,7 @@ import { Card } from '@astryxdesign/core/Card';
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseServer } from '@/lib/supabase/server';
 import { summarize, type LedgerEntry } from '@/domain/billing/ledger';
+import { moneyFromDb } from '@/lib/supabase/money';
 import { promptPayQrDataUrl } from '@/lib/promptpay/qr';
 import { PaySlipForm } from '@/features/payments/PaySlipForm';
 import { CreateMyPaymentButton } from '@/features/payments/CreateMyPaymentButton';
@@ -52,11 +53,11 @@ export default async function PayPage({
 
   type ChargeRow = {
     id: string;
-    amount: string;
+    amount: string | number;
     breakdown: Record<string, unknown>;
     session_registrations: { user_id: string | null };
-    payment_allocations: { amount: string; payments: { status: string } | null }[];
-    payment_adjustments: { amount: string }[];
+    payment_allocations: { amount: string | number; payments: { status: string } | null }[];
+    payment_adjustments: { amount: string | number }[];
   };
 
   const mine = ((charges ?? []) as unknown as ChargeRow[]).filter(
@@ -67,11 +68,12 @@ export default async function PayPage({
   //    (เพื่อนอาจจ่ายแทนไปแล้ว หรือแอดมินอาจคืนเงินบางส่วน)
   const entries: LedgerEntry[] = mine.map((c) => ({
     chargeId: c.id,
-    amount: c.amount,
+    // ⚠️ PostgREST คืน numeric เป็น JSON number ⇒ แปลงที่ขอบก่อนเข้า domain
+    amount: moneyFromDb(c.amount),
     allocated: c.payment_allocations
       .filter((a) => a.payments?.status === 'verified')
-      .map((a) => a.amount),
-    adjustments: c.payment_adjustments.map((a) => a.amount),
+      .map((a) => moneyFromDb(a.amount)),
+    adjustments: c.payment_adjustments.map((a) => moneyFromDb(a.amount)),
   }));
 
   const myLedger = summarize(entries);
@@ -133,7 +135,7 @@ export default async function PayPage({
               <>
                 <div className="mt-2 flex items-center gap-2">
                   <Badge label={STATUS_LABELS[payment.status] ?? payment.status} />
-                  <span className="text-sm">{payment.amount} บาท</span>
+                  <span className="text-sm">{moneyFromDb(payment.amount)} บาท</span>
                 </div>
 
                 {payment.status === 'rejected' && payment.reject_reason ? (

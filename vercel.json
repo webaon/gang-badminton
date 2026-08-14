@@ -24,6 +24,10 @@
     {
       "path": "/api/cron/session-generate",
       "schedule": "30 18 * * *"
+    },
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "5 * * * *"
     }
   ]
 }

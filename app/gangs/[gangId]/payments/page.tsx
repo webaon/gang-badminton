@@ -5,6 +5,7 @@ import { Card } from '@astryxdesign/core/Card';
 
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { moneyFromDb } from '@/lib/supabase/money';
 import { supabaseServer } from '@/lib/supabase/server';
 import { can } from '@/domain/permissions/can';
 import type { GangRole } from '@/domain/permissions/types';
@@ -74,7 +75,7 @@ export default async function PaymentsPage({ params }: { params: Promise<{ gangI
 
   type ChargeRow = {
     id: string;
-    amount: string;
+    amount: string | number;
     type: string;
     billing_month: string | null;
     sessions: { title: string } | null;
@@ -84,20 +85,21 @@ export default async function PaymentsPage({ params }: { params: Promise<{ gangI
       profiles: { display_name: string } | null;
     } | null;
     gang_members: { user_id: string; profiles: { display_name: string } | null } | null;
-    payment_allocations: { amount: string; payments: { status: string } | null }[];
-    payment_adjustments: { amount: string }[];
+    payment_allocations: { amount: string | number; payments: { status: string } | null }[];
+    payment_adjustments: { amount: string | number }[];
   };
 
   const charges = (chargeRows ?? []) as unknown as ChargeRow[];
 
+  // ⚠️ PostgREST คืน numeric เป็น JSON number ⇒ แปลงที่ขอบก่อนเข้า domain
   const entries: LedgerEntry[] = charges.map((c) => ({
     chargeId: c.id,
-    amount: c.amount,
+    amount: moneyFromDb(c.amount),
     // 🔴 นับเฉพาะสลิปที่ยืนยันแล้ว — ไม่งั้นอัปสลิปปลอมแล้วหนี้หายทันที
     allocated: c.payment_allocations
       .filter((a) => a.payments?.status === 'verified')
-      .map((a) => a.amount),
-    adjustments: c.payment_adjustments.map((a) => a.amount),
+      .map((a) => moneyFromDb(a.amount)),
+    adjustments: c.payment_adjustments.map((a) => moneyFromDb(a.amount)),
   }));
 
   const summary = summarize(entries);
@@ -157,7 +159,7 @@ export default async function PaymentsPage({ params }: { params: Promise<{ gangI
 
   type PaymentRow = {
     id: string;
-    amount: string;
+    amount: string | number;
     status: string;
     slip_url: string | null;
     profiles: { display_name: string } | null;
@@ -202,7 +204,7 @@ export default async function PaymentsPage({ params }: { params: Promise<{ gangI
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-medium">{p.profiles?.display_name ?? 'ไม่ทราบชื่อ'}</p>
-                    <p className="text-sm">{p.amount} บาท</p>
+                    <p className="text-sm">{moneyFromDb(p.amount)} บาท</p>
                     {p.payment_allocations.length > 1 ? (
                       <p className="text-xs opacity-70">
                         ครอบ{' '}

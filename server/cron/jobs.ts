@@ -30,6 +30,10 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
  *
  * ✅ **WO-2.5-E ต่อ generate นัดประจำ** (`session-generate`)
  *    ต้องประกอบ snapshot ด้วย `domain/` + แปลง timezone ⇒ เป็น app logic เช่นกัน
+ *
+ * ✅ **WO-2.5-G ต่องานเตือน** (`reminders`)
+ *    ⚠️ งานนี้แค่ **เข้าคิว** — ตัวส่งยังเป็น `notification-dispatch` เดิม
+ *    ❌ ห้ามสร้าง worker ใหม่
  */
 /** งานที่เป็น SQL ล้วน — เรียก DB function ตรง */
 export const CRON_JOBS = {
@@ -46,6 +50,7 @@ export const APP_CRON_JOBS = [
   'notification-dispatch',
   'monthly-fees',
   'session-generate',
+  'reminders',
 ] as const;
 export type AppCronJobName = (typeof APP_CRON_JOBS)[number];
 
