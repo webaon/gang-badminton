@@ -662,3 +662,167 @@ DoD ทั้ง 3 ข้อผ่านจริง:
 
 **ยังไม่อยู่ใน Phase 2.5** (Phase 3 ขึ้นไป): `member_statistics` rollup · `daily_metrics` ·
 รายงาน · ประกาศ · Discovery + join request · Landing page · LINE ทั้งชุด · Playwright เต็มรูป
+
+---
+
+# Phase 3 — Growth (WO-3.A … WO-3.F)
+
+> แตกใบเมื่อ 14 ส.ค. 2026 หลังปิด Phase 2.5 (`v0.2.0`)
+> baseline §Roadmap: `member_statistics` rollup + `daily_metrics` → รายงาน → ประกาศ →
+> Discovery (pg_trgm) + join request + walk-in → Landing Page (static/ISR)
+
+⇒ ใบของ Phase 3 ใช้ **ตัวอักษร**: `WO-3.A` … `WO-3.F`
+
+## 🔴 ข้อจำกัดจาก Phase ก่อนหน้าที่ทุกใบต้องยึด
+
+| # | ข้อจำกัด | ทำผิดแล้วเกิดอะไร |
+|---|---|---|
+| 1 | **รายรับนับจาก `session_charges` / ledger เสมอ ไม่อิง `sessions.status`** (baseline v3.3) | นัดที่ยกเลิกกลางคันแต่มี charges จะหายจากรายงาน — เงินเข้าจริงแต่รายงานบอกว่าไม่มี |
+| 2 | **ยอดสุทธิ = `charge − allocations(verified) + adjustments`** (WO-2.5-D) | รายงานจะนับเงินที่ยังไม่ได้รับ หรือไม่หักเงินที่คืนไปแล้ว |
+| 3 | **PostgREST คืน `numeric` เป็น JSON number** ⇒ ต้องผ่าน `moneyFromDb()` ก่อนเข้า `domain/` | หน้าพังตอน runtime — เทสต์ระดับ DB จับไม่ได้เพราะ `pg` คืน string |
+| 4 | **`gangs.features` ต้อง enforce ฝั่ง server** (`can()` + DB function) — `statistics`, `discovery` | ซ่อนปุ่มอย่างเดียว = flag ปลอม ใครยิง action ตรงก็ผ่าน |
+| 5 | **UI อ่านสถิติจาก `member_statistics` เท่านั้น** (baseline §ตาราง) | สองแหล่งความจริง แล้วเลขบนจอกับในรายงานไม่ตรงกัน |
+| 6 | **งานที่รันซ้ำได้ต้อง idempotent ที่ระดับ DB** ไม่ใช่ check-then-act ใน TS | cron ซ้อนกันแล้วได้แถวซ้ำ (CLAUDE.md §2.1) |
+| 7 | **ห้ามสร้าง worker/คิวใหม่** — ใช้ `enqueue_notifications()` + `claim_notifications()` เดิม | มีสองทางส่ง แล้ว retry/backoff คนละแบบ |
+
+## ลำดับที่เลือก (ต่างจากการอ่าน Roadmap แบบผิวๆ)
+
+baseline เรียง "rollup → รายงาน → ประกาศ → discovery → landing" อยู่แล้ว และใบนี้ยึดตามนั้น
+เพราะ **รายงานกับหน้าสถิติอ่านจาก rollup** (ข้อ 5) ⇒ ถ้าทำรายงานก่อน จะต้องเขียน query
+สดชั่วคราวแล้วรื้อทีหลัง = งานสองรอบและมีช่วงที่เลขสองที่ไม่ตรงกัน
+
+---
+
+## WO-3.A: Rollup job (`member_statistics` + `daily_metrics`)
+
+**Goal**: มีแหล่งข้อมูลเดียวสำหรับสถิติและรายงาน ที่รันซ้ำได้โดยไม่เพี้ยน
+
+**Scope**
+- ทำเฉพาะ: DB function คำนวณ + upsert `member_statistics` (ต่อสมาชิก) และ `daily_metrics` (ต่อวัน) · Vercel Cron รายคืน · ปุ่มสั่ง rollup เองของแอดมิน
+- ไม่แตะ: หน้าจอรายงาน (WO-3.B) · หน้าสถิติสมาชิก (WO-3.C)
+
+**Definition of Done**
+- 🔴 **idempotent** — รันซ้ำวันเดิมได้ผลเท่าเดิม ไม่ใช่ยอดสะสมทวีคูณ (`daily_metrics.metric_date` unique อยู่แล้ว, `member_statistics` unique ต่อสมาชิก)
+- `attended_count` / `games_count` / `shuttles_used` / `total_paid` / `attendance_rate` ตรงกับข้อมูลดิบ — มีเทสต์เทียบกับ query สดในเคสที่รู้คำตอบ
+- 🔴 **`total_paid` นับจาก ledger** (จ่ายจริงหลังหัก refund) ไม่ใช่ผลรวม `session_charges`
+- `daily_metrics.revenue` นับจาก charges ที่เกิดในวันนั้น **รวมนัดที่ยกเลิกกลางคัน** (ข้อจำกัด 1)
+- `attendance_rate` มีนิยามเดียวเขียนไว้ในคอมเมนต์ (นับจากนัดที่ลงชื่อ ไม่ใช่นัดทั้งหมดของก๊วน) และเทสต์ยึดตามนั้น
+- ก๊วนที่ปิด `features.statistics` ต้องไม่ถูก rollup (ประหยัดงานและเคารพ flag)
+
+**Forbidden**
+- ห้ามใช้ `INSERT ... SELECT` ที่บวกทับของเดิม — ต้อง upsert ค่าที่คำนวณใหม่ทั้งก้อน
+- ห้ามคำนวณเงินด้วย float ใน SQL (ใช้ `numeric` ล้วน) · ห้ามอ่านเงินผ่าน `supabase-js` โดยไม่ผ่าน `moneyFromDb()`
+
+**References**: baseline §ตาราง (`member_statistics`, `daily_metrics`) · §Verification (Job tests) · ข้อจำกัด 1, 2, 5, 6
+
+---
+
+## WO-3.B: รายงานรายรับ-รายจ่าย-กำไรของก๊วน
+
+**Goal**: แอดมินตอบได้ว่าเดือนนี้ก๊วนได้เท่าไหร่ จ่ายอะไรไปบ้าง เหลือเท่าไหร่ และตัวเลขตรวจสอบย้อนกลับได้
+
+**Scope**
+- ทำเฉพาะ: CRUD `gang_expenses` / `gang_incomes` · หน้ารายงานต่อช่วงเวลา (รายรับจาก charges + incomes, รายจ่ายจาก expenses, กำไร = ส่วนต่าง) · แสดง `rounding_surplus` แยกบรรทัด
+- ไม่แตะ: รายงานระดับแพลตฟอร์ม (`daily_metrics` — เป็นของ WO-3.A/landing) · export ไฟล์
+
+**Definition of Done**
+- 🔴 **reconcile ได้**: `sum(charges) − ต้นทุนจริง = rounding surplus` แสดงบนหน้าจอและมีเทสต์ยืนยันกับข้อมูลที่รู้คำตอบ
+- รายรับนับจาก **ledger** (จ่ายจริง) และแยกให้เห็น "เรียกเก็บแล้ว" กับ "เก็บได้จริง" คนละบรรทัด
+- นัดที่ `cancelled` แต่มี charges **เข้ารายงาน** (ข้อจำกัด 1) — มีเทสต์
+- ค่าใช้จ่ายผูกนัดได้ (`session_id`) และแบบไม่ผูกก็ได้ · ลบแล้วรายงานเปลี่ยนทันที
+- เงินทุกช่องเป็นจำนวนเต็มสตางค์ (`domain/billing/money.ts`) — ❌ ไม่มี `Number()` บวกเงินในหน้าจอ
+
+**Forbidden**
+- ห้ามอ่านยอดค้าง/ยอดเก็บได้จาก `payments.status` · ห้ามสร้างตารางสรุปใหม่ (ใช้ rollup + query ตรง)
+
+**References**: baseline §โมดูล ข้อ 7 · §Verification (Money invariants) · ADR-005 · ข้อจำกัด 1, 2, 3
+
+---
+
+## WO-3.C: หน้าสถิติสมาชิก + timeline
+
+**Goal**: สมาชิกเห็นสถิติตัวเอง แอดมินเห็นภาพรวมก๊วน และตรวจย้อนหลังได้ว่าเกิดอะไรขึ้น
+
+**Scope**
+- ทำเฉพาะ: หน้าสถิติของก๊วน (อ่านจาก `member_statistics`) · หน้าสถิติของตัวเอง · timeline ของนัดจาก `event_logs`
+- ไม่แตะ: กราฟ/ชาร์ต (ยังไม่มีไลบรารีและไม่อยู่ใน baseline) · ranking/leaderboard
+
+**Definition of Done**
+- 🔴 **หน้าจออ่านจาก `member_statistics` เท่านั้น** (ข้อจำกัด 5) — ไม่มี query นับสดในหน้า
+- ก๊วนที่ปิด `features.statistics` → หน้านี้เข้าไม่ได้ **ทั้งฝั่ง UI และ action** (ข้อจำกัด 4) — มีเทสต์ยิง action ตรง
+- timeline แสดงเฉพาะ event ของนัดที่ผู้ใช้มีสิทธิ์เห็น (RLS ของ `event_logs` เป็นด่านจริง)
+- 🔴 timeline **ไม่แสดง payload ดิบ** — map เป็นข้อความไทยที่จุดแสดงผลจุดเดียว (ไม่งั้น token/ยอดเงินหลุดหน้าจอ)
+- สถิติที่ยังไม่เคย rollup แสดงว่า "ยังไม่มีข้อมูล" ไม่ใช่ 0 ที่ดูเหมือนข้อมูลจริง
+
+**Forbidden**
+- ห้าม fallback ไปนับสดเมื่อ rollup ยังไม่มา (สองแหล่งความจริง) · ห้าม log/แสดง plaintext token จาก event payload
+
+**References**: baseline §โมดูล ข้อ 7 · §ตาราง (`member_statistics`) · ข้อจำกัด 4, 5
+
+---
+
+## WO-3.D: ประกาศของก๊วน
+
+**Goal**: ก๊วนแจ้งข่าวได้ในที่เดียว และคนที่เกี่ยวข้องได้รับแจ้งเตือน
+
+**Scope**
+- ทำเฉพาะ: CRUD `announcements` (draft/published ผ่าน `published_at`) · แนบรูปผ่าน bucket `announcement-images` · เข้าคิวแจ้งเตือนตอน publish
+- ไม่แตะ: LINE (Phase 4 — ใช้คิวเดียวกันอยู่แล้ว) · ประกาศระดับแพลตฟอร์ม
+
+**Definition of Done**
+- ประกาศที่ยังไม่ publish สมาชิกทั่วไป **มองไม่เห็น** — เทสต์ระดับ RLS ไม่ใช่แค่ซ่อนใน UI
+- publish แล้วเข้าคิวแจ้งเตือนสมาชิกก๊วนผ่าน `enqueue_notifications()` พร้อม `dedupe_key`
+  ⇒ 🔴 กด publish ซ้ำ/แก้แล้ว publish ใหม่ **ไม่ส่งซ้ำ** (ข้อจำกัด 7)
+- path ของรูป **server เป็นคนประกอบ** (`lib/storage/paths.ts`) — client อัปโหลดไป path ที่ได้เท่านั้น [D-15]
+- ลบประกาศแล้วรูปที่แนบไม่ค้างเป็นขยะที่เข้าถึงได้
+
+**Forbidden**
+- ห้ามให้ client ตั้ง path ของไฟล์เอง · ห้าม insert `notifications` ตรง
+
+**References**: baseline §โมดูล (ประกาศ) · WO-1.4 [D-15] · WO-2.5-G (dedupe key) · ข้อจำกัด 7
+
+---
+
+## WO-3.E: Discovery (pg_trgm) + join request + walk-in
+
+**Goal**: คนหาก๊วนใกล้ตัวเจอ ขอเข้าก๊วนได้ และแอดมินอนุมัติได้โดยไม่มีทางลัดที่ทำให้ข้อมูลเพี้ยน
+
+**Scope**
+- ทำเฉพาะ: หน้าค้นหาก๊วนสาธารณะ (ชื่อ/พื้นที่ ด้วย index pg_trgm ที่มีอยู่แล้ว) · `join_requests` (ขอ/ยกเลิก/อนุมัติ/ปฏิเสธ) · walk-in ผ่าน invite link ที่มีอยู่แล้ว
+- ไม่แตะ: แผนที่/พิกัด · แนะนำก๊วนอัตโนมัติ
+
+**Definition of Done**
+- 🔴 **ก๊วนที่ `is_public = false` หรือปิด `features.discovery` ต้องไม่โผล่ในผลค้นหาเลย** — เทสต์ยิง action ตรงด้วย ไม่ใช่แค่ UI
+- ค้นหาใช้ **pg_trgm** (index มีแล้วใน 0002) ไม่ใช่ `LIKE '%…%'` เปล่า — เทสต์ยืนยันว่าค้นภาษาไทยบางส่วนเจอ
+- อนุมัติคำขอ = **DB function เดียว** ที่สร้าง `gang_members` + ปิดคำขอ + เขียน event แบบ atomic
+  ⇒ 🔴 ขอซ้ำ/กดอนุมัติสองครั้ง ต้องไม่ได้สมาชิกซ้ำ (partial unique index ที่มีอยู่เป็นด่านจริง)
+- คำขอที่ถูกปฏิเสธขอใหม่ได้ · คำขอของก๊วนที่ตัวเองเป็นสมาชิกอยู่แล้วถูกปฏิเสธตั้งแต่ต้น
+- แจ้งเตือนแอดมินเมื่อมีคำขอใหม่ ผ่านคิวเดิม + `dedupe_key`
+
+**Forbidden**
+- ห้าม `insert into gang_members` จาก server action ตรงๆ (ต้องผ่าน DB function) · ห้ามเปิดเผยก๊วนส่วนตัวผ่าน API ใดๆ
+
+**References**: baseline §โมดูล ข้อ 9 · §ตาราง (`join_requests`) · WO-1.4 (RLS) · ข้อจำกัด 4, 6, 7
+
+---
+
+## WO-3.F: Landing page + Phase 3 checkpoint
+
+**Goal**: มีหน้าแรกที่คนนอกเข้าใจว่าระบบนี้ทำอะไร และเปิดใช้งานจริงได้
+
+**Scope**
+- ทำเฉพาะ: หน้าแรก (static/ISR) · ตัวเลขระดับแพลตฟอร์มจาก `daily_metrics` · ทางเข้า sign-in / ค้นหาก๊วน
+- ไม่แตะ: บล็อก/SEO เชิงลึก · หลายภาษา
+
+**Definition of Done**
+- หน้าแรกเป็น **static/ISR** ไม่ใช่ `force-dynamic` — ตรวจจากผลลัพธ์ `npm run build`
+- 🔴 ตัวเลขบนหน้าแรกอ่านจาก `daily_metrics` (rollup) เท่านั้น — ไม่ query ตารางธุรกรรมสด
+- ไม่มีข้อมูลของก๊วนส่วนตัวรั่วออกหน้าแรก
+- **E2E ของ Phase 3**: rollup → รายงาน reconcile → ประกาศ publish (ไม่ส่งซ้ำ) → ค้นหา + ขอเข้าก๊วน + อนุมัติ
+  (บวกเส้นเต็มของ MVP-0 และ Phase 2.5 ที่ต้องยังผ่าน)
+- แล้ว tag **`v0.3.0`** ตาม §Release Versioning
+
+**Forbidden**
+- ห้ามทำหน้าแรกเป็น dynamic เพื่อความสะดวก · ห้ามข้าม E2E ของ Phase ก่อนหน้า
+
+**References**: baseline §Roadmap Phase 3 · §Verification · §Release Versioning

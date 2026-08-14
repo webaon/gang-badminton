@@ -256,16 +256,23 @@ npm test          # vitest run — 305 tests, 30 files
 🎉 **Phase 2.5 เสร็จครบ 7 ใบ** — merge เข้า `main` แล้วผ่าน PR #2 (`6e04c79`) · tag **`v0.2.0`** · CI เขียว
 (MVP-0 = `v0.1.0`) · 469 เทสต์ / 45 ไฟล์ · cloud **29/29 migrations**
 
-### ก้าวถัดไป: **แตก WO ของ Phase 3**
+### ✅ แตก WO ของ Phase 3 แล้ว (14 ส.ค. 2026)
+
+6 ใบ (`WO-3.A` … `WO-3.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 7 ข้อ
+จาก Phase ก่อนหน้าที่ทุกใบต้องยึด
+
+**เริ่มที่ `WO-3.A`** — rollup job (`member_statistics` + `daily_metrics`)
+ต้องมาก่อนเพราะรายงานและหน้าสถิติ**อ่านจาก rollup** (baseline: เป็นแหล่งเดียวสำหรับการแสดงผล)
+ถ้าทำรายงานก่อนจะต้องเขียน query สดชั่วคราวแล้วรื้อทีหลัง
+
+<details><summary>ที่มาของลำดับ (เดิม)</summary>
 
 baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
 
 > `member_statistics` rollup · `daily_metrics` · รายงาน · ประกาศ ·
 > Discovery + join request · Landing page
 
-ทำแบบเดียวกับ Phase 2 / 2.5: เขียนใบ WO ต่อท้าย `AGENT-EXECUTION.md`
-(Goal / Scope / DoD / Forbidden / References) แล้วค่อยลงมือทีละใบ
-พร้อมตารางข้อจำกัดจาก Phase ก่อนหน้าที่ทุกใบต้องยึด
+</details>
 
 ### 🔴 ข้อตกลงจาก Phase 2.5 ที่ใบถัดๆ ไปห้ามทำผิด
 
