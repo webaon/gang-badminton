@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — **Phase 2.5 เสร็จครบ 7 ใบ** (`WO-2.5-A` … `WO-2.5-G`)
+> **อัปเดตล่าสุด: 14 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — **Phase 2.5 เสร็จครบ 7 ใบ** (`WO-2.5-A` … `WO-2.5-G`)
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -27,6 +27,7 @@
 ## 2. Git
 
 ```
+tag ล่าสุด: v0.2.0 (Phase 2.5 — merge เข้า main แล้วผ่าน PR #2)
 branch: claude/badminton-group-system-4pfs7o   (ทำงานอยู่บนนี้ — WO ทุกใบ commit ที่นี่)
         main                                    (มีแค่ commit เอกสาร baseline)
 ```
@@ -339,7 +340,7 @@ auto-generate → QR check-in → reminder jobs
 🎉 **Phase 2.5 เสร็จครบทั้ง 7 ใบ** · E2E ของ Phase 2.5 ผ่าน
 (`tests/e2e/phase25-full-path.test.ts`) และ E2E ของ MVP-0 ยังผ่านเหมือนเดิม
 
-**ยังไม่ได้ทำ**: merge เข้า `main` + tag `v0.2.0` — รอเจ้าของงานสั่ง
+✅ **merge เข้า `main` แล้ว** (PR #2, commit `6e04c79`) · **tag `v0.2.0`** แล้ว · CI เขียว
 
 สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
 - 🔴 **PostgREST คืน `numeric` เป็น JSON number ไม่ใช่ string**
