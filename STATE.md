@@ -275,6 +275,12 @@ npm test          # vitest run — 305 tests, 30 files
 
 **ต่อไป: `WO-3.E`** — Discovery (pg_trgm) + join request + walk-in
 
+⚠️ **สิ่งที่ต้องเผื่อทำใน WO-3.E**: สองใบติดกัน (3.C, 3.D) เจอ policy จาก migration `0010`
+ที่กว้างเกินไป — เป็นแบบ "เปิดให้สมาชิกก๊วนทั้งหมด" โดยไม่แยกความละเอียด
+(`member_statistics` เปิด `total_paid` ของทุกคน · `announcements` เปิดร่าง)
+⇒ ตอนแตะ `join_requests` ใน 3.E ให้ **ตรวจ policy ของมันด้วย** ว่าคนขอเห็นของคนอื่นไหม
+   และเผื่อไล่ดู policy ที่เหลือใน 0010 ทั้งชุดสักรอบ
+
 สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
 - ประกาศที่ `published_at is null` = ร่าง **สมาชิกทั่วไปมองไม่เห็น** (RLS 0032)
 - publish ต้องผ่าน `publish_announcement()` เท่านั้น — ❌ ห้าม UPDATE `published_at` ตรง
