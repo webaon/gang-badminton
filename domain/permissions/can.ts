@@ -41,6 +41,7 @@ const ADMIN: readonly Action[] = [
   'gang.skill.manage',
   'gang.pricing.manage',
   'gang.finance.view',
+  'gang.finance.manage',
   'session.create',
   'session.update',
   'session.transition',

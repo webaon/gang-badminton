@@ -42,6 +42,8 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'gang.skill.manage',
     'gang.pricing.manage',
     'gang.finance.view',
+    // [WO-3.B] บันทึกรายรับ-รายจ่ายของก๊วน (ข้อมูลการเงิน — แอดมินเท่านั้น)
+    'gang.finance.manage',
     'session.create',
     'session.update',
     'session.transition',
