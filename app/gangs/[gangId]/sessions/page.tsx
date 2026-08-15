@@ -77,6 +77,9 @@ export default async function SessionsPage({ params }: { params: Promise<{ gangI
               ตารางประจำ
             </Link>
           ) : null}
+          <Link href={`/gangs/${gangId}/announcements`} className="underline">
+            ประกาศ
+          </Link>
           <Link href={`/gangs/${gangId}/stats`} className="underline">
             สถิติ
           </Link>

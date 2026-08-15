@@ -270,7 +270,15 @@ npm test          # vitest run — 305 tests, 30 files
 ✅ **`WO-3.C` เสร็จแล้ว** (15 ส.ค. 2026) — migration `0031` push cloud แล้ว (31/31)
 ตรวจของจริงบน cloud: policy `member_statistics_select` เป็นเวอร์ชันใหม่แล้ว
 
-**ต่อไป: `WO-3.D`** — ประกาศของก๊วน + แจ้งเตือนตอน publish
+✅ **`WO-3.D` เสร็จแล้ว** (15 ส.ค. 2026) — migration `0032` push cloud แล้ว (32/32)
+ตรวจของจริงบน cloud: policy `announcements_select_member` เวอร์ชันใหม่ + `publish_announcement()`
+
+**ต่อไป: `WO-3.E`** — Discovery (pg_trgm) + join request + walk-in
+
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- ประกาศที่ `published_at is null` = ร่าง **สมาชิกทั่วไปมองไม่เห็น** (RLS 0032)
+- publish ต้องผ่าน `publish_announcement()` เท่านั้น — ❌ ห้าม UPDATE `published_at` ตรง
+  (จุดนั้นคือที่ที่แจ้งเตือนถูกยิงแบบ idempotent)
 
 สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
 - 🔴 `member_statistics` **สมาชิกเห็นแถวของตัวเองเท่านั้น** แอดมินเห็นทั้งก๊วน (0031)
