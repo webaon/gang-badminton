@@ -33,7 +33,7 @@ RAISE EXCEPTION USING
 |---|---|---|---|
 | `SESSION_FULL` | 409 | นัดเต็มแล้ว (`count(confirmed) >= max_players`) — ปกติจะถูกส่งเข้า waitlist แทน ไม่ใช่ error เว้นแต่ waitlist ปิด | ⚠️ **ยังไม่มีที่ raise** (ดูหมายเหตุ WO-1.3) |
 | `SESSION_NOT_OPEN` | 409 | นัดไม่ได้อยู่สถานะ `open` — ลงชื่อไม่ได้ | `register_to_session()` ✅ |
-| `ALREADY_REGISTERED` | 409 | คนนี้ลงชื่อในนัดนี้อยู่แล้ว (ชน partial unique index) | `register_to_session()` ✅ |
+| `ALREADY_REGISTERED` | 409 | คนนี้ลงชื่อในนัดนี้อยู่แล้ว (ชน partial unique index) · **[WO-3.E]** หรือเป็นสมาชิกก๊วนนั้นอยู่แล้วตอนขอเข้าก๊วน | `register_to_session()`, `request_to_join_gang()` ✅ |
 | `REGISTRATION_NOT_FOUND` | 404 | ไม่พบ registration หรือถูก soft delete ไปแล้ว | `cancel_registration()`, `check_in_registration()` ✅ |
 | `CANCEL_CUTOFF_PASSED` | 409 | เลยเวลา cutoff ตาม cancellation policy ใน snapshot — ยกเลิกได้แต่โดน penalty (ใช้เป็น error เฉพาะกรณีก๊วนตั้ง `allow_cancel_after_cutoff: false`) | `cancel_registration()` ✅ |
 | `INVALID_REGISTRATION_TRANSITION` | 409 | transition ที่ไม่อนุญาต เช่น `waitlist → checked_in` ตรง | `check_in_registration()`, `cancel_registration()` ✅ |
@@ -48,7 +48,7 @@ RAISE EXCEPTION USING
 
 | Code | HTTP | ความหมาย | raise จาก |
 |---|---|---|---|
-| `INVALID_TRANSITION` | 409 | transition นอก state machine **หรือ** `expected_status` ไม่ตรงกับสถานะจริง (optimistic guard — ADR-001) → ฝั่ง server ต้องคำนวณใหม่แล้ว retry | `transition_session()`, `close_session_with_charges()`, payment trigger |
+| `INVALID_TRANSITION` | 409 | transition นอก state machine **หรือ** `expected_status` ไม่ตรงกับสถานะจริง (optimistic guard — ADR-001) → ฝั่ง server ต้องคำนวณใหม่แล้ว retry · **[WO-3.E]** คำขอเข้าก๊วนที่ตัดสินไปแล้ว (กดอนุมัติซ้ำ / ยกเลิกทีหลัง) | `transition_session()`, `close_session_with_charges()`, payment trigger, `decide_join_request()`, `cancel_join_request()` |
 | `DIRECT_STATUS_UPDATE_FORBIDDEN` | 500 | มีคนพยายาม `UPDATE status` ตรงโดยไม่ผ่าน DB function (ไม่มี GUC `app.allow_transition`) — **เป็นบั๊กของโค้ดเราเสมอ ไม่ใช่ความผิด user** | BEFORE UPDATE trigger ของ `sessions` / `payments` |
 
 ## Payment / Billing
@@ -77,9 +77,9 @@ RAISE EXCEPTION USING
 | Code | HTTP | ความหมาย | raise จาก |
 |---|---|---|---|
 | `UNAUTHENTICATED` | 401 | ไม่มี session ของ Supabase Auth | middleware / server action |
-| `FORBIDDEN` | 403 | role ไม่พอตาม `domain/permissions/can()` | `can()` guard |
+| `FORBIDDEN` | 403 | role ไม่พอตาม `domain/permissions/can()` · **[WO-3.E]** ยกเลิกคำขอเข้าก๊วนของคนอื่น | `can()` guard, `cancel_join_request()` |
 | `NOT_GANG_MEMBER` | 403 | ไม่ใช่สมาชิกก๊วนนี้ | ⚠️ ดูหมายเหตุ WO-1.4 ด้านล่าง |
-| `FEATURE_DISABLED` | 403 | ฟีเจอร์ถูกปิดใน `gangs.features` (เช่น รับ guest ทั้งที่ `features.guests = false`) — **ต้องตรวจฝั่ง server เสมอ ไม่ใช่แค่ซ่อนปุ่ม** | `can()` + DB function ที่เกี่ยวข้อง |
+| `FEATURE_DISABLED` | 403 | ฟีเจอร์ถูกปิดใน `gangs.features` (เช่น รับ guest ทั้งที่ `features.guests = false`) — **ต้องตรวจฝั่ง server เสมอ ไม่ใช่แค่ซ่อนปุ่ม** | `can()` + DB function ที่เกี่ยวข้อง (**[WO-3.E]** `request_to_join_gang()` ตรวจ `features.discovery`) |
 
 ## Infrastructure
 

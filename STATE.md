@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 14 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — **Phase 2.5 เสร็จครบ 7 ใบ** (`WO-2.5-A` … `WO-2.5-G`)
+> **อัปเดตล่าสุด: 15 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — **Phase 2.5 เสร็จครบ 7 ใบ** (`WO-2.5-A` … `WO-2.5-G`)
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -85,7 +85,7 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 | | |
 |---|---|
 | project / ref | **gang-badminton** · `emmzeriekkjryhucvctx` |
-| migrations ที่ apply แล้ว | **23 / 23** ✅ (push ล่าสุด 13 ส.ค. 2026) |
+| migrations ที่ apply แล้ว | **33 / 33** ✅ (push ล่าสุด 15 ส.ค. 2026 — `0033` ของ WO-3.E) |
 | ข้อมูลใน DB | 0 แถวทุกตาราง (ไม่ได้ push seed ขึ้นไป — `seeds: []`) |
 | RLS | ✅ 29/29 ตาราง · 50 policies + 16 บน storage.objects |
 | storage | ✅ 4 buckets · cron ✅ 3 jobs active |
@@ -186,7 +186,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 305 tests, 30 files
+npm test          # vitest run — 560 tests, 53 files (15 ส.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -222,6 +222,8 @@ npm test          # vitest run — 305 tests, 30 files
 | `tests/domain/promptpay.test.ts` | **WO-2.9** — payload EMVCo + ยอดถูกฝังจริง |
 | `tests/sessions/payments.test.ts` | **WO-2.9** — state machine · verify แล้วแก้ไม่ได้ · สลิปไม่รั่ว |
 | `tests/sessions/notifications.test.ts` | **WO-2.10** — worker ส่งจริง · backoff · sweep คืนคิว · เห็นเฉพาะของตัวเอง |
+| `tests/discovery/search.test.ts` | **WO-3.E** — ก๊วนส่วนตัว/ปิด discovery ไม่โผล่ · pg_trgm ค้นไทยบางส่วน · escape wildcard · explain ยืนยันใช้ index |
+| `tests/discovery/join-requests.test.ts` | **WO-3.E** — ขอ/ยกเลิก/อนุมัติ · กดพร้อมกันสองคนได้สมาชิกเดียว · ข้ามก๊วนไม่ได้ · เขียนตารางตรงไม่ได้ |
 | `tests/e2e/mvp0-full-path.test.ts` | 🎉 **MVP-0 checkpoint** — เส้นเต็ม 14 ขั้นตาม baseline §Verification |
 
 ⚠️ **เทสต์ RLS ต้องห่อด้วย `asRole()` / `visibleCount()` เสมอ** — connection ของเทสต์เป็น
@@ -273,13 +275,30 @@ npm test          # vitest run — 305 tests, 30 files
 ✅ **`WO-3.D` เสร็จแล้ว** (15 ส.ค. 2026) — migration `0032` push cloud แล้ว (32/32)
 ตรวจของจริงบน cloud: policy `announcements_select_member` เวอร์ชันใหม่ + `publish_announcement()`
 
-**ต่อไป: `WO-3.E`** — Discovery (pg_trgm) + join request + walk-in
+✅ **`WO-3.E` เสร็จแล้ว** (15 ส.ค. 2026) — migration `0033` push cloud แล้ว (33/33)
+ตรวจของจริงบน cloud: 4 ฟังก์ชันครบ (`search_public_gangs` / `request_to_join_gang` /
+`cancel_join_request` / `decide_join_request(p_request_id, p_gang_id, …)`) ·
+`join_requests` เหลือ policy เดียว (`join_requests_select`) และ `authenticated` เหลือ **SELECT** อย่างเดียว
 
-⚠️ **สิ่งที่ต้องเผื่อทำใน WO-3.E**: สองใบติดกัน (3.C, 3.D) เจอ policy จาก migration `0010`
-ที่กว้างเกินไป — เป็นแบบ "เปิดให้สมาชิกก๊วนทั้งหมด" โดยไม่แยกความละเอียด
-(`member_statistics` เปิด `total_paid` ของทุกคน · `announcements` เปิดร่าง)
-⇒ ตอนแตะ `join_requests` ใน 3.E ให้ **ตรวจ policy ของมันด้วย** ว่าคนขอเห็นของคนอื่นไหม
-   และเผื่อไล่ดู policy ที่เหลือใน 0010 ทั้งชุดสักรอบ
+**ต่อไป: `WO-3.F`** — Landing page (static/ISR) + E2E ของ Phase 3 + tag `v0.3.0`
+
+🔴 **ต้องตัดสินก่อนเปิด discovery ให้ผู้ใช้จริง** (เจอตอนไล่ policy 0010 ตามที่ 3.C/3.D สั่งไว้):
+`gangs_select_public` เปิดทั้ง**แถว** ไม่ใช่แค่ metadata ⇒ ใครก็ได้ที่ถือ **anon key**
+ยิง `GET /rest/v1/gangs?select=promptpay_id&is_public=eq.true` แล้วได้ **PromptPay ID ของทุกก๊วนสาธารณะ**
+(ยืนยันของจริงบน local แล้ว) · **ไม่ได้แก้ใน 3.E** เพราะเป็นการนิยามใหม่ว่า "metadata สาธารณะ"
+คือคอลัมน์ไหน = เรื่องสถาปัตยกรรม ⇒ สามทางเลือก (column grant / ถอด policy + ADR / ย้าย `promptpay_id`
+ออกไปตารางแบบ `gang_line_configs`) อยู่ใน `BACKLOG.md` §WO-3.E
+ผลการไล่ policy 0010 ที่เหลือ: `event_logs` ยังเป็นระดับก๊วน (สมาชิกอ่าน payload ดิบผ่าน API ได้ —
+ไทม์ไลน์กรอง `adminOnly` แค่ชั้น domain) · `coupons` เปิดทั้งก๊วน · `payment_adjustments` แอดมินเท่านั้น
+— ทั้งหมดจดไว้ใน `BACKLOG.md` แล้ว
+
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้ (WO-3.E):
+- 🔴 `join_requests` **เขียนตรงไม่ได้แล้ว** — `authenticated` เหลือ `select`
+  ⇒ ขอ/ยกเลิก/อนุมัติ ต้องผ่าน `request_to_join_gang()` / `cancel_join_request()` /
+  `decide_join_request()` เท่านั้น (จุดเดียวที่คำขอกลายเป็น `gang_members`)
+- ผลค้นหาก๊วนมาจาก `search_public_gangs()` ที่เดียว — กรอง `is_public` + `features.discovery`
+  อยู่ในฟังก์ชัน ⇒ ❌ ห้ามเขียน query ค้นก๊วนเองในหน้าจอ
+- สิทธิ์ใหม่ `gang.join_request.manage` ผูกกับ `features.discovery` ผ่าน `FEATURE_GATED`
 
 สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
 - ประกาศที่ `published_at is null` = ร่าง **สมาชิกทั่วไปมองไม่เห็น** (RLS 0032)

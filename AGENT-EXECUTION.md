@@ -862,7 +862,7 @@ DoD ทั้ง 4 ข้อผ่านจริง:
 
 ---
 
-## WO-3.E: Discovery (pg_trgm) + join request + walk-in
+## WO-3.E: Discovery (pg_trgm) + join request + walk-in ✅ **เสร็จ (15 ส.ค. 2026)**
 
 **Goal**: คนหาก๊วนใกล้ตัวเจอ ขอเข้าก๊วนได้ และแอดมินอนุมัติได้โดยไม่มีทางลัดที่ทำให้ข้อมูลเพี้ยน
 
@@ -882,6 +882,41 @@ DoD ทั้ง 4 ข้อผ่านจริง:
 - ห้าม `insert into gang_members` จาก server action ตรงๆ (ต้องผ่าน DB function) · ห้ามเปิดเผยก๊วนส่วนตัวผ่าน API ใดๆ
 
 **References**: baseline §โมดูล ข้อ 9 · §ตาราง (`join_requests`) · WO-1.4 (RLS) · ข้อจำกัด 4, 6, 7
+
+**ผลลัพธ์** — migration `0033` (4 ฟังก์ชัน + รัด RLS ของ `join_requests`) ·
+`server/actions/discovery.ts` · หน้า `/discover` · หน้า `/gangs/[gangId]/join-requests` ·
+สิทธิ์ใหม่ `gang.join_request.manage` (ผูกกับ `features.discovery`) ·
+เทสต์ใหม่ 36 ตัว (`tests/discovery/search.test.ts` 12 · `tests/discovery/join-requests.test.ts` 24)
+
+DoD ทั้ง 5 ข้อผ่านจริง:
+- 🔴 `is_public = false` **หรือ** ปิด `features.discovery` → ไม่โผล่ในผลค้นหาเลย
+  (กรองใน `search_public_gangs()` ซึ่งเป็นทางเดียวที่หน้าจอ/action ใช้ — เทสต์ยิงฟังก์ชันตรง)
+- ค้นด้วย **pg_trgm** จริง: `%` (similarity) **คู่กับ** `ilike` ซึ่งวิ่งบน gin_trgm_ops index
+  ของ 0002 ทั้งคู่ — มีเทสต์ค้นคำไทยบางส่วน (`บางแค` ใน `ก๊วนแบดบางแคยามเย็น`), เทสต์พิมพ์ผิด
+  และเทสต์ `explain` ที่ยืนยันว่า planner ใช้ `gangs_name_trgm_idx` ได้
+- อนุมัติ = `decide_join_request()` ใบเดียว (สมาชิก + ปิดคำขอ + event แบบ atomic)
+  ⇒ กดซ้ำได้ `INVALID_TRANSITION` · **กดพร้อมกันสองคนสำเร็จใบเดียว** สมาชิกไม่ซ้ำ
+- ปฏิเสธแล้วขอใหม่ได้ · เป็นสมาชิกอยู่แล้วขอไม่ได้ (`ALREADY_REGISTERED`)
+  · ขอซ้ำระหว่างรอ = คืนใบเดิม ไม่มีแถวใหม่
+- แจ้งแอดมินผ่าน `enqueue_notifications()` + `dedupe_key = join_request:<id>:<admin>`
+  และแจ้งผลกลับคนขอด้วย `join_request:<id>:decision` (ยิงซ้ำไม่ส่งซ้ำ)
+
+**walk-in**: ตาม scope คือ "ผ่านลิงก์เชิญที่มีอยู่แล้ว" ⇒ **ไม่มีโค้ดใหม่** —
+เส้นทาง `/join/[token]` + `GuestJoinForm` ของ WO-2.5 ครอบอยู่แล้ว (ยืนยันว่ายังผ่านเทสต์เดิม)
+สิ่งที่ยังไม่มีคือปุ่มลัด "รับ walk-in" ที่หน้างาน — จดไว้ใน `BACKLOG.md`
+
+**🔴 ช่องโหว่ที่เจอระหว่างทางและปิดไปด้วย** — policy ของ `join_requests` (0010) เปิดกว้างสองใบ:
+`join_requests_insert_self` ให้ยิงคำขอเข้า**ก๊วนส่วนตัว**ได้ (แค่รู้ id) และตั้ง `status` เองได้
+· `join_requests_update_admin` ให้แอดมิน `UPDATE status = 'approved'` ตรงโดย**ไม่มีสมาชิกเกิดขึ้นจริง**
+⇒ 0033 ถอน INSERT/UPDATE ของ `authenticated` ออกทั้งคู่ เหลือ `select` อย่างเดียว [D-13]
+
+**การตัดสินใจที่บันทึกไว้**:
+- `decide_join_request()` รับ `p_gang_id` เป็น guard — ผูกคำขอกับก๊วนที่ตรวจสิทธิ์มาแล้ว
+  **ในธุรกรรมเดียวกัน** (เช็คหลังฟังก์ชันทำงานไม่ทัน สมาชิกถูกสร้างไปแล้ว)
+- `gangs_select_public` (0010) **ไม่แตะ** — "ก๊วนเปิดเผยตัวตน" กับ "โผล่ในผลค้นหา" เป็นคนละเรื่อง
+  ลิงก์ตรงยังต้องเข้าได้ ⇒ `features.discovery` บังคับที่ฟังก์ชันค้นหาที่เดียว
+- 🔴 แต่ policy นั้นเปิดทั้ง**แถว** ⇒ `anon` อ่าน `promptpay_id` ของก๊วน public ได้
+  (ยืนยันของจริงแล้ว) — **นอก scope ใบนี้ จดไว้ใน `BACKLOG.md` พร้อมสามทางเลือก ต้องตัดสินก่อนเปิดใช้จริง**
 
 ---
 

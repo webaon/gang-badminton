@@ -378,3 +378,37 @@
 
 - [ ] Phase 2 ยังไม่แตก WO — baseline สั่งให้แตกตอนจบ Phase 1 (อย่าแตกล่วงหน้า)
 - [ ] `STATE.md` handoff protocol ระหว่าง session — `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง
+
+---
+
+## จาก WO-3.E (Discovery + join request)
+
+### 🔴 ความปลอดภัย — `anon` อ่านคอลัมน์ลับของก๊วน public ได้
+
+- [ ] **`gangs_select_public` (0010) เปิดทั้ง "แถว" ไม่ใช่แค่ metadata**
+      RLS กรองได้แค่ระดับแถว ⇒ ใครก็ได้ที่มี anon key ยิง
+      `GET /rest/v1/gangs?select=promptpay_id&is_public=eq.true` แล้วได้
+      **PromptPay ID (เบอร์โทร) ของทุกก๊วนที่เปิดสาธารณะ** — ยืนยันของจริงบน local แล้ว
+      (`settings` / `cancellation_policy` / `features` ก็หลุดชุดเดียวกัน)
+      · discovery ทำให้ก๊วนเปิด `is_public` กันมากขึ้น ⇒ ความเสี่ยงโตตามฟีเจอร์นี้
+      · **ไม่ได้แก้ใน WO-3.E** เพราะการตัดสินว่า "metadata สาธารณะ" คือคอลัมน์ไหน
+        เป็นเรื่องสถาปัตยกรรม (baseline §RLS เขียนแค่ว่า "ก๊วน public เปิดอ่าน metadata")
+      · ทางเลือกที่ประเมินไว้:
+        (ก) column-level grant ให้ `anon` เหลือเฉพาะ `id,name,description,area,is_public,timezone`
+            — ปิดเคสคนนอกที่ไม่ล็อกอิน แต่ **ผู้ใช้ที่ล็อกอินแล้วยังอ่านได้** เพราะ grant
+              เป็นราย role ไม่ใช่รายแถว (สมาชิกก๊วนต้องใช้คอลัมน์เหล่านั้นจริง)
+        (ข) ถอด `gangs_select_public` ทิ้ง แล้วให้ทุกการอ่านของคนนอกผ่าน
+            `search_public_gangs()` (security definer ที่คืนเฉพาะคอลัมน์ปลอดภัย) —
+            ปิดสนิททั้งสอง role แต่ขัดตัวอักษรของ baseline ⇒ ต้องมี **ADR**
+        (ค) ย้าย `promptpay_id` ออกจาก `gangs` ไปตารางที่ server-only เหมือน `gang_line_configs`
+      · **ควรปิดก่อนเปิด discovery ให้ผู้ใช้จริง**
+- [ ] **`event_logs` ยังเป็นระดับก๊วน** — สมาชิกทั่วไปยิง PostgREST อ่าน `payload` ดิบได้
+      (ไทม์ไลน์กรอง `adminOnly` ที่ชั้น `domain/` เท่านั้น — ตัดสินไว้ตั้งแต่ WO-3.C)
+      ⇒ ถ้าจะปิดจริงต้องรัด RLS ของ `event_logs` ตาม event type ซึ่งกระทบทุกหน้าที่อ่าน timeline
+- [ ] **`coupons_select` ให้สมาชิกทุกคนเห็นคูปองทั้งก๊วน** — ยังไม่มีฟีเจอร์คูปองจริง
+      แต่ถ้าคูปองผูกกับคนใดคนหนึ่ง ต้องรัด policy ก่อนใช้งาน
+- [ ] **`payment_adjustments_select` เปิดเฉพาะแอดมิน** — คนจ่ายเงินดูประวัติการคืนเงิน
+      ของตัวเองไม่ได้ (ตอนนี้เห็นผ่านยอดสุทธิเท่านั้น)
+- [ ] **walk-in ยังต้องให้แอดมินเปิดลิงก์เชิญเอง** — WO-3.E ใช้ลิงก์เชิญของ WO-2.5 ตามที่ scope กำหนด
+      ยังไม่มีปุ่ม "รับ walk-in" ที่หน้างานที่ออกลิงก์/QR ให้ในคลิกเดียว
+

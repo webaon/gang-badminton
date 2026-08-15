@@ -103,6 +103,11 @@ const DESCRIPTORS: Record<string, Descriptor> = {
     },
   },
   'membership.fees_generated': { title: 'ออกบิลค่าสมาชิกรายเดือน', adminOnly: true },
+  // [WO-3.E] คำขอเข้าก๊วน — ไม่มีข้อความที่ผู้ขอพิมพ์อยู่ใน payload ตั้งแต่ต้นทางแล้ว
+  'gang.join_requested': { title: 'มีคนขอเข้าก๊วน' },
+  'gang.join_approved': { title: 'รับเข้าก๊วน' },
+  'gang.join_rejected': { title: 'ปฏิเสธคำขอเข้าก๊วน' },
+  'gang.join_cancelled': { title: 'ผู้ขอยกเลิกคำขอเข้าก๊วน' },
 };
 
 /**
