@@ -40,6 +40,7 @@ export const ACTIONS = [
   'gang.pricing.manage',
   'gang.finance.view',
   'gang.finance.manage',
+  'statistics.view',
 
   // นัดเล่น
   'session.view',

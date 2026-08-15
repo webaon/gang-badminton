@@ -32,6 +32,8 @@ const MEMBER: readonly Action[] = [
   'payment.submit.self',
   'announcement.view',
   'notification.view.self',
+  // [WO-3.C] ดูสถิติ — RLS เป็นคนตัดสินว่าเห็นของใครบ้าง (ตัวเอง / ทั้งก๊วนถ้าเป็นแอดมิน)
+  'statistics.view',
 ];
 
 const ADMIN: readonly Action[] = [
@@ -75,6 +77,8 @@ const ROLE_ACTIONS = {
 const FEATURE_GATED: Partial<Record<Action, Feature>> = {
   'registration.create.guest': 'guests',
   'session.invite.manage': 'guests',
+  // [WO-3.C] ก๊วนที่ปิดสถิติ = ปิดจริงทั้งหน้าและ action ไม่ใช่แค่ซ่อนลิงก์
+  'statistics.view': 'statistics',
 };
 
 /**

@@ -267,7 +267,17 @@ npm test          # vitest run — 305 tests, 30 files
 ✅ **`WO-3.B` เสร็จแล้ว** (15 ส.ค. 2026) — **ไม่มี migration ใหม่** (ตาราง + RLS มีอยู่แล้ว)
 ⇒ cloud ยังตรงกับ local ที่ 30 migrations
 
-**ต่อไป: `WO-3.C`** — หน้าสถิติสมาชิก + timeline (อ่านจาก `member_statistics` เท่านั้น)
+✅ **`WO-3.C` เสร็จแล้ว** (15 ส.ค. 2026) — migration `0031` push cloud แล้ว (31/31)
+ตรวจของจริงบน cloud: policy `member_statistics_select` เป็นเวอร์ชันใหม่แล้ว
+
+**ต่อไป: `WO-3.D`** — ประกาศของก๊วน + แจ้งเตือนตอน publish
+
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- 🔴 `member_statistics` **สมาชิกเห็นแถวของตัวเองเท่านั้น** แอดมินเห็นทั้งก๊วน (0031)
+  ⇒ หน้าไหนที่ต้องโชว์สถิติของทุกคน ต้องเป็นหน้าแอดมิน หรือใช้ admin client อย่างตั้งใจ
+- ไทม์ไลน์ต้องผ่าน `buildTimeline()` เสมอ — ❌ ห้ามเรนเดอร์ `event_logs.payload` ดิบ
+  (whitelist ต่อ event type · event ที่มีเงินรายคนเป็น `adminOnly`)
+- สิทธิ์ใหม่ `statistics.view` ผูกกับ `features.statistics` ผ่าน `FEATURE_GATED`
 
 นิยามการเงินที่ต้องตรงกันทั้งระบบ:
 - **เก็บได้จริง** = allocation ของสลิปที่ `verified` **หัก refund**

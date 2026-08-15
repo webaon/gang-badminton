@@ -27,6 +27,8 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'payment.submit.self',
     'announcement.view',
     'notification.view.self',
+    // [WO-3.C] ต้องเปิด features.statistics ด้วยถึงจะได้ (ตารางนี้เทสต์ด้วย ALL_FEATURES)
+    'statistics.view',
   ],
   admin: [
     'gang.view',
@@ -37,6 +39,7 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'payment.submit.self',
     'announcement.view',
     'notification.view.self',
+    'statistics.view',
     'gang.update',
     'gang.member.manage',
     'gang.skill.manage',
