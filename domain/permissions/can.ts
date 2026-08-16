@@ -34,6 +34,8 @@ const MEMBER: readonly Action[] = [
   'notification.view.self',
   // [WO-3.C] ดูสถิติ — RLS เป็นคนตัดสินว่าเห็นของใครบ้าง (ตัวเอง / ทั้งก๊วนถ้าเป็นแอดมิน)
   'statistics.view',
+  // [WO-4.B] ผูก/เลิกผูกบัญชี LINE **ของตัวเอง** — ผูกกับ features.line
+  'line.link.self',
 ];
 
 const ADMIN: readonly Action[] = [
@@ -59,6 +61,10 @@ const ADMIN: readonly Action[] = [
   'announcement.manage',
   // [WO-3.E] อนุมัติ/ปฏิเสธคำขอเข้าก๊วน — ผูกกับ features.discovery
   'gang.join_request.manage',
+  // [WO-4.A] ตั้งค่า LINE ของก๊วน
+  // ⚠️ **จงใจไม่ผูกกับ `features.line`** — ต้องตั้ง credentials ให้ครบก่อนถึงจะเปิด flag ได้
+  //    ถ้า gate ด้วย flag ตัวมันเอง จะกลายเป็นวงกลมที่ไม่มีใครเปิดได้เลย
+  'gang.line.manage',
 ];
 
 // owner ต่างจาก admin แค่เชิงความเป็นเจ้าของ (ลบก๊วน/ย้ายเจ้าของ) ซึ่งยังไม่มีใน MVP-0
@@ -84,6 +90,8 @@ const FEATURE_GATED: Partial<Record<Action, Feature>> = {
   // [WO-3.E] ก๊วนที่ปิด discovery ไม่มีคำขอเข้าก๊วนให้จัดการตั้งแต่ต้น
   //          (`request_to_join_gang()` ตอบ FEATURE_DISABLED อยู่แล้ว — สองที่ต้องตรงกัน)
   'gang.join_request.manage': 'discovery',
+  // [WO-4.B] ก๊วนที่ยังไม่เปิด LINE ไม่มีอะไรให้ผูก — `link_line_account()` ตรวจซ้ำใน DB ด้วย
+  'line.link.self': 'line',
 };
 
 /**

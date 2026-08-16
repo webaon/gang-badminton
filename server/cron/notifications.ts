@@ -1,6 +1,8 @@
 import 'server-only';
 
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { pushTextMessage } from '@/lib/line/client';
+import { lineMessageFor } from '@/domain/notifications/line-message';
 
 /**
  * Worker ส่ง notification
@@ -29,6 +31,17 @@ type ClaimedNotification = {
   id: string;
   channel: string;
   event_type: string;
+  gang_id: string;
+  recipient_id: string | null;
+  payload: Record<string, unknown> | null;
+};
+
+type LineContext = {
+  line_user_id: string | null;
+  access_token: string | null;
+  is_enabled: boolean;
+  is_blocked: boolean;
+  is_over_quota: boolean;
 };
 
 /** ส่งจริงตาม channel — คืน error message ถ้าล้มเหลว */
@@ -39,13 +52,47 @@ async function deliver(notification: ClaimedNotification): Promise<string | null
       return null;
 
     case 'line':
-      // Phase 4 — ยังไม่ implement
-      // 🔴 คืน error ชัดๆ ไม่ mark sent หลอกๆ ไม่งั้นจะดูเหมือนส่งแล้วทั้งที่ไม่มีใครได้รับ
-      return 'ยังไม่รองรับการส่งผ่าน LINE (Phase 4)';
+      return deliverLine(notification);
 
     default:
       return `ไม่รู้จัก channel "${notification.channel}"`;
   }
+}
+
+/**
+ * ส่งผ่าน LINE — **[WO-4.C]**
+ *
+ * 🔴 ตรวจสถานะปลายทาง **ตอนจะส่งจริง** อีกรอบ (fan-out ตรวจไปแล้วตอนเข้าคิว แต่ระหว่าง
+ *    นั้นผู้ใช้อาจบล็อก OA / ก๊วนอาจปิด LINE / โควต้าอาจเต็มไปแล้ว)
+ *
+ * ⚠️ ทุกเคสที่ส่งไม่ได้ **คืนข้อความบอกเหตุผล** ⇒ เข้า backoff เดิมและมี `last_error` ให้ตามรอย
+ *    ❌ ห้าม mark sent หลอกๆ · in-app ของงานเดียวกันยังถึงผู้ใช้ตามปกติอยู่แล้ว
+ */
+async function deliverLine(notification: ClaimedNotification): Promise<string | null> {
+  if (!notification.recipient_id) return 'ไม่มีผู้รับสำหรับข้อความ LINE';
+
+  const { data, error } = await supabaseAdmin().rpc('line_delivery_context', {
+    p_gang_id: notification.gang_id,
+    p_user_id: notification.recipient_id,
+  });
+
+  if (error) return `อ่านข้อมูลปลายทางไม่ได้: ${error.message}`;
+
+  const context = (data as LineContext[] | null)?.[0];
+
+  if (!context?.line_user_id) return 'ผู้รับยังไม่ได้ผูกบัญชี LINE';
+  if (!context.is_enabled) return 'ก๊วนนี้ปิดการใช้งาน LINE อยู่';
+  if (context.is_blocked) return 'ผู้รับบล็อก LINE OA ของก๊วนไว้';
+  if (context.is_over_quota) return 'เกินโควต้า LINE ของเดือนนี้';
+  if (!context.access_token) return 'ก๊วนนี้ยังไม่ได้ตั้ง channel access token';
+
+  await pushTextMessage(
+    context.access_token,
+    context.line_user_id,
+    lineMessageFor(notification.event_type, notification.payload),
+  );
+
+  return null;
 }
 
 export async function dispatchNotifications(

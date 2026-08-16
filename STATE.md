@@ -1,7 +1,8 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 16 ส.ค. 2026** · MVP-0 = `v0.1.0` · Phase 2.5 = `v0.2.0` · **Phase 3 เสร็จครบ 6 ใบ = `v0.3.0`**
+> **อัปเดตล่าสุด: 16 ส.ค. 2026** · MVP-0 = `v0.1.0` · Phase 2.5 = `v0.2.0` ·
+> Phase 3 = `v0.3.0` (+ `v0.3.1` ปิดช่องโหว่ ADR-007) · **Phase 4 (LINE) เสร็จครบ 6 ใบ = `v0.4.0`**
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -27,7 +28,7 @@
 ## 2. Git
 
 ```
-tag ล่าสุด: v0.3.1 (WO-3.G — ปิดช่องโหว่ ADR-007) · v0.3.0 = Phase 3 ครบ (PR #3)
+tag ล่าสุด: v0.4.0 (Phase 4 — LINE ครบ 6 ใบ) · v0.3.1 (ADR-007) · v0.3.0 (Phase 3)
 branch: claude/badminton-group-system-4pfs7o   (ทำงานอยู่บนนี้ — WO ทุกใบ commit ที่นี่)
         main                                    (ตามทันแล้วถึง v0.3.0)
 ```
@@ -85,7 +86,7 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 | | |
 |---|---|
 | project / ref | **gang-badminton** · `emmzeriekkjryhucvctx` |
-| migrations ที่ apply แล้ว | **34 / 34** ✅ (push ล่าสุด 16 ส.ค. 2026 — `0034` ของ WO-3.G) |
+| migrations ที่ apply แล้ว | **38 / 38** ✅ (push ล่าสุด 16 ส.ค. 2026 — `0038` ของ WO-4.D) |
 | ข้อมูลใน DB | 0 แถวทุกตาราง (ไม่ได้ push seed ขึ้นไป — `seeds: []`) |
 | RLS | ✅ 29/29 ตาราง · 50 policies + 16 บน storage.objects |
 | storage | ✅ 4 buckets · cron ✅ 3 jobs active |
@@ -186,7 +187,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 577 tests, 56 files (16 ส.ค. 2026)
+npm test          # vitest run — 673 tests, 62 files (16 ส.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -202,6 +203,12 @@ npm test          # vitest run — 577 tests, 56 files (16 ส.ค. 2026)
 | `tests/rls/write-guards.test.ts` | ช่องโหว่ WO-1.3 ที่ปิดแล้ว — EXECUTE grant · INSERT status · เขียน registrations ตรง |
 | `tests/cron/cron.test.ts` | **DoD WO-1.5** — CRON_SECRET (รวม fail-closed + timing-safe) · pg_cron schedule · sweep ทั้งสาม |
 | `tests/seed/idempotency.test.ts` | **DoD WO-1.5** — รัน seed ไฟล์จริงซ้ำ 3 รอบ สถานะต้องไม่เปลี่ยน |
+| `tests/e2e/phase4-full-path.test.ts` | 🎉 **Phase 4 checkpoint** — ตั้งค่า Vault → ผูกผ่าน webhook → ประกาศ → ส่งจริง → โควต้า → เลิกผูก · ก๊วนที่ไม่ต่อ LINE ต้องเหมือนเดิม |
+| `tests/line/liff.test.ts` | **WO-4.E** — ที่ว่างนับแบบ [D-10] · หนี้จากนัดที่ปิดแล้วยังนับ · ไม่มี service-role/LIFF SDK ในเส้นทาง |
+| `tests/line/login.test.ts` | **WO-4.D** — state/nonce · ไม่ล็อกอิน/คนละคน = ปฏิเสธ · เลิกผูกแล้วคิวถูกปิด |
+| `tests/line/fanout.test.ts` | **WO-4.C** — fan-out `line` (คีย์ `in_app` ไม่เปลี่ยน) · ปิด flag/ไม่ผูก/บล็อก/เกินโควต้า = ไม่มีแถว line · ข้อความ whitelist |
+| `tests/line/webhook.test.ts` | **WO-4.B** — ลายเซ็นจาก raw body · ข้ามก๊วนไม่ผ่าน · flag ปิด = 403 · follow/unfollow · รหัสผูกบัญชี stateless |
+| `tests/line/credentials.test.ts` | **WO-4.A** — Vault: ไม่มี plaintext ใน DB · status ปิดบัง 4 ตัวท้าย · หมุน/ถอด · เปิด flag ต้องครบก่อน |
 | `tests/rls/public-gang-exposure.test.ts` | **WO-3.G / ADR-007** — anon แตะ `gangs` ไม่ได้ · คนนอกอ่านก๊วน public ไม่ได้ · `promptpay_id` ไม่หลุด · discovery ยังทำงาน |
 | `tests/rls/grant-matrix.test.ts` | สิทธิ์ระดับตารางตรงกับที่ประกาศไว้เป๊ะ — กัน default ACL ของ environment แอบให้สิทธิ์เกิน |
 | `tests/domain/can.test.ts` | **WO-2.1** — ทุก role × action + feature flag (pure ไม่แตะ DB) |
@@ -284,11 +291,44 @@ npm test          # vitest run — 577 tests, 56 files (16 ส.ค. 2026)
 ของที่ยังค้างจากการไล่ policy 0010: `event_logs` ยังเป็นระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
 `payment_adjustments` แอดมินเท่านั้น — จดไว้ใน `BACKLOG.md` แล้วทั้งหมด
 
-### ต่อไป: **Phase 4 — LINE** (baseline §Roadmap)
+### 🎉 Phase 4 (LINE) เสร็จครบ 6 ใบ — tag **`v0.4.0`**
 
-ยังไม่ได้แตก WO (กติกา `AGENT-EXECUTION.md`: แตกตอนจะเริ่ม Phase นั้น ไม่แตกล่วงหน้า)
-ขอบเขตตาม baseline: Vault → webhook เฉพาะก๊วน → channel `line` ในคิวเดิม → usage counter → LIFF
-🔴 ใช้ `enqueue_notifications()` + `claim_notifications()` เดิม — ❌ ห้ามสร้าง worker ใหม่
+| WO | งาน | migration |
+|---|---|---|
+| 4.A | Vault + หน้าตั้งค่า LINE ต่อก๊วน | `0035` |
+| 4.B | webhook ต่อก๊วน + ผูกบัญชีด้วยรหัสในแชต | `0036` |
+| 4.C | fan-out `line` ในคิวเดิม + ส่งจริง + โควต้าต่อเดือน | `0037` |
+| 4.D | LINE Login (ผูกด้วยปุ่มเดียว) | `0038` |
+| 4.E | LIFF — หน้าจอในแอป LINE | — |
+| 4.F | E2E checkpoint + `v0.4.0` | — |
+
+### ต่อไป: **Phase 5 — Hardening & Deploy** (baseline §Roadmap)
+
+ยังไม่ได้แตก WO (กติกา: แตกตอนจะเริ่ม Phase นั้น) · ขอบเขตตาม baseline:
+**E2E เต็ม flow → RLS tests → README (ไทย): setup Supabase, env vars, Vault, cron, deploy Vercel**
+พร้อม **§Security Checklist** ที่ต้องผ่านก่อน deploy จริง — ของที่ยังค้างจาก checklist นั้น:
+- [ ] **Playwright** (E2E ผ่านเบราว์เซอร์จริง) — ตอนนี้ E2E เดินผ่าน DB function + domain
+- [ ] **Security headers + CSP** บน Next.js config (ยังไม่มี)
+- [ ] **`npm audit` 3 high** ใน transitive deps ของ `next@15.5.23` — แก้ต้องขึ้น next@16 = ADR
+- [ ] **rate limit** บน endpoint ที่ guest/public เรียกได้ทุกตัว (มีเฉพาะ guest register)
+- [ ] ของค้างอื่นดู `BACKLOG.md` (`event_logs` ระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
+      ย้าย `promptpay_id` ไปตาราง server-only เป็น defense in depth)
+
+### 🔴 กติกาของ Phase 4 ที่ Phase ถัดไปห้ามทำผิด
+
+- คิวมี **สอง channel ต่อหนึ่งงาน**: `in_app` (คีย์เดิม) + `line` (`<คีย์เดิม>:line`)
+  ⇒ ❌ ห้ามเปลี่ยนรูปคีย์ของ `in_app` เด็ดขาด (ของที่เคยกันซ้ำจะพังทั้งระบบ)
+- แถว `line` เกิดเฉพาะเมื่อ ก๊วนเปิด LINE **และ** ผู้รับผูกบัญชี **และ** ไม่บล็อก OA
+  **และ** ยังไม่เกินโควต้า — ตรวจใน `enqueue_notifications()` และซ้ำอีกรอบตอนส่งจริง
+- โควต้าอ่านจาก `notification_logs` (`success` เท่านั้น) — ❌ ห้ามสร้างตัวนับที่อื่น
+- ข้อความ LINE ต้องผ่าน `domain/notifications/line-message.ts` (whitelist ต่อ event type)
+  ❌ ห้ามยัด payload ดิบหรือยอดเงินรายคนลงข้อความ
+- credentials ของก๊วนอยู่ใน **Vault** เท่านั้น (ตารางถือแค่ secret id) ·
+  ฟังก์ชันที่คืน plaintext มีสามตัวและ grant ให้ `service_role` ล้วน
+- ผูกบัญชีมีสองทาง (รหัสในแชต · LINE Login) แต่ทั้งคู่ลงเอยที่ `server/line/link.ts`
+  ⇒ ❌ ห้ามเขียนทางที่สามที่ไม่ผ่านไฟล์นี้
+- LIFF ไม่ใช้ SDK และไม่เชื่อ `liff.getProfile()` — ใช้ session ของ Supabase เหมือนหน้าปกติ
+- env ที่ต้องมีจริงตอน deploy: **`LINE_LINK_SECRET`** (+ `APP_BASE_URL` ถ้าอยู่หลัง proxy)
 
 ### สิ่งที่เปลี่ยนไปใน Phase 3 ที่ Phase ถัดไปต้องรู้
 
@@ -392,6 +432,12 @@ baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
 - **`service_role` มี BYPASSRLS แต่ BYPASSRLS ไม่ข้าม GRANT** — ต้อง grant ให้ด้วย
 - **helper ของ policy ต้องเป็น SECURITY DEFINER** ไม่งั้น policy ที่อ้างตารางตัวเองจะ recursion
   และ **ห้ามใช้ `FORCE ROW LEVEL SECURITY`** เพราะจะทำให้ owner ถูก policy ตรวจด้วย = วนกลับมาอีก
+- 🔴 **เทสต์ที่ยิง `enqueue_notifications` ต้องใช้ `dedupe_key` ที่ไม่ซ้ำข้ามการรัน**
+  (คีย์เป็น unique ทั้งตารางและเทสต์ไม่ล้างข้อมูล) — ถ้าใช้คีย์ตายตัว รอบสองจะ `do nothing`
+  ทั้งหมดแล้วเทสต์แดงแบบหาสาเหตุยาก (เจอมาแล้วตอน WO-4.C)
+- 🔴 **probe ของ Vault ต้องแยกเป็นคนละ statement** — `with created as (select vault.create_secret(...))
+  select ... from vault.decrypted_secrets` จะได้ผลว่า "พัง" เสมอ เพราะ CTE ที่เขียนข้อมูลไม่ถูกมองเห็น
+  โดยส่วนอื่นของ statement เดียวกัน (เสียเวลาไปแล้วตอน WO-4.A — Vault ไม่ได้พัง)
 - **`auth.users` ต้องการแค่คอลัมน์ `id`** — สร้าง user ในเทสต์ได้ด้วย `insert into auth.users (id) values (gen_random_uuid())`
 - รายละเอียดที่เหลือทั้งหมดอยู่ใน **`BACKLOG.md`**
 

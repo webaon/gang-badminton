@@ -42,6 +42,8 @@ export const ACTIONS = [
   'gang.finance.manage',
   'statistics.view',
   'gang.join_request.manage',
+  'gang.line.manage',
+  'line.link.self',
 
   // นัดเล่น
   'session.view',

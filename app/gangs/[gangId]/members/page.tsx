@@ -64,6 +64,12 @@ export default async function GangMembersPage({
               คำขอเข้าก๊วน
             </Link>
           ) : null}
+          {/* [WO-4.B] ผูกบัญชี LINE ของตัวเอง — เห็นเฉพาะก๊วนที่เปิด features.line */}
+          {can({ role: myRole, features }, 'line.link.self') ? (
+            <Link href={`/gangs/${gangId}/line`} className="underline">
+              เชื่อมต่อ LINE
+            </Link>
+          ) : null}
           <Link href={`/gangs/${gangId}/membership`} className="underline">
             บิลรายเดือน
           </Link>
