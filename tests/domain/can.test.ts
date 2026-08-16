@@ -49,6 +49,8 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'gang.finance.manage',
     // [WO-3.E] อนุมัติคำขอเข้าก๊วน (ต้องเปิด features.discovery ด้วย)
     'gang.join_request.manage',
+    // [WO-4.A] ตั้งค่า LINE — ไม่ผูกกับ features.line (ต้องตั้งค่าก่อนถึงจะเปิดได้)
+    'gang.line.manage',
     'session.create',
     'session.update',
     'session.transition',
@@ -129,6 +131,13 @@ describe('can() — feature flag', () => {
     expect(can({ role: 'owner' }, 'registration.create.guest')).toBe(false);
     // แต่ action ที่ไม่ผูกกับ flag ต้องยังทำได้ตามปกติ
     expect(can({ role: 'owner' }, 'session.create')).toBe(true);
+  });
+
+  it('🔴 [WO-4.A] ปิด features.line ยังตั้งค่า LINE ได้ (ไม่งั้นเปิดใช้ครั้งแรกไม่ได้เลย)', () => {
+    const off = { ...ALL_FEATURES, line: false };
+    expect(can({ role: 'admin', features: off }, 'gang.line.manage')).toBe(true);
+    // แต่สมาชิกทั่วไปยังทำไม่ได้
+    expect(can({ role: 'member', features: off }, 'gang.line.manage')).toBe(false);
   });
 
   it('🔴 [WO-3.E] ปิด discovery → จัดการคำขอเข้าก๊วนไม่ได้ทุก role', () => {

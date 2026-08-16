@@ -59,6 +59,10 @@ const ADMIN: readonly Action[] = [
   'announcement.manage',
   // [WO-3.E] อนุมัติ/ปฏิเสธคำขอเข้าก๊วน — ผูกกับ features.discovery
   'gang.join_request.manage',
+  // [WO-4.A] ตั้งค่า LINE ของก๊วน
+  // ⚠️ **จงใจไม่ผูกกับ `features.line`** — ต้องตั้ง credentials ให้ครบก่อนถึงจะเปิด flag ได้
+  //    ถ้า gate ด้วย flag ตัวมันเอง จะกลายเป็นวงกลมที่ไม่มีใครเปิดได้เลย
+  'gang.line.manage',
 ];
 
 // owner ต่างจาก admin แค่เชิงความเป็นเจ้าของ (ลบก๊วน/ย้ายเจ้าของ) ซึ่งยังไม่มีใน MVP-0

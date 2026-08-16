@@ -1045,7 +1045,7 @@ DoD ทั้ง 4 ข้อผ่านจริง · cloud **34/34** (ตร�
 
 ---
 
-## WO-4.A: Vault + หน้าตั้งค่า LINE ต่อก๊วน
+## WO-4.A: Vault + หน้าตั้งค่า LINE ต่อก๊วน ✅ **เสร็จ (16 ส.ค. 2026)**
 
 **Goal**: แอดมินต่อ LINE OA ของก๊วนตัวเองได้ โดย credentials ไม่เคยถูกเก็บเป็น plaintext และไม่เคยกลับมาถึง browser
 
@@ -1069,6 +1069,32 @@ DoD ทั้ง 4 ข้อผ่านจริง · cloud **34/34** (ตร�
 - ❌ ห้าม grant `gang_line_configs` ให้ `anon`/`authenticated`
 
 **References**: baseline §ตาราง (LINE) · §การตัดสินใจสำคัญ (เข้ารหัส LINE credentials) · §Security Checklist · ข้อจำกัด 3, 4, 5
+
+**ผลลัพธ์** — migration `0035` (6 ฟังก์ชัน) · `lib/line/client.ts` · `server/actions/line.ts` ·
+`features/line/LineSettingsPanel.tsx` (ในหน้าตั้งค่าก๊วน) · สิทธิ์ใหม่ `gang.line.manage` ·
+เทสต์ใหม่ 14 ตัว (`tests/line/credentials.test.ts`)
+
+DoD ทั้ง 6 ข้อผ่านจริง:
+- 🔴 **ไม่มี plaintext ใน DB** — เทสต์ dump ทั้งแถวเป็น jsonb แล้วยืนยันว่าไม่มีค่า token/secret
+  · `channel_access_token_ref` เป็น uuid ของ Vault · event log ก็ไม่มีค่าติดไปด้วย
+- 🔴 **อ่านกลับมาที่ browser ไม่ได้** — หน้าจอใช้ `gang_line_status()` ที่คืนแค่ "มี/ไม่มี" + **4 ตัวท้าย**
+  (ปิดบังตั้งแต่ใน SQL) · ฟังก์ชันที่คืน plaintext มีตัวเดียวและ grant ให้ `service_role` เท่านั้น
+- สมาชิก/แอดมินของก๊วน **แตะตาราง `gang_line_configs` ไม่ได้เลย** (เทสต์ระดับ GRANT) ·
+  ผู้ใช้เรียกฟังก์ชัน LINE ทั้งสี่ตัวตรงไม่ได้
+- หมุน token → **ใช้ secret id เดิม** (`vault.update_secret`) ไม่ทิ้งใบเก่าค้าง · ถอด LINE ออก = ลบ secret ใน Vault ด้วย
+- เปิด `features.line` ไม่ได้ถ้ายังไม่ครบ → `VALIDATION_ERROR` · และถ้า credential ถูกล้างทั้งที่เปิดอยู่
+  ระบบ **ปิดสวิตช์ให้เองทันที** (ทั้ง `is_enabled` และ `gangs.features.line` ในธุรกรรมเดียว)
+- ✅ **ยืนยัน Vault บน cloud ของจริงแล้ว** (`supabase_vault 0.3.1` + create → decrypt round-trip ผ่าน)
+  ⇒ **ไม่ต้องใช้ fallback AES-256-GCM** ไม่มี deviation
+
+**การตัดสินใจที่บันทึกไว้**
+- ❌ **ไม่ติดตั้ง `@line/bot-sdk`** ทั้งที่ baseline ระบุไว้ในลิสต์ไลบรารี — สิ่งที่ใช้จริงคือ HTTP
+  ไม่กี่เส้น (`/v2/bot/info` ที่นี่ · push ใน WO-4.C) และ verify signature ที่เป็น HMAC-SHA256
+  ของ `node:crypto` ⇒ ไม่คุ้มกับ dependency ใหม่ (โปรเจกต์มี `npm audit` ค้างอยู่แล้ว)
+  · ทบทวนใหม่ได้ถ้าวันหนึ่งต้องใช้ Flex builder / webhook parser เต็มรูป — บันทึกไว้ใน `lib/line/client.ts`
+- `gang.line.manage` **จงใจไม่ผูกกับ `features.line`** — ต้องตั้ง credentials ก่อนถึงจะเปิด flag ได้
+  ถ้า gate ด้วย flag ตัวเองจะกลายเป็นวงกลมที่ไม่มีใครเปิดได้เลย (มีเทสต์คุม)
+- ปุ่ม "ทดสอบการเชื่อมต่อ" ใช้ **GET `/v2/bot/info`** ที่ไม่ส่งข้อความหาใคร ⇒ กดกี่ครั้งก็ไม่กินโควต้า
 
 ---
 

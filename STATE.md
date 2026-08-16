@@ -85,7 +85,7 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 | | |
 |---|---|
 | project / ref | **gang-badminton** · `emmzeriekkjryhucvctx` |
-| migrations ที่ apply แล้ว | **34 / 34** ✅ (push ล่าสุด 16 ส.ค. 2026 — `0034` ของ WO-3.G) |
+| migrations ที่ apply แล้ว | **35 / 35** ✅ (push ล่าสุด 16 ส.ค. 2026 — `0035` ของ WO-4.A) |
 | ข้อมูลใน DB | 0 แถวทุกตาราง (ไม่ได้ push seed ขึ้นไป — `seeds: []`) |
 | RLS | ✅ 29/29 ตาราง · 50 policies + 16 บน storage.objects |
 | storage | ✅ 4 buckets · cron ✅ 3 jobs active |
@@ -186,7 +186,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 577 tests, 56 files (16 ส.ค. 2026)
+npm test          # vitest run — 592 tests, 57 files (16 ส.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -202,6 +202,7 @@ npm test          # vitest run — 577 tests, 56 files (16 ส.ค. 2026)
 | `tests/rls/write-guards.test.ts` | ช่องโหว่ WO-1.3 ที่ปิดแล้ว — EXECUTE grant · INSERT status · เขียน registrations ตรง |
 | `tests/cron/cron.test.ts` | **DoD WO-1.5** — CRON_SECRET (รวม fail-closed + timing-safe) · pg_cron schedule · sweep ทั้งสาม |
 | `tests/seed/idempotency.test.ts` | **DoD WO-1.5** — รัน seed ไฟล์จริงซ้ำ 3 รอบ สถานะต้องไม่เปลี่ยน |
+| `tests/line/credentials.test.ts` | **WO-4.A** — Vault: ไม่มี plaintext ใน DB · status ปิดบัง 4 ตัวท้าย · หมุน/ถอด · เปิด flag ต้องครบก่อน |
 | `tests/rls/public-gang-exposure.test.ts` | **WO-3.G / ADR-007** — anon แตะ `gangs` ไม่ได้ · คนนอกอ่านก๊วน public ไม่ได้ · `promptpay_id` ไม่หลุด · discovery ยังทำงาน |
 | `tests/rls/grant-matrix.test.ts` | สิทธิ์ระดับตารางตรงกับที่ประกาศไว้เป๊ะ — กัน default ACL ของ environment แอบให้สิทธิ์เกิน |
 | `tests/domain/can.test.ts` | **WO-2.1** — ทุก role × action + feature flag (pure ไม่แตะ DB) |
@@ -284,24 +285,27 @@ npm test          # vitest run — 577 tests, 56 files (16 ส.ค. 2026)
 ของที่ยังค้างจากการไล่ policy 0010: `event_logs` ยังเป็นระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
 `payment_adjustments` แอดมินเท่านั้น — จดไว้ใน `BACKLOG.md` แล้วทั้งหมด
 
-### ✅ แตก WO ของ Phase 4 แล้ว (16 ส.ค. 2026) — **เริ่มที่ `WO-4.A`**
+### ✅ แตก WO ของ Phase 4 แล้ว (16 ส.ค. 2026) — **`WO-4.A` เสร็จแล้ว · ต่อที่ `WO-4.B`**
 
 6 ใบ (`WO-4.A` … `WO-4.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 10 ข้อ
 
 | WO | งาน |
 |---|---|
-| 4.A | Vault + หน้าตั้งค่า LINE ต่อก๊วน (เก็บแค่ secret id) |
+| 4.A | Vault + หน้าตั้งค่า LINE ต่อก๊วน (เก็บแค่ secret id) ✅ **เสร็จ** (`0035`) |
 | 4.B | webhook `/api/line/webhook/[gangId]` + ผูกบัญชี (`member_line_links`) |
 | 4.C | worker ส่ง LINE จริง + fan-out ในคิวเดิม + โควต้าต่อก๊วนต่อเดือน |
 | 4.D | LINE Login — ผูกบัญชีโดยไม่ต้องพิมพ์รหัส |
 | 4.E | LIFF — หน้าจอในแอป LINE |
 | 4.F | checkpoint + tag `v0.4.0` |
 
-ของจริงที่ตรวจไว้แล้วตอนแตกใบ (อย่าเสียเวลาค้นซ้ำ):
-- **Vault ใช้ได้บน local** — `supabase_vault` + `vault.create_secret()` / `update_secret()`
-  ⇒ ทางหลักของ baseline ทำได้ **แต่ต้องยืนยันบน cloud ซ้ำใน `WO-4.A`**
-- **`@line/bot-sdk` ยังไม่ได้ติดตั้ง** — verify signature ทำเองด้วย `node:crypto` ได้
-  ⇒ ให้ `WO-4.B` ตัดสินว่าคุ้มจะเพิ่ม dep ไหมแล้วบันทึกเหตุผล
+✅ **`WO-4.A` เสร็จแล้ว** (16 ส.ค. 2026) — migration `0035` push cloud แล้ว (35/35)
+ตรวจของจริงบน cloud: 6 ฟังก์ชันครบ + **Vault round-trip ผ่าน** (`supabase_vault 0.3.1`)
+⇒ ไม่ต้องใช้ fallback AES-256-GCM · สิ่งที่ `WO-4.B` หยิบไปใช้ได้เลยคือ
+`get_gang_line_credentials(gang_id)` (service_role) ที่คืน `channel_secret` สำหรับ verify signature
+
+ของจริงที่ตรวจไว้แล้ว (อย่าเสียเวลาค้นซ้ำ):
+- ❌ **ตัดสินใจไม่ติดตั้ง `@line/bot-sdk`** — ใช้ `fetch` + `node:crypto` แทน
+  (เหตุผลอยู่ใน `lib/line/client.ts` และท้าย `AGENT-EXECUTION.md` ใบ 4.A)
 - **`enqueue_notifications()` (0029) ฮาร์ดโค้ด `channel = 'in_app'`** ⇒ fan-out ไป `line`
   ต้องแก้ที่ฟังก์ชันนี้ (migration ใหม่) ไม่ใช่แก้ทีละผู้เรียก
 - **`deliver()` ใน `server/cron/notifications.ts` มี `case 'line'` รออยู่แล้ว** = จุดเสียบของ `WO-4.C`
@@ -412,6 +416,9 @@ baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
 - **`service_role` มี BYPASSRLS แต่ BYPASSRLS ไม่ข้าม GRANT** — ต้อง grant ให้ด้วย
 - **helper ของ policy ต้องเป็น SECURITY DEFINER** ไม่งั้น policy ที่อ้างตารางตัวเองจะ recursion
   และ **ห้ามใช้ `FORCE ROW LEVEL SECURITY`** เพราะจะทำให้ owner ถูก policy ตรวจด้วย = วนกลับมาอีก
+- 🔴 **probe ของ Vault ต้องแยกเป็นคนละ statement** — `with created as (select vault.create_secret(...))
+  select ... from vault.decrypted_secrets` จะได้ผลว่า "พัง" เสมอ เพราะ CTE ที่เขียนข้อมูลไม่ถูกมองเห็น
+  โดยส่วนอื่นของ statement เดียวกัน (เสียเวลาไปแล้วตอน WO-4.A — Vault ไม่ได้พัง)
 - **`auth.users` ต้องการแค่คอลัมน์ `id`** — สร้าง user ในเทสต์ได้ด้วย `insert into auth.users (id) values (gen_random_uuid())`
 - รายละเอียดที่เหลือทั้งหมดอยู่ใน **`BACKLOG.md`**
 
