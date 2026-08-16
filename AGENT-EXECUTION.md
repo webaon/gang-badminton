@@ -920,7 +920,7 @@ DoD ทั้ง 5 ข้อผ่านจริง:
 
 ---
 
-## WO-3.F: Landing page + Phase 3 checkpoint
+## WO-3.F: Landing page + Phase 3 checkpoint ✅ **เสร็จ (16 ส.ค. 2026)**
 
 **Goal**: มีหน้าแรกที่คนนอกเข้าใจว่าระบบนี้ทำอะไร และเปิดใช้งานจริงได้
 
@@ -940,3 +940,24 @@ DoD ทั้ง 5 ข้อผ่านจริง:
 - ห้ามทำหน้าแรกเป็น dynamic เพื่อความสะดวก · ห้ามข้าม E2E ของ Phase ก่อนหน้า
 
 **References**: baseline §Roadmap Phase 3 · §Verification · §Release Versioning
+
+**ผลลัพธ์** — **ไม่มี migration ใหม่** (อ่าน `daily_metrics` ที่ 0030 สร้างไว้แล้ว) ·
+`domain/reports/platform.ts` (pure) · `server/landing/metrics.ts` · หน้าแรกใหม่ที่ `app/page.tsx` ·
+เทสต์ใหม่ 11 ตัว (`tests/landing/landing.test.ts` 10 + `tests/e2e/phase3-full-path.test.ts` 1)
+
+DoD ทั้ง 5 ข้อผ่านจริง:
+- หน้าแรกเป็น **static + ISR** — ผลลัพธ์ `npm run build`: `○ /` · Revalidate `1h` · Expire `1y`
+  (ไม่ใช่ `ƒ`) · มีเทสต์กันไม่ให้ใครเผลอใส่ `force-dynamic` / `cookies()` / client ที่ผูก session
+- 🔴 ตัวเลขอ่านจาก `daily_metrics` เท่านั้น ผ่าน `platformHighlights()` —
+  เทสต์ตรวจว่าไฟล์หน้าแรกไม่มี query ตารางธุรกรรมสด และ E2E ตรวจว่าเลขตรงกับ rollup จริง
+- ไม่มีข้อมูลก๊วนใดก๊วนหนึ่งบนหน้าแรกเลย (ไม่มีชื่อก๊วน/รายชื่อคน — คนที่อยากเห็นก๊วนไป `/discover`
+  ซึ่งกรอง `is_public` + `features.discovery` ให้แล้ว) · **ไม่โชว์ `revenue`** ของแพลตฟอร์มโดยตั้งใจ
+- **E2E ของ Phase 3** (`tests/e2e/phase3-full-path.test.ts`): ปิดรอบจริง → rollup →
+  รายงาน reconcile (952 − 950 = เศษ 2 บาท · เก็บได้จริง 238 ≠ เรียกเก็บ 952) →
+  ประกาศ publish + กดซ้ำไม่ส่งซ้ำ → ค้นหาก๊วน + ขอเข้าก๊วน + อนุมัติ + ปิด discovery แล้วหายจากผลค้นหา
+  · เส้นเต็มของ MVP-0 และ Phase 2.5 ยังผ่านครบใน `npm test` ชุดเดียวกัน (571 เทสต์ / 55 ไฟล์)
+- tag **`v0.3.0`** ตาม §Release Versioning
+
+**การตัดสินใจที่บันทึกไว้**: `platformHighlights()` คืน `null` แทนที่จะ throw เมื่ออ่าน DB ไม่ได้
+— หน้าแรกถูก prerender ตอน build ซึ่งอาจไม่มี env ของ Supabase ⇒ ปล่อย throw = build ทั้งแอปพัง
+เพราะตัวเลขประดับหน้าแรก · ไม่ได้กลืนเงียบ (log พร้อมสาเหตุตาม CLAUDE.md §5) และมีเทสต์คุมพฤติกรรมนี้
