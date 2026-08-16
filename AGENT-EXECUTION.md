@@ -1357,3 +1357,205 @@ DoD ทั้ง 4 ข้อผ่านจริง:
   หยิบงานของ**ทั้งฐานข้อมูล**ครั้งละ 25 แถว ⇒ ของค้างจากเทสต์อื่นกิน batch จนงานของเทสต์นี้
   ไม่ถูกหยิบได้ (เทสต์ชุดนี้ไม่ล้างข้อมูลระหว่างรันโดยตั้งใจ)
 - ❌ ไม่ assert "ไม่มี push เลย" แบบรวมทั้งระบบ — assert เฉพาะขอบเขตของก๊วนในเทสต์นั้น
+
+---
+
+# Phase 5 — Hardening & Deploy (WO-5.A … WO-5.F)
+
+> แตกใบเมื่อ 16 ส.ค. 2026 หลังปิด Phase 4 (`v0.4.0`)
+> baseline §Roadmap: **E2E เต็ม flow → RLS tests → README (ไทย): setup Supabase, env vars,
+> Vault, cron, deploy Vercel** · ปิดท้ายด้วย **`v1.0.0` = public release หลัง Hardening**
+>
+> ใบของ Phase นี้ต้องปิด **§Security Checklist** ของ baseline ให้ครบทุกข้อ (เป็น gate ก่อน deploy)
+
+⇒ ใบของ Phase 5 ใช้ **ตัวอักษร**: `WO-5.A` … `WO-5.F`
+
+## 🔴 ข้อจำกัดจาก Phase ก่อนหน้าที่ทุกใบต้องยึด
+
+| # | ข้อจำกัด | ทำผิดแล้วเกิดอะไร |
+|---|---|---|
+| 1 | **ห้ามเปลี่ยนรูป `dedupe_key` ของ `in_app`** (Phase 4 ข้อ 2) | ของที่เคยกันซ้ำไม่ตรงกันอีก ⇒ ผู้ใช้โดนยิงซ้ำทั้งระบบในรอบเดียว |
+| 2 | **ห้ามสร้าง worker/คิว/ตารางสรุปใหม่** — ใช้ของเดิมทั้งหมด | มีสองทางส่ง/สองแหล่งความจริง แล้วเลขกับพฤติกรรมเบี่ยงจากกัน |
+| 3 | **credentials อยู่ใน Vault/env เท่านั้น** · ฟังก์ชันที่คืน plaintext grant ให้ `service_role` | secret หลุดพร้อม backup ฐานข้อมูล หรือหลุดถึง browser |
+| 4 | **[ADR-007]** คนนอกอ่านตาราง `gangs` ตรงไม่ได้ — ต้องผ่าน DB function ที่เลือกคอลัมน์ | เปิด policy กลับมา = `promptpay_id` ของทุกก๊วนสาธารณะรั่วอีกรอบ |
+| 5 | **ทุกตารางใหม่ต้องครบสามอย่าง**: `enable row level security` + `grant` + `create policy` | ตารางใหม่ใช้ไม่ได้เงียบๆ หรือเปิดกว้างเกินโดยไม่มีใครรู้ (`grant-matrix` เป็นตัวจับ) |
+| 6 | **`domain/` ห้าม import framework** (มี lint rule + เทสต์คุม) | ชั้น business logic เทสต์ไม่ได้โดยไม่ mock ทั้งโลก |
+| 7 | **หน้าแรกต้อง static/ISR** (WO-3.F) — ห้ามใส่ `force-dynamic`/`cookies()` | หน้าแรกกลายเป็น dynamic เงียบๆ แล้ว TTFB แย่ลงโดยไม่มีใครสังเกต |
+| 8 | **เทสต์ที่แตะคิวต้องวนจนเจอของตัวเอง** (`claim_notifications` หยิบงานของทั้ง DB) | เขียวบนเครื่อง แดงบน CI ที่ฐานข้อมูลเริ่มจากศูนย์ |
+
+## ลำดับที่เลือก (และเหตุผล)
+
+`dependency → headers/CSP → rate limit + secret hygiene → ปิดของค้าง RLS → Playwright + CI gates → README + release`
+
+- **dependency มาก่อนทุกอย่าง** — ถ้าตัดสินใจขึ้น `next@16` มันกระทบทั้ง config, headers,
+  build output และเทสต์ ⇒ ตัดสินทีหลังคือรื้องานที่เพิ่งทำ
+- **headers/CSP ก่อน Playwright** — CSP ที่ตั้งผิดจะพังหน้าจอจริง ⇒ อยากให้ smoke test
+  ที่เขียนทีหลังวิ่งบน config ที่ final แล้ว
+- **README ปิดท้าย** — เอกสารมีค่าก็ต่อเมื่อบรรยายของที่ final แล้ว (กติกาท้าย baseline)
+
+## ⚠️ ของจริงที่ตรวจไว้แล้วก่อนแตกใบ (อย่าเสียเวลาค้นซ้ำ)
+
+- **`next.config.ts` ยังว่างเปล่า** — ไม่มี security headers / CSP อะไรเลยตอนนี้
+- **`npm audit` = 4 high** (16 ส.ค. 2026): `nanoid <3.3.18` (แก้ได้ด้วย `npm audit fix` ธรรมดา) ·
+  `postcss <=8.5.22` และ `sharp <0.35.0` ซึ่งเป็น transitive ของ `next@15.5.23`
+  ⇒ `npm audit fix --force` จะดัน **next@16** = breaking + ขัด baseline ("Next.js 15") ⇒ ต้องมี ADR
+- **rate limit มีที่เดียว** — `enforceGuestRateLimit()` ใน `server/actions/guest.ts` (guest ลงชื่อ)
+  🔴 ทางเข้าสาธารณะที่ **ยังไม่มี**: `searchGangs()` (คนไม่ล็อกอินก็เรียกได้ · trgm query),
+  `/api/line/login/callback`, `/guest/[registrationId]/claim`, `/auth/callback`
+- **CI รันทุกอย่างในงานเดียว** (`.github/workflows/ci.yml` job `verify` ~4 นาที) —
+  baseline §CI Gates อยากได้ **PR เร็ว / main+nightly ช้า** ⇒ แยกใน `WO-5.E`
+- ของค้างด้านสิทธิ์ที่จดไว้แล้วใน `BACKLOG.md`: `event_logs` ระดับก๊วน (สมาชิกยิง PostgREST
+  อ่าน payload ดิบได้) · `coupons` เปิดทั้งก๊วน · `payment_adjustments` แอดมินเท่านั้น ·
+  ย้าย `promptpay_id` ไปตาราง server-only (ADR-007 ทางเลือก ค)
+
+---
+
+## WO-5.A: ตัดสินเรื่อง dependency ที่มีช่องโหว่ (`npm audit`)
+
+**Goal**: ไม่มี high severity ค้างโดยไม่มีใครตัดสินใจ — และถ้าเลือกอยู่กับของเดิม ต้องมีเหตุผลที่ตรวจย้อนได้
+
+**Scope**
+- ทำเฉพาะ: `npm audit fix` ส่วนที่ไม่ breaking · ประเมิน `postcss`/`sharp` ที่ผูกกับ `next@15.5.23` ·
+  ถ้าเลือกขึ้น `next@16` = **ADR ใหม่** + อัปเดตตารางเวอร์ชันใน `CLAUDE.md §7` · ถ้าเลือกอยู่ต่อ = ADR เช่นกัน
+- ไม่แตะ: ฟีเจอร์ใดๆ · การอัป Astryx (pin ตายตัวทั้งชุด)
+
+**Definition of Done**
+- 🔴 **ตัดสินใจถูกบันทึกเป็น ADR** (context → options → decision → consequences) ไม่ใช่แค่ commit message
+- ถ้าอยู่กับ `next@15`: ต้องพิสูจน์ว่าช่องโหว่ **เอื้อมไม่ถึงเส้นทางจริงของเรา** (เช่น `sharp` ถูกใช้โดย
+  `next/image` กับรูปที่ผู้ใช้อัป — ถ้าใช้จริงต้องมีมาตรการ) และตั้ง `overrides` เท่าที่ทำได้
+- ถ้าขึ้น `next@16`: `npm test` · `typecheck` · `lint` · `build` เขียวครบ และ **หน้าแรกยัง static/ISR**
+  (ข้อจำกัด 7) · ทุกหน้าที่เคย `force-dynamic` ยังทำงานเหมือนเดิม
+- `npm audit` เหลือ **0 high** หรือมีรายการที่ยอมรับพร้อมเหตุผลใน ADR
+
+**Forbidden**
+- ❌ ห้าม `npm audit fix --force` แล้วปล่อยให้ major version เปลี่ยนโดยไม่มี ADR
+- ❌ ห้ามปิดเสียง audit ด้วยการลบ lockfile หรือ pin ย้อนหลังแบบไม่บันทึกเหตุผล
+
+**References**: baseline §Security Checklist · `CLAUDE.md §7` (ตารางเวอร์ชันที่ pin) · `BACKLOG.md` §WO-1.1
+
+---
+
+## WO-5.B: Security headers + CSP
+
+**Goal**: เบราว์เซอร์บังคับกฎให้อีกชั้น — สคริปต์แปลกปลอมรันไม่ได้ และหน้าเว็บฝังในเว็บอื่นไม่ได้
+
+**Scope**
+- ทำเฉพาะ: `headers()` ใน `next.config.ts` (CSP, HSTS, X-Frame-Options/frame-ancestors,
+  X-Content-Type-Options, Referrer-Policy, Permissions-Policy) · nonce/hash ให้สคริปต์ของ Next ถ้าจำเป็น
+- ไม่แตะ: การเปลี่ยนวิธีโหลด asset ของ Astryx · CDN ภายนอก (ตอนนี้ไม่มีเลย — รักษาไว้แบบนั้น)
+
+**Definition of Done**
+- 🔴 **CSP ไม่พังหน้าจอจริง** — เดินครบทุกหน้าหลัก (สร้างก๊วน · นัด · คอนโซล · จ่ายเงิน · discovery ·
+  LIFF) แล้ว **ไม่มี CSP violation ใน console** · มีเทสต์ตรวจว่า header ออกมาครบจากทุก response
+- `frame-ancestors` อนุญาตเฉพาะที่จำเป็น — 🔴 ต้องเช็คว่า **LIFF เปิดในแอป LINE ได้จริง**
+  (LIFF เปิดเป็น in-app browser ไม่ใช่ iframe แต่ต้องยืนยัน ไม่ใช่เดา)
+- `upgrade-insecure-requests` + HSTS เปิดเฉพาะ production (local เป็น http)
+- ⚠️ **Supabase Storage / Auth เรียกจาก browser ได้เหมือนเดิม** — `connect-src` ต้องครอบโดเมนของโปรเจกต์
+  (อ่านจาก `NEXT_PUBLIC_SUPABASE_URL` ไม่ใช่ hardcode)
+
+**Forbidden**
+- ❌ ห้ามใช้ `unsafe-inline`/`unsafe-eval` ใน `script-src` เพื่อให้ผ่านๆ ไป (ถ้าจำเป็นจริงต้องบันทึกเหตุผล)
+- ❌ ห้ามตั้ง CSP แบบ report-only แล้วถือว่าเสร็จ
+
+**References**: baseline §Security Checklist · WO-4.E (ไม่มีสคริปต์ภายนอกในเส้นทาง LIFF)
+
+---
+
+## WO-5.C: Rate limit ให้ครบทุกทางเข้าสาธารณะ + secret/log hygiene
+
+**Goal**: ทางเข้าที่คนไม่ล็อกอินยิงได้ ต้องมีเพดานทุกทาง และไม่มี secret หลุดในโค้ด/log
+
+**Scope**
+- ทำเฉพาะ: ใช้ `check_rate_limit()` เดิมกับทางเข้าที่ยังไม่มี (`searchGangs`, LINE login callback,
+  guest claim, auth callback ถ้าเหมาะ) · เทสต์ที่ grep หา secret/plaintext token ในโค้ดและใน log
+- ไม่แตะ: rate limit ระดับ infra (WAF/Vercel) · เปลี่ยนอัลกอริทึมของ `check_rate_limit()`
+
+**Definition of Done**
+- 🔴 **ทุกทางเข้าสาธารณะมีเพดาน** — มีรายการชัดเจนในเอกสารว่ามีทางไหนบ้างและเพดานเท่าไร
+  · เกินเพดาน = `RATE_LIMITED` (ตาม `docs/errors.md`) ไม่ใช่ 500
+- 🔴 `searchGangs()` มีเพดานต่อ IP — ตอนนี้คนไม่ล็อกอินยิง trgm query ได้ไม่จำกัด
+- เทสต์ยิงเกินเพดานจริงแล้วได้ `RATE_LIMITED` (แบบเดียวกับ `tests/sessions/guest-rate-limit.test.ts`)
+- 🔴 **grep gate**: ไม่มี token/secret plaintext ใน repo และไม่มีที่ไหน `console.*` ค่า secret
+  (รวม `id_token`, `access_token`, `channel_secret`, guest token, checkin token)
+- `rate_limits` ถูก purge ตาม cron เดิม — ไม่ค้างจนโต
+
+**Forbidden**
+- ❌ ห้ามสร้างตาราง/กลไก rate limit ใหม่ · ❌ ห้ามใส่เพดานแบบ "ต่อผู้ใช้" กับ endpoint ที่ไม่ต้องล็อกอิน
+
+**References**: baseline §Security Checklist · WO-1.3 (`check_rate_limit`) · WO-2.5 (guest rate limit)
+
+---
+
+## WO-5.D: ปิดของค้างด้าน RLS / สิทธิ์ ที่จดไว้ใน `BACKLOG.md`
+
+**Goal**: กำแพงระดับข้อมูลตรงกับที่เอกสารสัญญาไว้ — ไม่มี "รู้อยู่ว่ากว้างไปแต่ยังไม่ได้แก้" ค้างข้าม release
+
+**Scope**
+- ทำเฉพาะ: `event_logs` (สมาชิกอ่าน payload ดิบผ่าน API ได้ ทั้งที่ไทม์ไลน์กรอง `adminOnly` แค่ชั้น domain) ·
+  `coupons` (เปิดทั้งก๊วน) · `payment_adjustments` (คนจ่ายดูของตัวเองไม่ได้) ·
+  **ย้าย `promptpay_id` ไปตาราง server-only** ตาม ADR-007 ทางเลือก (ค)
+- ไม่แตะ: เปลี่ยนโครงสิทธิ์ของ role (owner/admin/member) · เพิ่มฟีเจอร์ใหม่
+
+**Definition of Done**
+- 🔴 `event_logs`: สมาชิกทั่วไปอ่าน payload ของ event ที่เป็น `adminOnly` **ไม่ได้จาก API ตรง**
+  (ไม่ใช่แค่ถูกกรองใน `buildTimeline()`) — เทสต์ระดับ RLS · หน้าไทม์ไลน์เดิมยังทำงานเหมือนเดิม
+- `coupons` / `payment_adjustments` รัดตามที่ควรเป็น + เทสต์ระดับ RLS ทั้งคู่
+  (คนจ่ายต้องเห็น refund ของ **ตัวเอง** ได้)
+- 🔴 `promptpay_id` ย้ายออกจาก `gangs` แบบ **expand → migrate → contract** (CLAUDE.md §2.7)
+  · snapshot ของนัดเก่า **ต้องอ่านได้เหมือนเดิม** (ราคาแช่แข็งห้ามเปลี่ยน) · หน้าจ่ายเงินยังได้ QR เดิม
+- `grant-matrix` + `tenant-isolation` อัปเดตให้ตรง และ **ทั้งชุดเทสต์ยังเขียว**
+
+**Forbidden**
+- ❌ ห้ามผ่อน policy ที่รัดไว้แล้วใน Phase 3/4 เพื่อให้ของใหม่ผ่านง่าย
+- ❌ ห้ามแก้ migration เก่า — ทุกอย่างเป็น migration ใหม่
+
+**References**: `BACKLOG.md` §WO-3.E · ADR-007 · WO-1.4 (RLS) · WO-3.C (timeline whitelist)
+
+---
+
+## WO-5.E: Playwright smoke + แยก CI gates เร็ว/ช้า
+
+**Goal**: มีหลักฐานว่าเส้นทางหลัก **ทำงานจริงในเบราว์เซอร์** ไม่ใช่แค่ผ่าน DB function
+
+**Scope**
+- ทำเฉพาะ: Playwright smoke ของเส้นที่ baseline §Verification ระบุ (สมัคร → สร้างก๊วน → ตั้งราคา →
+  สร้างนัด → ลงชื่อ → เช็คอิน → ปิดรอบ → เห็นยอด/QR) · แยก workflow เป็น **PR เร็ว** กับ **main/nightly ช้า**
+- ไม่แตะ: E2E ของ LINE ผ่านเบราว์เซอร์จริง (ต้องมี OA จริง — อยู่นอกขอบเขต CI)
+
+**Definition of Done**
+- 🔴 smoke รันได้ทั้ง **local และ CI** โดยไม่ต้องมี secret ของบริการภายนอก
+- PR gate: typecheck → lint → unit/domain tests → build (เร็ว) · main/nightly: + RLS/concurrency + Playwright
+  ⇒ **merge ได้เมื่อ PR gate เขียว** ตาม baseline §CI Gates
+- เทสต์ที่แตะคิวยังยึดข้อจำกัด 8 (วน claim จนเจอของตัวเอง)
+- 🔴 smoke **ไม่แตะข้อมูลของก๊วนจริง** — สร้าง fixture ของตัวเองทุกครั้ง
+
+**Forbidden**
+- ❌ ห้ามทำให้ PR gate ช้าจนคนเลี่ยงการรัน · ❌ ห้าม commit วิดีโอ/screenshot ของ Playwright เข้า repo
+
+**References**: baseline §Verification (E2E Playwright) · §CI Gates · `BACKLOG.md` (Playwright ค้างมาตั้งแต่ Phase 2)
+
+---
+
+## WO-5.F: README (ไทย) + deploy runbook + ปิด Security Checklist + `v1.0.0`
+
+**Goal**: คนใหม่ (หรือเจ้าของงานเอง อีกหกเดือนข้างหน้า) ตั้งระบบขึ้นมาใหม่ได้จากศูนย์โดยไม่ต้องถามใคร
+
+**Scope**
+- ทำเฉพาะ: `README.md` ภาษาไทย — setup Supabase (local + cloud) · env vars ทุกตัว · Vault ·
+  cron (pg_cron + Vercel Cron) · deploy Vercel · ตั้งค่า LINE ต่อก๊วน · runbook ตอนมีปัญหา
+  · เดิน **§Security Checklist** ทีละข้อแล้วบันทึกผล · tag
+- ไม่แตะ: ฟีเจอร์ใหม่ · เปลี่ยนสถาปัตยกรรม
+
+**Definition of Done**
+- 🔴 **ทำตาม README แล้วขึ้นระบบใหม่ได้จริง** — พิสูจน์ด้วยการ `db reset` + `npm test` ตามขั้นใน README
+- ทุก env var ใน `.env.example` มีอธิบายว่าเอามาจากไหนและไม่ตั้งแล้วเกิดอะไร
+- 🔴 **§Security Checklist ครบทุกข้อ** พร้อมลิงก์ไปยังเทสต์/ไฟล์ที่เป็นหลักฐานของแต่ละข้อ
+  — ข้อไหนยังไม่ผ่านต้องเขียนชัดว่าทำไมและกำหนดเมื่อไหร่ (ห้ามติ๊กลอยๆ)
+- E2E ของทุก Phase ยังผ่าน (`npm test`) · CI เขียว · merge เข้า `main`
+- แล้ว tag **`v1.0.0`** ตาม §Release Versioning
+
+**Forbidden**
+- ❌ ห้าม tag `v1.0.0` โดยยังมีข้อของ Security Checklist ที่ค้างแบบไม่มีคำอธิบาย
+- ❌ ห้ามเขียน README ที่บรรยายสิ่งที่ยังไม่ได้ทำ (เอกสารมีค่าก็ต่อเมื่อยังตรงกับโค้ดจริง)
+
+**References**: baseline §Roadmap Phase 5 · §Security Checklist · §Release Versioning · §Verification

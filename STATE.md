@@ -303,17 +303,27 @@ npm test          # vitest run — 673 tests, 62 files (16 ส.ค. 2026)
 | 4.E | LIFF — หน้าจอในแอป LINE | — |
 | 4.F | E2E checkpoint + `v0.4.0` | — |
 
-### ต่อไป: **Phase 5 — Hardening & Deploy** (baseline §Roadmap)
+### ✅ แตก WO ของ Phase 5 แล้ว (16 ส.ค. 2026) — **เริ่มที่ `WO-5.A`**
 
-ยังไม่ได้แตก WO (กติกา: แตกตอนจะเริ่ม Phase นั้น) · ขอบเขตตาม baseline:
-**E2E เต็ม flow → RLS tests → README (ไทย): setup Supabase, env vars, Vault, cron, deploy Vercel**
-พร้อม **§Security Checklist** ที่ต้องผ่านก่อน deploy จริง — ของที่ยังค้างจาก checklist นั้น:
-- [ ] **Playwright** (E2E ผ่านเบราว์เซอร์จริง) — ตอนนี้ E2E เดินผ่าน DB function + domain
-- [ ] **Security headers + CSP** บน Next.js config (ยังไม่มี)
-- [ ] **`npm audit` 3 high** ใน transitive deps ของ `next@15.5.23` — แก้ต้องขึ้น next@16 = ADR
-- [ ] **rate limit** บน endpoint ที่ guest/public เรียกได้ทุกตัว (มีเฉพาะ guest register)
-- [ ] ของค้างอื่นดู `BACKLOG.md` (`event_logs` ระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
-      ย้าย `promptpay_id` ไปตาราง server-only เป็น defense in depth)
+6 ใบ (`WO-5.A` … `WO-5.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 8 ข้อ
+
+| WO | งาน |
+|---|---|
+| 5.A | ตัดสินเรื่อง dependency ที่มีช่องโหว่ (`npm audit` 4 high) — ต้องมี ADR |
+| 5.B | Security headers + CSP ใน `next.config.ts` |
+| 5.C | rate limit ให้ครบทุกทางเข้าสาธารณะ + grep gate ของ secret/log |
+| 5.D | ปิดของค้างด้าน RLS (`event_logs` · `coupons` · `payment_adjustments` · ย้าย `promptpay_id`) |
+| 5.E | Playwright smoke + แยก CI gate เร็ว/ช้า |
+| 5.F | README ไทย + deploy runbook + ปิด §Security Checklist + tag `v1.0.0` |
+
+ของจริงที่ตรวจไว้แล้วตอนแตกใบ (อย่าเสียเวลาค้นซ้ำ):
+- **`next.config.ts` ยังว่างเปล่า** — ไม่มี security headers / CSP เลย
+- **`npm audit` = 4 high**: `nanoid <3.3.18` (แก้ด้วย `npm audit fix` ธรรมดาได้) ·
+  `postcss` + `sharp` เป็น transitive ของ `next@15.5.23` ⇒ แก้ต้องขึ้น next@16 = **ADR**
+- **rate limit มีที่เดียว** (`enforceGuestRateLimit()` ของ guest ลงชื่อ)
+  🔴 ที่ยังไม่มี: `searchGangs()` (คนไม่ล็อกอินยิง trgm ได้ไม่จำกัด) · LINE login callback ·
+  guest claim · auth callback
+- **CI รันทุกอย่างในงานเดียว** (~4 นาที) — baseline อยาก PR เร็ว / main+nightly ช้า ⇒ แยกใน `WO-5.E`
 
 ### 🔴 กติกาของ Phase 4 ที่ Phase ถัดไปห้ามทำผิด
 
