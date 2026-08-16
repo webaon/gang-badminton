@@ -1619,7 +1619,7 @@ snapshot ได้ทั้งก้อน ⇒ **ย้ายคอลัมน�
 
 ---
 
-## WO-5.E: Playwright smoke + แยก CI gates เร็ว/ช้า
+## WO-5.E: Playwright smoke + แยก CI gates เร็ว/ช้า ⚠️ **เสร็จ (ครอบ smoke บางส่วน) 17 ส.ค. 2026**
 
 **Goal**: มีหลักฐานว่าเส้นทางหลัก **ทำงานจริงในเบราว์เซอร์** ไม่ใช่แค่ผ่าน DB function
 
@@ -1639,6 +1639,33 @@ snapshot ได้ทั้งก้อน ⇒ **ย้ายคอลัมน�
 - ❌ ห้ามทำให้ PR gate ช้าจนคนเลี่ยงการรัน · ❌ ห้าม commit วิดีโอ/screenshot ของ Playwright เข้า repo
 
 **References**: baseline §Verification (E2E Playwright) · §CI Gates · `BACKLOG.md` (Playwright ค้างมาตั้งแต่ Phase 2)
+
+**ผลลัพธ์** — `playwright.config.ts` · `e2e-browser/` (8 เทสต์: security 7 + smoke 1) ·
+แยก workflow เป็น `ci.yml` (PR เร็ว) กับ `full.yml` (main/nightly ช้า) ·
+`npm run test:unit` (273 เทสต์ ไม่ต้องมี DB) · `npm run test:e2e`
+
+- 🔴 **ปิด DoD ที่ค้างของ WO-5.B แล้ว** — เดินหน้าสาธารณะ (`/` · `/discover` · `/sign-in` ·
+  `/sign-up`) และหน้าหลังล็อกอิน (นัด · สมาชิก · ตั้งค่า · เก็บเงิน · รายงาน · แจ้งเตือน · โปรไฟล์)
+  ในเบราว์เซอร์จริง แล้ว **ไม่มี CSP violation เลย** · มีเทสต์กดลิงก์บนหน้าแรกเพื่อพิสูจน์ว่า
+  สคริปต์ของหน้า static รันได้จริง · และเทียบ security header จาก response จริง
+- PR gate เหลือ typecheck → lint → unit (273) → build → CSP static-route guard (~2-3 นาที)
+  · main/nightly รันทั้งชุด (712) + Playwright ตาม baseline §CI Gates
+- smoke ไม่แตะข้อมูลก๊วนจริง (สมัครผู้ใช้ใหม่ + สร้างก๊วนของตัวเองทุกครั้ง) ·
+  ไม่ต้องมี secret ของบริการภายนอก · ไม่เก็บวิดีโอ/screenshot เข้า repo (`.gitignore`)
+
+🔴 **บั๊กจริงสองตัวที่เจอเพราะมีเบราว์เซอร์ (เทสต์ระดับ DB มองไม่เห็นทั้งคู่)**
+1. **`/sign-up` พังสนิท** — เป็นหน้า prerender แต่ตกจาก `STATIC_ROUTES` ⇒ ได้ CSP แบบ nonce
+   ⇒ **สคริปต์ทุกตัวถูกบล็อก ฟอร์มสมัครใช้ไม่ได้เลย** โดย server ยังตอบ 200 ไม่มี error ให้เห็น
+   ⇒ แก้ + เพิ่มเทสต์ที่อ่าน `.next/prerender-manifest.json` จริงมาเทียบกับ `STATIC_ROUTES`
+2. **หน้ารายละเอียดนัดพังทั้งหน้าเมื่อ build โดยไม่มี `NEXT_PUBLIC_*`** — ค่าเหล่านี้ถูก
+   **inline ตอน build** ไม่ใช่อ่านตอน runtime ⇒ client component ที่ต่อ realtime โยน error
+   ⇒ ใส่ env ใน step `build` ของทั้งสอง workflow และต้องเขียนย้ำใน runbook ของ `WO-5.F`
+
+⚠️ **ขอบเขต smoke ที่ครอบจริงตอนนี้**: สมัคร → สร้างก๊วน → ตั้งราคา → สร้างนัด → เปิดรับสมัคร
+→ เปิดหน้ารายละเอียดนัด · **หางของเส้น (ลงชื่อ → เช็คอิน → ปิดรอบ → เห็นยอด) ยังไม่ครอบ**
+— ปุ่ม "ลงชื่อเข้านัด" ในหน้ารายละเอียดยังกดผ่าน Playwright ไม่สำเร็จ (ยังไม่ได้หาสาเหตุ)
+· เส้นนั้นถูกครอบอยู่แล้วโดย `tests/e2e/mvp0-full-path.test.ts` (DB function + domain)
+· จดค้างไว้ใน `BACKLOG.md` — **ห้ามถือว่า DoD ข้อ "smoke เส้นเต็ม" ผ่าน**
 
 ---
 

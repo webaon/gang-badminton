@@ -189,6 +189,8 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 
 ```bash
 npm test          # vitest run — 712 tests, 65 files (17 ส.ค. 2026)
+npm run test:unit # เทสต์ที่ไม่ต้องมี DB (273) — ใช้เป็น PR gate
+npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLIC_* ก่อน)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -306,7 +308,7 @@ npm test          # vitest run — 712 tests, 65 files (17 ส.ค. 2026)
 | 4.E | LIFF — หน้าจอในแอป LINE | — |
 | 4.F | E2E checkpoint + `v0.4.0` | — |
 
-### ✅ Phase 5: `5.A` · `5.C` เสร็จ · `5.B`/`5.D` เสร็จบางส่วน — **ต่อที่ `WO-5.E`** (Playwright + CI)
+### ✅ Phase 5: `5.A` · `5.B` · `5.C` เสร็จ · `5.D`/`5.E` บางส่วน — **เหลือ `WO-5.F`** (README + `v1.0.0`)
 
 6 ใบ (`WO-5.A` … `WO-5.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 8 ข้อ
 
@@ -316,7 +318,7 @@ npm test          # vitest run — 712 tests, 65 files (17 ส.ค. 2026)
 | 5.B | Security headers + CSP — ⚠️ **เสร็จบางส่วน** (เหลือตรวจ console ในเบราว์เซอร์ → ยกไป 5.E) |
 | 5.C | rate limit ให้ครบทุกทางเข้าสาธารณะ + grep gate — ✅ **เสร็จ** (`docs/rate-limits.md`) |
 | 5.D | ปิดของค้างด้าน RLS — ⚠️ **เสร็จ 3/4** (`0039`) · ข้อ `promptpay_id` เสนอให้ทบทวน |
-| 5.E | Playwright smoke + แยก CI gate เร็ว/ช้า |
+| 5.E | Playwright smoke + แยก CI gate — ⚠️ **เสร็จ (smoke ครอบบางส่วน)** |
 | 5.F | README ไทย + deploy runbook + ปิด §Security Checklist + tag `v1.0.0` |
 
 ✅ **`WO-5.A` เสร็จแล้ว** (16 ส.ค. 2026) — **`next@15.5.23` → `16.3.1`** ตาม **ADR-008**
@@ -333,6 +335,19 @@ npm test          # vitest run — 712 tests, 65 files (17 ส.ค. 2026)
 🔴 **ที่ยังค้าง: ยังไม่ได้เปิดเบราว์เซอร์จริงดู console ว่าไม่มี CSP violation**
    (สภาพแวดล้อมนี้ไม่มี browser tool) ⇒ **ยกไปปิดใน `WO-5.E` ด้วย Playwright**
    ห้ามติ๊ก §Security Checklist ข้อ "Security headers + CSP" จนกว่าข้อนี้จะผ่าน
+
+⚠️ **`WO-5.E` เสร็จ (smoke ครอบบางส่วน)** (17 ส.ค. 2026)
+· `e2e-browser/` 8 เทสต์ผ่าน · **ปิด DoD ที่ค้างของ 5.B แล้ว** (ไม่มี CSP violation ในเบราว์เซอร์จริง)
+· แยก CI: `ci.yml` (PR เร็ว ~2-3 นาที) / `full.yml` (main + nightly: ทั้งชุด + Playwright)
+
+🔴 **บั๊กจริงสองตัวที่เจอเพราะมีเบราว์เซอร์**
+1. `/sign-up` พังสนิทเพราะเป็นหน้า prerender ที่ตกจาก `STATIC_ROUTES` (CSP บล็อกสคริปต์ทั้งหน้า
+   โดย server ตอบ 200) ⇒ แก้แล้ว + มีเทสต์อ่าน `.next/prerender-manifest.json` มาเทียบ
+2. 🔴 **`NEXT_PUBLIC_*` ต้องมีตั้งแต่ตอน `npm run build`** ไม่ใช่แค่ตอนรัน — ไม่งั้นหน้ารายละเอียดนัด
+   พังทั้งหน้า (client component ที่ต่อ realtime โยน error) ⇒ **ต้องเขียนย้ำใน runbook ของ 5.F**
+
+⚠️ smoke ครอบถึงแค่ "เปิดรับสมัคร" — หาง (ลงชื่อ → ปิดรอบ → เห็นยอด) ยังไม่ครอบใน UI
+   (ครอบใน `tests/e2e/mvp0-full-path.test.ts` แล้ว) · จดไว้ใน `BACKLOG.md`
 
 ⚠️ **`WO-5.D` เสร็จ 3 จาก 4** (17 ส.ค. 2026) — migration `0039`
 · `event_logs` รัดที่ RLS แล้ว (สมาชิกอ่าน event เรื่องเงินจาก API ตรงไม่ได้ · มีเทสต์เทียบ

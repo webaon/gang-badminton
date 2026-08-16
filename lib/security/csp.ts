@@ -33,8 +33,22 @@
  *    ไม่งั้นหน้านั้นจะขาวเปล่าโดยไม่มี error ที่ server (เห็นแค่ใน console ของ browser)
  */
 
-/** path ที่ Next prerender เป็น static — ตรวจได้จากผลลัพธ์ `npm run build` (`○`) */
-export const STATIC_ROUTES: ReadonlySet<string> = new Set(['/']);
+/**
+ * path ที่ Next prerender เป็น static
+ *
+ * 🔴 **ต้องตรงกับ `.next/prerender-manifest.json` เสมอ** — มีเทสต์อ่าน manifest จริง
+ *    มาเทียบ (`tests/security/csp.test.ts`) เพราะ **หน้าที่ตกหล่นจะพังสนิทแบบเงียบ**:
+ *    สคริปต์ทุกตัวถูก CSP บล็อก ฟอร์มกดไม่ได้ แต่ server ตอบ 200 ปกติ
+ *
+ * ⚠️ เจอมาแล้วจริงตอน WO-5.E: `/sign-up` เป็น static แต่ตกจากลิสต์
+ *    ⇒ หน้าสมัครสมาชิกใช้ไม่ได้เลย และไม่มี error ฝั่ง server ให้เห็นสักตัว
+ */
+export const STATIC_ROUTES: ReadonlySet<string> = new Set([
+  '/',
+  '/sign-up',
+  '/_not-found',
+  '/_global-error',
+]);
 
 export type CspInput = {
   /** nonce ของ request นั้น (base64) */

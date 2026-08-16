@@ -6,7 +6,7 @@
  *   · `connect-src` มาจาก `NEXT_PUBLIC_SUPABASE_URL` — ไม่ hardcode และต้องมี `wss:` ด้วย
  *   · HSTS เฉพาะ production
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 
@@ -67,8 +67,28 @@ describe('WO-5.B DoD — script-src', () => {
     expect(scriptSrc).not.toContain('nonce-');
   });
 
-  it('หน้า static ที่ประกาศไว้ต้องตรงกับของจริง — ตอนนี้มีหน้าแรกหน้าเดียว', () => {
-    expect([...STATIC_ROUTES]).toEqual(['/']);
+  it('🔴 `STATIC_ROUTES` ต้องครอบทุกหน้าที่ Next prerender จริง (อ่านจาก build manifest)', () => {
+    // ⚠️ เจอมาแล้วตอน WO-5.E: `/sign-up` เป็น static แต่ตกจากลิสต์ ⇒ CSP บล็อกสคริปต์ทั้งหน้า
+    //    ฟอร์มสมัครสมาชิกใช้ไม่ได้เลย โดย server ยังตอบ 200 (ไม่มี error ให้เห็นเลย)
+    const manifestPath = fileURLToPath(new URL('../../.next/prerender-manifest.json', import.meta.url));
+
+    if (!existsSync(manifestPath)) {
+      // ยังไม่ได้ build — CI รัน `npm run build` ก่อนเทสต์เสมอ (ดู .github/workflows)
+      expect(STATIC_ROUTES.has('/')).toBe(true);
+      return;
+    }
+
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      routes: Record<string, unknown>;
+    };
+
+    const prerendered = Object.keys(manifest.routes)
+      // ไฟล์ static ที่ proxy ไม่ได้ครอบ (matcher ตัด favicon/_next ออก)
+      .filter((route) => !/\.(ico|png|svg|jpg|jpeg|webp|txt|xml)$/.test(route));
+
+    const missing = prerendered.filter((route) => !STATIC_ROUTES.has(route));
+    expect(missing, 'หน้า prerender ที่ตกจาก STATIC_ROUTES').toEqual([]);
+
     // หน้าแรกยังเป็น ISR อยู่จริง (ถ้าวันหนึ่งกลายเป็น dynamic ต้องถอดออกจากลิสต์)
     expect(source('app/page.tsx')).toMatch(/export const revalidate\s*=\s*\d+/);
   });

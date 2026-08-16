@@ -14,7 +14,9 @@
     "astryx": "node node_modules/@astryxdesign/cli/clients/cli/bin/astryx.mjs",
     "supabase": "supabase",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:unit": "vitest run tests/domain tests/auth/safe-next.test.ts tests/landing tests/security/csp.test.ts",
+    "test:e2e": "playwright test"
   },
   "astryx": {
     "theme": "@astryxdesign/theme-neutral"
@@ -36,6 +38,7 @@
   "devDependencies": {
     "@astryxdesign/cli": "0.3.0",
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "^22",
     "@types/pg": "^8.21.0",
