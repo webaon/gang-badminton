@@ -28,7 +28,8 @@
 ## 2. Git
 
 ```
-tag ล่าสุด: v0.4.0 (Phase 4 — LINE ครบ 6 ใบ) · v0.3.1 (ADR-007) · v0.3.0 (Phase 3)
+tag ล่าสุด: v0.4.0 (Phase 4 — LINE ครบ 6 ใบ · merge เข้า main ผ่าน PR #5 `5288042`, CI เขียว)
+           v0.3.1 (ADR-007) · v0.3.0 (Phase 3) · v0.2.0 (Phase 2.5) · v0.1.0 (MVP-0)
 branch: claude/badminton-group-system-4pfs7o   (ทำงานอยู่บนนี้ — WO ทุกใบ commit ที่นี่)
         main                                    (ตามทันแล้วถึง v0.3.0)
 ```
@@ -291,7 +292,7 @@ npm test          # vitest run — 673 tests, 62 files (16 ส.ค. 2026)
 ของที่ยังค้างจากการไล่ policy 0010: `event_logs` ยังเป็นระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
 `payment_adjustments` แอดมินเท่านั้น — จดไว้ใน `BACKLOG.md` แล้วทั้งหมด
 
-### 🎉 Phase 4 (LINE) เสร็จครบ 6 ใบ — tag **`v0.4.0`**
+### 🎉 Phase 4 (LINE) เสร็จครบ 6 ใบ — merge เข้า `main` ผ่าน PR #5 · tag **`v0.4.0`** · CI เขียว
 
 | WO | งาน | migration |
 |---|---|---|
@@ -432,6 +433,11 @@ baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
 - **`service_role` มี BYPASSRLS แต่ BYPASSRLS ไม่ข้าม GRANT** — ต้อง grant ให้ด้วย
 - **helper ของ policy ต้องเป็น SECURITY DEFINER** ไม่งั้น policy ที่อ้างตารางตัวเองจะ recursion
   และ **ห้ามใช้ `FORCE ROW LEVEL SECURITY`** เพราะจะทำให้ owner ถูก policy ตรวจด้วย = วนกลับมาอีก
+- 🔴 **เทสต์ที่เรียก `claim_notifications()` / `dispatchNotifications()` ต้องวนจนเจอของตัวเอง**
+  ทั้งคู่หยิบงานของ **ทั้งฐานข้อมูล** ครั้งละไม่กี่แถวและเรียงตามเวลา ⇒ ของค้างจากเทสต์ก่อนหน้า
+  กินโควต้าของ batch จนแถวของเทสต์นั้นไม่ถูกหยิบ · **แดงเฉพาะบน CI** ที่ DB เริ่มจากศูนย์
+  (เจอตอน WO-4.F — เทสต์เก่าของ WO-2.5-G ล้มเพราะ Phase 4 ทำให้คิวมีแถวเยอะขึ้น)
+  ⇒ ก่อนเชื่อว่า "ผ่านแล้ว" ให้ `supabase db reset` แล้วรันทั้งชุดหนึ่งรอบ
 - 🔴 **เทสต์ที่ยิง `enqueue_notifications` ต้องใช้ `dedupe_key` ที่ไม่ซ้ำข้ามการรัน**
   (คีย์เป็น unique ทั้งตารางและเทสต์ไม่ล้างข้อมูล) — ถ้าใช้คีย์ตายตัว รอบสองจะ `do nothing`
   ทั้งหมดแล้วเทสต์แดงแบบหาสาเหตุยาก (เจอมาแล้วตอน WO-4.C)
