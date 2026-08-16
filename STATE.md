@@ -284,11 +284,31 @@ npm test          # vitest run — 577 tests, 56 files (16 ส.ค. 2026)
 ของที่ยังค้างจากการไล่ policy 0010: `event_logs` ยังเป็นระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
 `payment_adjustments` แอดมินเท่านั้น — จดไว้ใน `BACKLOG.md` แล้วทั้งหมด
 
-### ต่อไป: **Phase 4 — LINE** (baseline §Roadmap)
+### ✅ แตก WO ของ Phase 4 แล้ว (16 ส.ค. 2026) — **เริ่มที่ `WO-4.A`**
 
-ยังไม่ได้แตก WO (กติกา `AGENT-EXECUTION.md`: แตกตอนจะเริ่ม Phase นั้น ไม่แตกล่วงหน้า)
-ขอบเขตตาม baseline: Vault → webhook เฉพาะก๊วน → channel `line` ในคิวเดิม → usage counter → LIFF
-🔴 ใช้ `enqueue_notifications()` + `claim_notifications()` เดิม — ❌ ห้ามสร้าง worker ใหม่
+6 ใบ (`WO-4.A` … `WO-4.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 10 ข้อ
+
+| WO | งาน |
+|---|---|
+| 4.A | Vault + หน้าตั้งค่า LINE ต่อก๊วน (เก็บแค่ secret id) |
+| 4.B | webhook `/api/line/webhook/[gangId]` + ผูกบัญชี (`member_line_links`) |
+| 4.C | worker ส่ง LINE จริง + fan-out ในคิวเดิม + โควต้าต่อก๊วนต่อเดือน |
+| 4.D | LINE Login — ผูกบัญชีโดยไม่ต้องพิมพ์รหัส |
+| 4.E | LIFF — หน้าจอในแอป LINE |
+| 4.F | checkpoint + tag `v0.4.0` |
+
+ของจริงที่ตรวจไว้แล้วตอนแตกใบ (อย่าเสียเวลาค้นซ้ำ):
+- **Vault ใช้ได้บน local** — `supabase_vault` + `vault.create_secret()` / `update_secret()`
+  ⇒ ทางหลักของ baseline ทำได้ **แต่ต้องยืนยันบน cloud ซ้ำใน `WO-4.A`**
+- **`@line/bot-sdk` ยังไม่ได้ติดตั้ง** — verify signature ทำเองด้วย `node:crypto` ได้
+  ⇒ ให้ `WO-4.B` ตัดสินว่าคุ้มจะเพิ่ม dep ไหมแล้วบันทึกเหตุผล
+- **`enqueue_notifications()` (0029) ฮาร์ดโค้ด `channel = 'in_app'`** ⇒ fan-out ไป `line`
+  ต้องแก้ที่ฟังก์ชันนี้ (migration ใหม่) ไม่ใช่แก้ทีละผู้เรียก
+- **`deliver()` ใน `server/cron/notifications.ts` มี `case 'line'` รออยู่แล้ว** = จุดเสียบของ `WO-4.C`
+- 🔴 `dedupe_key` unique ทั้งตาราง ⇒ fan-out ต้องมี channel ในคีย์ และ
+  **ห้ามเปลี่ยนรูปคีย์ของ `in_app` ที่ส่งไปแล้ว** ไม่งั้นผู้ใช้โดนยิงซ้ำทั้งระบบ
+- ❌ **ห้ามเพิ่มตารางนอก baseline** — `gang_line_configs` / `member_line_links` (0006) และ
+  `notification_logs` (0005) มีครบแล้ว · รหัสผูกบัญชีให้ใช้ nonce แบบ stateless
 
 ### สิ่งที่เปลี่ยนไปใน Phase 3 ที่ Phase ถัดไปต้องรู้
 

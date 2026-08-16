@@ -991,3 +991,204 @@ DoD ทั้ง 4 ข้อผ่านจริง · cloud **34/34** (ตร�
 ⚠️ **ผลที่ใบถัดไปต้องรู้**: หน้าโปรไฟล์ก๊วนสาธารณะในอนาคตต้องเพิ่ม DB function
 ที่ประกาศคอลัมน์ที่คืนไว้ชัด ❌ ห้ามเปิด policy ให้อ่านตาราง `gangs` ตรงกลับมาอีก
 
+
+---
+
+# Phase 4 — LINE (WO-4.A … WO-4.F)
+
+> แตกใบเมื่อ 16 ส.ค. 2026 หลังปิด Phase 3 (`v0.3.0`) + ใบแทรก `WO-3.G` (`v0.3.1`)
+> baseline §Roadmap: **Vault + config UI + webhook ต่อก๊วน → worker เพิ่ม channel `line` +
+> quota counter → LIFF → LINE Login link**
+>
+> ตารางของ Phase นี้ **มีอยู่แล้วตั้งแต่ migration `0006`** (`gang_line_configs`,
+> `member_line_links`) และ `notification_logs` (`0005`) ⇒ ❌ **ห้ามเพิ่มตารางใหม่นอก baseline**
+
+⇒ ใบของ Phase 4 ใช้ **ตัวอักษร** ต่อจาก Phase 3: `WO-4.A` … `WO-4.F`
+
+## 🔴 ข้อจำกัดจาก Phase ก่อนหน้าที่ทุกใบต้องยึด
+
+| # | ข้อจำกัด | ทำผิดแล้วเกิดอะไร |
+|---|---|---|
+| 1 | **ห้ามสร้าง worker/คิวใหม่** — ใช้ `enqueue_notifications()` + `claim_notifications()` + `dispatchNotifications()` เดิม (มี `case 'line'` รออยู่แล้วใน `server/cron/notifications.ts`) | มีสองทางส่ง แล้ว retry/backoff/dedupe คนละแบบ — LINE ล่มทีเดียวเห็นผลสองแบบ |
+| 2 | 🔴 **`dedupe_key` เป็น unique ทั้งตาราง** ⇒ fan-out หลาย channel ต้องมี channel อยู่ในคีย์ · **ห้ามเปลี่ยนรูปคีย์ของ `in_app` ที่ส่งไปแล้ว** | เปลี่ยนรูปคีย์เก่า = ของที่เคยกันซ้ำไม่ตรงกันอีก ⇒ ผู้ใช้โดนยิงซ้ำทั้งระบบในรอบเดียว |
+| 3 | **`gang_line_configs` เป็น server-only** — `anon`/`authenticated` ไม่มีสิทธิ์อะไรเลย (มี `tests/rls/grant-matrix.test.ts` คุม) | เผลอ grant = credentials ของก๊วนหลุดถึง browser |
+| 4 | ❌ **ห้ามเก็บ plaintext token/secret ใน DB** — เก็บ **Vault secret id** เท่านั้น (fallback AES-256-GCM ใช้ key จาก **env** ห้ามอยู่ใน DB) | secret หลุดพร้อม backup ฐานข้อมูล และ rotate ไม่ได้ |
+| 5 | **`features.line` ต้อง enforce ฝั่ง server** (`can()` + จุดส่งจริง + webhook) | ปิด flag แล้วยังมีข้อความออก = ก๊วนคุมช่องทางของตัวเองไม่ได้ |
+| 6 | **in-app ยังเป็นช่องทางพื้นฐานของทุกก๊วน** — LINE เป็น channel **เสริม** | ก๊วนที่ไม่ได้ต่อ LINE (หรือคนที่บล็อก OA) จะไม่ได้รับอะไรเลย |
+| 7 | **โควต้านับจาก `notification_logs`** (`channel = 'line'` ต่อก๊วนต่อเดือน) — ❌ ไม่ตั้งตารางสรุปใหม่ | สองแหล่งความจริงของ "ส่งไปกี่ข้อความ" แล้วเลขบนหน้าตั้งค่ากับของจริงไม่ตรงกัน |
+| 8 | **webhook ต้อง verify signature ทุก request** (baseline §Security Checklist) และ **ตอบเร็ว** — งานหนักเข้าคิว | LINE retry/ตัดการเชื่อมต่อ และ endpoint กลายเป็นช่องให้ใครก็ยิงข้อมูลปลอมเข้าระบบ |
+| 9 | **[ADR-007]** คนนอกอ่านตาราง `gangs` ตรงไม่ได้แล้ว | เส้นทางที่ทำงานแทนผู้ใช้ที่ยังไม่ล็อกอิน (webhook / LIFF / LINE Login) ต้องผ่าน DB function หรือ admin client เสมอ |
+| 10 | **PostgREST คืน `numeric` เป็น JSON number** ⇒ ผ่าน `moneyFromDb()` ก่อนเข้า `domain/` | จอ LIFF ที่โชว์ยอดค้างจะพังตอน runtime — เทสต์ระดับ DB จับไม่ได้ |
+
+## ลำดับที่เลือก (ตาม baseline และมีเหตุผลของมัน)
+
+`config → webhook → worker → login → LIFF → checkpoint`
+
+- **config ต้องมาก่อน webhook** — ไม่มี channel secret ของก๊วนนั้นก็ verify signature ไม่ได้เลย
+- **webhook ต้องมาก่อน worker** — ต้องรู้ `line_user_id` ปลายทาง (และรู้ว่าใคร **บล็อก OA** ไปแล้ว)
+  ก่อนถึงจะ "ส่งจริง" ได้ · ถ้าทำ worker ก่อน จะได้ `failed` ทุกแถวโดยไม่มีทางแก้
+- **LINE Login มาก่อน LIFF** — LIFF ที่ยังผูกบัญชีไม่ได้จะกลายเป็นแค่เว็บในกรอบ LINE
+- checkpoint ปิดท้ายพร้อม tag `v0.4.0` ตาม §Release Versioning
+
+## ⚠️ ของจริงที่ตรวจไว้แล้วก่อนแตกใบ (อย่าเสียเวลาค้นซ้ำ)
+
+- **Vault ใช้ได้บน local** — `supabase_vault` ติดตั้งอยู่ พร้อม `vault.create_secret()` /
+  `vault.update_secret()` และ view `vault.decrypted_secrets` (อ่านได้เฉพาะฝั่ง service_role)
+  ⇒ ทางหลักของ baseline ทำได้จริง **แต่ต้องยืนยันบน cloud ซ้ำใน `WO-4.A` ก่อนเขียนโค้ด**
+- **`@line/bot-sdk` ยังไม่ได้ติดตั้ง** — baseline ระบุไว้ในลิสต์ไลบรารีแต่ยังไม่มีใน `package.json`
+  · Messaging API เรียกผ่าน `fetch` ได้ตรงๆ และ verify signature = HMAC-SHA256 + base64
+  ด้วย `node:crypto` ⇒ **ให้ `WO-4.B` ตัดสินว่าคุ้มจะเพิ่ม dep ไหม แล้วบันทึกเหตุผล** (ไม่ใช่เพิ่มเพราะแผนเขียนไว้)
+- **`enqueue_notifications()` (`0029`) ฮาร์ดโค้ด `channel = 'in_app'`** ⇒ การ fan-out ไป `line`
+  เป็นงานที่ต้องแก้ฟังก์ชันนี้ (migration ใหม่) ไม่ใช่แก้ที่ผู้เรียกทีละที่
+- **`deliver()` ใน `server/cron/notifications.ts` มี `case 'line'` ที่คืน error ชัดเจนอยู่แล้ว**
+  ⇒ จุดเสียบของ `WO-4.C` อยู่ตรงนั้นจุดเดียว
+
+---
+
+## WO-4.A: Vault + หน้าตั้งค่า LINE ต่อก๊วน
+
+**Goal**: แอดมินต่อ LINE OA ของก๊วนตัวเองได้ โดย credentials ไม่เคยถูกเก็บเป็น plaintext และไม่เคยกลับมาถึง browser
+
+**Scope**
+- ทำเฉพาะ: เก็บ/หมุน channel access token + channel secret + `liff_id` ผ่าน **Vault** (`gang_line_configs` เก็บแค่ secret id) · หน้าตั้งค่า LINE ในหน้าตั้งค่าก๊วน · เปิด/ปิด `features.line` · ปุ่ม "ทดสอบการเชื่อมต่อ" ที่เรียก LINE API จริงหนึ่งครั้ง
+- ไม่แตะ: webhook (`WO-4.B`) · การส่งข้อความจากคิว (`WO-4.C`)
+
+**Definition of Done**
+- 🔴 **ไม่มี plaintext token/secret ใน DB** — เทสต์ query ตารางแล้วยืนยันว่าเก็บเฉพาะ secret id
+  และ `grep` ยืนยันว่าไม่มี token ในโค้ด (baseline §Security Checklist)
+- 🔴 **ค่าที่ตั้งไปแล้วอ่านกลับมาที่ browser ไม่ได้** — หน้าตั้งค่าแสดงได้แค่ "ตั้งค่าแล้ว/ยังไม่ได้ตั้ง"
+  + 4 ตัวท้าย (masked) ⇒ server action ห้ามคืนค่าเต็มไม่ว่ากรณีใด
+- สมาชิกทั่วไป (และแอดมินก๊วนอื่น) อ่าน `gang_line_configs` ไม่ได้ — **เทสต์ระดับ RLS/GRANT**
+- หมุน token ใหม่แล้วของเดิมถูกแทนที่ (`vault.update_secret`) ไม่ใช่ทิ้ง secret ค้างไว้ในโครงสร้าง
+- เปิด `features.line` ไม่ได้ถ้ายังตั้ง credentials ไม่ครบ — ตอบ `VALIDATION_ERROR` ไม่ใช่เปิดแล้วไปพังตอนส่ง
+- ยืนยัน Vault บน **cloud** ของจริง (ไม่เชื่อผลจาก local อย่างเดียว) — ถ้าใช้ไม่ได้ ให้ใช้ fallback
+  AES-256-GCM ตาม baseline **แล้วบันทึกเป็น deviation** (key จาก env เท่านั้น)
+
+**Forbidden**
+- ❌ ห้าม log token/secret แม้บางส่วน · ❌ ห้ามส่งค่ากลับ client · ❌ ห้ามเก็บ key ของ fallback ใน DB
+- ❌ ห้าม grant `gang_line_configs` ให้ `anon`/`authenticated`
+
+**References**: baseline §ตาราง (LINE) · §การตัดสินใจสำคัญ (เข้ารหัส LINE credentials) · §Security Checklist · ข้อจำกัด 3, 4, 5
+
+---
+
+## WO-4.B: Webhook ต่อก๊วน + ผูกบัญชี LINE เข้ากับสมาชิก
+
+**Goal**: ก๊วนรับ event จาก LINE OA ของตัวเองได้อย่างปลอดภัย และรู้ว่า LINE user คนไหนคือสมาชิกคนไหน
+
+**Scope**
+- ทำเฉพาะ: `/api/line/webhook/[gangId]` (verify signature ด้วย secret ของก๊วนนั้น) · จัดการ event `follow` / `unfollow` / `message` · ผูก/ยกเลิกผูกบัญชี (`member_line_links`) · ตอบกลับข้อความสั้นๆ
+- ไม่แตะ: การส่งข้อความจากคิว (`WO-4.C`) · LIFF (`WO-4.E`)
+
+**Definition of Done**
+- 🔴 **signature ไม่ถูก = 401 ทุกกรณี** และต้อง verify จาก **raw body** (อ่านด้วย `req.text()`
+  ก่อน parse JSON) — เทสต์ทั้งเคสถูก/ผิด/ไม่มี header/body ถูกแก้ระหว่างทาง
+- 🔴 **ก๊วนที่ปิด `features.line` หรือยังไม่ตั้ง config → ปฏิเสธ** ไม่ใช่รับไว้เงียบๆ
+- webhook ของก๊วน A ใช้ secret ของก๊วน B ไม่ผ่าน — เทสต์ข้ามก๊วน
+- ตอบ 200 ให้ LINE **เร็ว** — งานที่ช้าเข้าคิวเดิม (ข้อจำกัด 1, 8) ⇒ ห้ามยิง API ภายนอกใน request นั้น
+- `unfollow` (บล็อก OA) ทำให้ **หยุดส่ง LINE ให้คนนั้น** — worker ต้องไม่พยายามส่งซ้ำจนกลายเป็น `failed` รัวๆ
+- ผูกบัญชีซ้ำ / ผูกข้ามก๊วน ไม่ทำให้ได้แถวซ้ำ (partial unique ของ `0006` เป็นด่านจริง)
+- ❗ **ห้ามเพิ่มตารางเก็บรหัสผูกบัญชี** — ใช้ nonce แบบ **stateless** (เซ็นด้วย key จาก env + หมดอายุสั้น)
+  หรือกลไก Account Link ของ LINE เอง
+
+**Forbidden**
+- ❌ ห้าม parse JSON ก่อน verify · ❌ ห้ามเชื่อ `userId` ใน payload โดยไม่ผ่าน signature
+- ❌ ห้าม log `line_user_id` คู่กับข้อมูลส่วนตัวอื่นเกินจำเป็น · ❌ ห้ามเพิ่มตารางนอก baseline
+
+**References**: baseline §ตาราง (`member_line_links`) · §Security Checklist · WO-1.5 (`CRON_SECRET` timing-safe เป็นแบบอย่างของการ verify) · ข้อจำกัด 5, 8, 9
+
+---
+
+## WO-4.C: worker ส่ง LINE จริง + fan-out + โควต้า
+
+**Goal**: ข้อความที่ระบบมีอยู่แล้ว (เปิดรอบ · คิวถึง · เตือนจ่าย · ประกาศ) ไปถึง LINE ของสมาชิกที่ผูกบัญชีไว้ โดยไม่ส่งซ้ำและไม่ทะลุโควต้า
+
+**Scope**
+- ทำเฉพาะ: fan-out ใน `enqueue_notifications()` (migration ใหม่) ให้สร้างแถว `line` เพิ่มสำหรับก๊วนที่เปิด flag + ผู้รับที่ผูกบัญชีแล้ว · `deliver()` case `line` ยิง Messaging API จริง · นับ/บังคับโควต้าต่อก๊วนต่อเดือน · usage counter ในหน้าตั้งค่า
+- ไม่แตะ: ข้อความรูปแบบ Flex/rich menu (ยังไม่อยู่ใน baseline) · LIFF
+
+**Definition of Done**
+- 🔴 **ไม่ส่งซ้ำ**: `dedupe_key` ของ `line` แยกจาก `in_app` (ข้อจำกัด 2) และคีย์เดิมของ `in_app`
+  **ไม่เปลี่ยนรูป** — เทสต์ยืนยันว่าของที่เคยส่งแล้วไม่ถูกยิงใหม่หลัง migration
+- 🔴 ก๊วนที่ปิด `features.line` **ไม่มีแถว `line` เกิดขึ้นเลย** · คนที่ยังไม่ผูกบัญชี/บล็อก OA ก็ไม่มี
+- in-app ยังได้เหมือนเดิมทุกกรณี (ข้อจำกัด 6) — เทสต์เทียบจำนวนแถวสองช่องทาง
+- LINE ตอบ error → เข้า backoff เดิม (`5 นาที → 15 นาที → 1 ชม.` แล้ว `failed`) ไม่ใช่ mark sent หลอกๆ
+  · error ของก๊วนหนึ่ง **ไม่ทำให้ทั้งรอบล้ม**
+- 🔴 **เกินโควต้าเดือนนั้น = ไม่ยิงเพิ่ม** และบันทึกเหตุผลให้เห็นในหน้าตั้งค่า (นับจาก `notification_logs` เท่านั้น)
+- ปุ่ม "ส่งข้อความทดสอบ" ของแอดมินนับรวมโควต้าด้วย (ไม่งั้นตัวเลขโกหก)
+
+**Forbidden**
+- ❌ ห้ามสร้าง worker/คิว/ตารางสรุปใหม่ · ❌ ห้าม insert `notifications` ตรงสำหรับงานที่ต้องกันซ้ำ
+- ❌ ห้ามใส่ยอดเงินรายคนลงข้อความกลุ่ม (ข้อความ LINE ส่งเข้าแชตส่วนตัวเท่านั้น)
+
+**References**: baseline §Roadmap Phase 4 · §การตัดสินใจสำคัญ (โควต้า LINE OA · worker ห้ามส่งซ้ำ) · WO-2.5-G (dedupe) · WO-2.10 (worker) · ข้อจำกัด 1, 2, 6, 7
+
+---
+
+## WO-4.D: LINE Login — ผูกบัญชีโดยไม่ต้องพิมพ์รหัส
+
+**Goal**: สมาชิกกดลิงก์เดียวแล้วบัญชี LINE ผูกกับบัญชีในระบบได้เอง
+
+**Scope**
+- ทำเฉพาะ: LINE Login (OAuth) + callback ที่ผูก `line_user_id` เข้ากับผู้ใช้ที่ล็อกอินอยู่ · ปุ่ม "ผูกบัญชี LINE" ในหน้าโปรไฟล์/ตั้งค่าก๊วน · ยกเลิกการผูก
+- ไม่แตะ: ใช้ LINE เป็นวิธี **เข้าสู่ระบบ** ของแอป (baseline ไม่ได้สั่ง และจะกลายเป็น auth ชั้นที่สอง)
+
+**Definition of Done**
+- 🔴 **มี `state` กัน CSRF และตรวจ `nonce`** — callback ที่ไม่มี/ผิด ต้องปฏิเสธ (เทสต์)
+- ผูกได้เฉพาะกับ **ผู้ใช้ที่ล็อกอินอยู่** — ยิง callback ตรงโดยไม่มี session ต้องไม่ผูกให้ใคร
+- `line_user_id` เดียวผูกได้กับบัญชีเดียวต่อก๊วน — ชนแล้วตอบ `ALREADY_REGISTERED` ไม่ใช่แย่งของเดิม
+- ยกเลิกผูกแล้วต้อง **หยุดได้รับ LINE ทันที** (แถวที่ยังค้างในคิวต้องไม่ถูกส่ง)
+- ❗ ห้ามเพิ่มตาราง — `state`/`nonce` เป็น cookie httpOnly หรือค่าที่เซ็นด้วย key จาก env
+
+**Forbidden**
+- ❌ ห้ามผูกจาก `line_user_id` ที่ client ส่งมาเอง · ❌ ห้าม log id token
+- ❌ ห้ามให้ LINE Login ข้ามขั้นตอน auth ของ Supabase
+
+**References**: baseline §Roadmap Phase 4 (LINE Login link) · §ตาราง (`member_line_links`) · WO-2.2 (open redirect guard — `lib/url/safe-next.ts`) · ข้อจำกัด 5, 9
+
+---
+
+## WO-4.E: LIFF — หน้าจอในแอป LINE
+
+**Goal**: สมาชิกทำสิ่งที่ทำบ่อยที่สุดได้จบในแอป LINE โดยไม่ต้องเปิดเบราว์เซอร์
+
+**Scope**
+- ทำเฉพาะ: หน้า LIFF (นัดที่กำลังเปิด → ลงชื่อ/ยกเลิก · ยอดที่ต้องจ่ายของตัวเอง) · `liff_id` ต่อก๊วนจาก `WO-4.A` · เข้าสู่ระบบใน LIFF ผ่านบัญชีที่ผูกไว้แล้ว
+- ไม่แตะ: rich menu · Flex message · การจ่ายเงินในแอป LINE
+
+**Definition of Done**
+- 🔴 **สิทธิ์เดิมทั้งหมดยังบังคับ** — LIFF เป็นแค่หน้าจออีกใบ ⇒ ลงชื่อยังผ่าน `register_to_session()`
+  และ RLS เหมือนเดิม (❌ ห้ามมี endpoint ที่เชื่อ LIFF context แล้วข้ามการตรวจสิทธิ์)
+- เปิด LIFF โดยยังไม่ผูกบัญชี → พาไปผูกก่อน (ไม่ใช่ 500 หรือหน้าว่าง)
+- ก๊วนที่ปิด `features.line` เข้าไม่ได้ทั้ง UI และ action
+- 🔴 ยอดเงินที่แสดงอ่านจาก **ledger** (`domain/billing/ledger.ts`) และผ่าน `moneyFromDb()` (ข้อจำกัด 10)
+- หน้าใช้งานได้จริงบนจอมือถือแคบ (LIFF เปิดเต็มจอในแอป LINE)
+
+**Forbidden**
+- ❌ ห้ามเชื่อ `liff.getProfile()` เป็นการยืนยันตัวตนฝั่ง server · ❌ ห้ามทำ endpoint พิเศษที่ข้าม `can()`/RLS
+
+**References**: baseline §โมดูล ข้อ 11 · §Roadmap Phase 4 · ข้อจำกัด 5, 9, 10
+
+---
+
+## WO-4.F: Phase 4 checkpoint + `v0.4.0`
+
+**Goal**: พิสูจน์ว่า LINE ทั้งชุดทำงานร่วมกับของเดิมได้จริง แล้วปิด Phase
+
+**Scope**
+- ทำเฉพาะ: E2E ของ Phase 4 · README/`.env.example` ส่วน LINE + Vault · tag
+- ไม่แตะ: งานของ Phase 5 (Hardening/Deploy)
+
+**Definition of Done**
+- **E2E ของ Phase 4**: ตั้งค่า LINE (Vault) → ผูกบัญชี → ประกาศหนึ่งใบ → ได้ทั้งแถว `in_app`
+  และ `line` **อย่างละหนึ่ง** ต่อผู้รับ → worker ส่ง → `notification_logs` นับโควต้าถูก →
+  ยกเลิกผูกแล้วรอบถัดไปไม่มีแถว `line`
+  (บวกเส้นเต็มของ MVP-0 / Phase 2.5 / Phase 3 ที่ต้องยังผ่าน)
+- ก๊วนที่ **ไม่ได้ต่อ LINE เลย** ต้องทำงานได้เหมือนเดิมทุกประการ — เทสต์ยืนยัน (ข้อจำกัด 6)
+- `.env.example` มีตัวแปรใหม่ครบ พร้อมคำอธิบายว่าเอามาจากไหนใน LINE Developers Console
+- แล้ว tag **`v0.4.0`** ตาม §Release Versioning
+
+**Forbidden**
+- ❌ ห้ามข้าม E2E ของ Phase ก่อนหน้า · ❌ ห้าม commit ค่า credential จริงลง `.env.example`
+
+**References**: baseline §Roadmap Phase 4 · §Verification · §Release Versioning
