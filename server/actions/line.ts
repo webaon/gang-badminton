@@ -1,13 +1,15 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
 import { getBotInfo, LineApiError } from '@/lib/line/client';
 import { mintLinkCode } from '@/lib/line/link-code';
+import { loginAuthorizeUrl } from '@/lib/line/client';
+import { LINE_LOGIN_NONCE_COOKIE, mintLoginState } from '@/lib/line/login-state';
 import { dispatchNotifications } from '@/server/cron/notifications';
 import { assertCan } from '@/domain/permissions/can';
 import type { GangFeatures, GangRole } from '@/domain/permissions/types';
@@ -221,6 +223,68 @@ export async function testLineConnection(
 }
 
 // ---------------------------------------------------------------------------
+// LINE Login channel (ฝั่งแอดมิน) **[WO-4.D]**
+// ---------------------------------------------------------------------------
+
+export type LineLoginStatus = {
+  hasLoginChannel: boolean;
+  loginChannelId: string | null;
+  secretLast4: string | null;
+};
+
+export async function lineLoginStatus(gangId: string): Promise<ApiResponse<LineLoginStatus>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    await assertLineAdmin(gangId);
+
+    const { data, error } = await supabaseAdmin().rpc('gang_line_login_status', {
+      p_gang_id: gangId,
+    });
+    if (error) throw error;
+
+    const row = (data as Array<{
+      has_login_channel: boolean;
+      login_channel_id: string | null;
+      secret_last4: string | null;
+    }> | null)?.[0];
+
+    return {
+      hasLoginChannel: row?.has_login_channel ?? false,
+      loginChannelId: row?.login_channel_id ?? null,
+      secretLast4: row?.secret_last4 ?? null,
+    };
+  });
+}
+
+/** ⚠️ Login channel เป็นคนละใบกับ Messaging API — ต้องอยู่ **provider เดียวกัน** */
+export async function saveLineLoginCredentials(
+  gangId: string,
+  input: { channelId?: string; channelSecret?: string },
+): Promise<ApiResponse<LineLoginStatus>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const actorId = await assertLineAdmin(gangId);
+
+    const { error } = await supabaseAdmin().rpc('set_gang_line_login', {
+      p_gang_id: gangId,
+      p_channel_id: input.channelId ?? null,
+      p_channel_secret: input.channelSecret ?? null,
+      p_actor_id: actorId,
+    });
+
+    if (error) throw error;
+
+    revalidatePath(`/gangs/${gangId}/settings`);
+
+    const status = await lineLoginStatus(gangId);
+    if (!status.success) throw new AppError(status.error.code, status.error.message);
+    return status.data;
+  });
+}
+
+// ---------------------------------------------------------------------------
 // โควต้า + ส่งทดสอบ **[WO-4.C]**
 // ---------------------------------------------------------------------------
 
@@ -357,6 +421,8 @@ export type MyLineLink = {
   linkedAt: string | null;
   /** ผู้ใช้บล็อก/ลบเพื่อน OA อยู่ ⇒ ระบบจะไม่ส่ง LINE ให้จนกว่าจะ follow กลับ */
   isBlocked: boolean;
+  /** [WO-4.D] ก๊วนตั้งค่า LINE Login ไว้แล้วหรือยัง — คืนแค่ boolean ไม่มี credential ใดๆ */
+  loginAvailable: boolean;
 };
 
 export async function myLineLink(gangId: string): Promise<ApiResponse<MyLineLink>> {
@@ -374,10 +440,17 @@ export async function myLineLink(gangId: string): Promise<ApiResponse<MyLineLink
       .eq('user_id', userId)
       .maybeSingle();
 
+    // 🔴 คืนแค่ "ตั้งค่าไว้ไหม" — ❌ ไม่มี channel id/secret หลุดไปหน้าจอสมาชิก
+    const { data: login } = await supabaseAdmin().rpc('get_gang_line_login', {
+      p_gang_id: gangId,
+    });
+    const loginConfig = (login as Array<{ login_channel_id: string | null }> | null)?.[0];
+
     return {
       isLinked: data !== null,
       linkedAt: (data?.linked_at as string | undefined) ?? null,
       isBlocked: (data?.blocked_at as string | null | undefined) != null,
+      loginAvailable: loginConfig?.login_channel_id != null,
     };
   });
 }
@@ -398,6 +471,57 @@ export async function issueLineLinkCode(
 
     const { code, expiresAt } = mintLinkCode(gangId, userId);
     return { code, expiresAt: expiresAt.toISOString() };
+  });
+}
+
+/**
+ * เริ่ม LINE Login — คืน URL ให้หน้าจอพาไป **[WO-4.D]**
+ *
+ * 🔴 ตั้ง `nonce` เป็น cookie httpOnly คู่กับ `state` ที่เซ็นไว้ ⇒ callback ต้องเจอทั้งสองฝั่ง
+ *    ตรงกัน (กัน login CSRF: คนร้ายขอ state ของตัวเองมาหลอกให้เหยื่อเปิด callback ไม่ได้)
+ */
+export async function startLineLogin(
+  gangId: string,
+): Promise<ApiResponse<{ authorizeUrl: string }>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const userId = await assertGangMemberForLine(gangId);
+
+    const { data, error } = await supabaseAdmin().rpc('get_gang_line_login', {
+      p_gang_id: gangId,
+    });
+    if (error) throw error;
+
+    const config = (data as Array<{ login_channel_id: string | null }> | null)?.[0];
+    if (!config?.login_channel_id) {
+      throw new AppError('VALIDATION_ERROR', 'ก๊วนนี้ยังไม่ได้ตั้งค่า LINE Login');
+    }
+
+    const { state, nonce } = mintLoginState(gangId, userId);
+
+    const jar = await cookies();
+    jar.set(LINE_LOGIN_NONCE_COOKIE, nonce, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 10 * 60,
+    });
+
+    const requestHeaders = await headers();
+    const host = requestHeaders.get('x-forwarded-host') ?? requestHeaders.get('host');
+    const proto = requestHeaders.get('x-forwarded-proto') ?? 'https';
+    const origin = process.env.APP_BASE_URL ?? `${proto}://${host}`;
+
+    return {
+      authorizeUrl: loginAuthorizeUrl({
+        channelId: config.login_channel_id,
+        redirectUri: `${origin}/api/line/login/callback`,
+        state,
+        nonce,
+      }),
+    };
   });
 }
 

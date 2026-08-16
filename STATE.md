@@ -85,7 +85,7 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 | | |
 |---|---|
 | project / ref | **gang-badminton** · `emmzeriekkjryhucvctx` |
-| migrations ที่ apply แล้ว | **37 / 37** ✅ (push ล่าสุด 16 ส.ค. 2026 — `0037` ของ WO-4.C) |
+| migrations ที่ apply แล้ว | **38 / 38** ✅ (push ล่าสุด 16 ส.ค. 2026 — `0038` ของ WO-4.D) |
 | ข้อมูลใน DB | 0 แถวทุกตาราง (ไม่ได้ push seed ขึ้นไป — `seeds: []`) |
 | RLS | ✅ 29/29 ตาราง · 50 policies + 16 บน storage.objects |
 | storage | ✅ 4 buckets · cron ✅ 3 jobs active |
@@ -186,7 +186,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 639 tests, 59 files (16 ส.ค. 2026)
+npm test          # vitest run — 659 tests, 60 files (16 ส.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -202,6 +202,7 @@ npm test          # vitest run — 639 tests, 59 files (16 ส.ค. 2026)
 | `tests/rls/write-guards.test.ts` | ช่องโหว่ WO-1.3 ที่ปิดแล้ว — EXECUTE grant · INSERT status · เขียน registrations ตรง |
 | `tests/cron/cron.test.ts` | **DoD WO-1.5** — CRON_SECRET (รวม fail-closed + timing-safe) · pg_cron schedule · sweep ทั้งสาม |
 | `tests/seed/idempotency.test.ts` | **DoD WO-1.5** — รัน seed ไฟล์จริงซ้ำ 3 รอบ สถานะต้องไม่เปลี่ยน |
+| `tests/line/login.test.ts` | **WO-4.D** — state/nonce · ไม่ล็อกอิน/คนละคน = ปฏิเสธ · เลิกผูกแล้วคิวถูกปิด |
 | `tests/line/fanout.test.ts` | **WO-4.C** — fan-out `line` (คีย์ `in_app` ไม่เปลี่ยน) · ปิด flag/ไม่ผูก/บล็อก/เกินโควต้า = ไม่มีแถว line · ข้อความ whitelist |
 | `tests/line/webhook.test.ts` | **WO-4.B** — ลายเซ็นจาก raw body · ข้ามก๊วนไม่ผ่าน · flag ปิด = 403 · follow/unfollow · รหัสผูกบัญชี stateless |
 | `tests/line/credentials.test.ts` | **WO-4.A** — Vault: ไม่มี plaintext ใน DB · status ปิดบัง 4 ตัวท้าย · หมุน/ถอด · เปิด flag ต้องครบก่อน |
@@ -287,7 +288,7 @@ npm test          # vitest run — 639 tests, 59 files (16 ส.ค. 2026)
 ของที่ยังค้างจากการไล่ policy 0010: `event_logs` ยังเป็นระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
 `payment_adjustments` แอดมินเท่านั้น — จดไว้ใน `BACKLOG.md` แล้วทั้งหมด
 
-### ✅ Phase 4: `WO-4.A` · `4.B` · `4.C` เสร็จแล้ว — **ต่อที่ `WO-4.D`** (LINE Login)
+### ✅ Phase 4: `WO-4.A` · `4.B` · `4.C` · `4.D` เสร็จแล้ว — **ต่อที่ `WO-4.E`** (LIFF)
 
 6 ใบ (`WO-4.A` … `WO-4.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 10 ข้อ
 
@@ -296,7 +297,7 @@ npm test          # vitest run — 639 tests, 59 files (16 ส.ค. 2026)
 | 4.A | Vault + หน้าตั้งค่า LINE ต่อก๊วน (เก็บแค่ secret id) ✅ **เสร็จ** (`0035`) |
 | 4.B | webhook `/api/line/webhook/[gangId]` + ผูกบัญชี (`member_line_links`) ✅ **เสร็จ** (`0036`) |
 | 4.C | worker ส่ง LINE จริง + fan-out ในคิวเดิม + โควต้าต่อก๊วนต่อเดือน ✅ **เสร็จ** (`0037`) |
-| 4.D | LINE Login — ผูกบัญชีโดยไม่ต้องพิมพ์รหัส |
+| 4.D | LINE Login — ผูกบัญชีโดยไม่ต้องพิมพ์รหัส ✅ **เสร็จ** (`0038`) |
 | 4.E | LIFF — หน้าจอในแอป LINE |
 | 4.F | checkpoint + tag `v0.4.0` |
 
@@ -312,6 +313,16 @@ npm test          # vitest run — 639 tests, 59 files (16 ส.ค. 2026)
 ✅ **`WO-4.C` เสร็จแล้ว** (16 ส.ค. 2026) — migration `0037` push cloud แล้ว (37/37)
 ตรวจของจริงบน cloud: `monthly_quota` + 3 ฟังก์ชัน + `enqueue_notifications` เป็นเวอร์ชัน fan-out แล้ว
 · ปิดของค้างจาก 4.B แล้ว (ข้อความ "ผูกบัญชีเรียบร้อย" ส่งผ่านคิว ไม่ใช่ reply API)
+
+✅ **`WO-4.D` เสร็จแล้ว** (16 ส.ค. 2026) — migration `0038` push cloud แล้ว (38/38)
+ตรวจของจริงบน cloud: 3 ฟังก์ชันของ Login channel + `unlink_line_account` เป็นเวอร์ชันที่ปิดคิวให้ด้วย
+· callback อยู่ที่ `/api/line/login/callback` (ตั้งใน LINE Developers Console ให้ตรง)
+
+🔴 **กติกาใหม่จาก 4.D**
+- ผูกบัญชีมีสองทาง (รหัสในแชต · LINE Login) แต่ทั้งคู่ลงเอยที่ `server/line/link.ts`
+  ⇒ ❌ ห้ามเขียนทางผูกบัญชีทางที่สามที่ไม่ผ่านไฟล์นี้
+- `state`/`nonce` เป็น stateless ทั้งคู่ (HMAC + cookie httpOnly) — ❌ ห้ามเพิ่มตารางเก็บ
+- **Login channel ต้องอยู่ provider เดียวกับ Messaging API** ไม่งั้น `userId` คนละใบ
 
 🔴 **กติกาใหม่จาก 4.C ที่ใบถัดไปห้ามทำผิด**
 - คิวมี **สอง channel ต่อหนึ่งงาน**: `in_app` (คีย์เดิม) + `line` (`<คีย์เดิม>:line`)

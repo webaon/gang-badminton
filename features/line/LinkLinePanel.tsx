@@ -7,15 +7,21 @@ import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
 import { Card } from '@astryxdesign/core/Card';
 
-import { issueLineLinkCode, unlinkMyLineAccount, type MyLineLink } from '@/server/actions/line';
+import {
+  issueLineLinkCode,
+  startLineLogin,
+  unlinkMyLineAccount,
+  type MyLineLink,
+} from '@/server/actions/line';
 
 /**
- * ผูกบัญชี LINE ของตัวเองเข้ากับก๊วน — **[WO-4.B]**
+ * ผูกบัญชี LINE ของตัวเองเข้ากับก๊วน — **[WO-4.B/4.D]**
  *
- * วิธีทำงาน: กดขอรหัส → คัดลอกไปวางในแชตของ OA ก๊วนนั้น → webhook ผูกให้
+ * มีสองทาง:
+ *   1. **LINE Login** (WO-4.D) — กดปุ่มเดียว ถ้าก๊วนตั้งค่า Login channel ไว้แล้ว
+ *   2. **รหัสในแชต** (WO-4.B) — คัดลอกรหัสไปวางในแชตกับ OA (ทางสำรองที่ใช้ได้เสมอ)
  *
- * ⚠️ ยัง **ไม่มีข้อความตอบกลับในแชต** (ต้องยิง reply API ซึ่งใบนี้ห้ามทำใน request ของ webhook)
- *    ⇒ ผู้ใช้กด "ตรวจสถานะ" ที่หน้านี้เพื่อดูผล · `WO-4.D` (LINE Login) จะทำให้ไม่ต้องคัดลอกรหัสเลย
+ * ✅ ทั้งสองทางลงเอยที่ `linkAndNotify()` ตัวเดียวกัน ⇒ ได้ข้อความยืนยันเหมือนกัน
  */
 export function LinkLinePanel({ gangId, initial }: { gangId: string; initial: MyLineLink }) {
   const router = useRouter();
@@ -94,6 +100,31 @@ export function LinkLinePanel({ gangId, initial }: { gangId: string; initial: My
         </>
       ) : (
         <>
+          {initial.loginAvailable ? (
+            <>
+              {/* [WO-4.D] ทางลัด: กดปุ่มเดียว ไม่ต้องคัดลอกรหัสไปวางในแชต */}
+              <p className="text-sm">กดปุ่มเดียวจบ — อนุญาตในหน้า LINE แล้วระบบผูกให้เอง</p>
+              <div>
+                <Button
+                  variant="primary"
+                  label="ผูกบัญชีด้วย LINE"
+                  isLoading={pending}
+                  onClick={() =>
+                    run<{ authorizeUrl: string }>(
+                      () => startLineLogin(gangId),
+                      (data) => {
+                        window.location.href = data.authorizeUrl;
+                      },
+                    )
+                  }
+                />
+              </div>
+            </>
+          ) : null}
+
+          <p className="text-sm font-medium">
+            {initial.loginAvailable ? 'หรือผูกด้วยรหัสในแชต' : 'วิธีผูกบัญชี'}
+          </p>
           <ol className="ml-4 list-decimal text-sm">
             <li>เพิ่มเพื่อน LINE OA ของก๊วน (ถามแอดมินถ้ายังไม่มีลิงก์)</li>
             <li>กดปุ่มด้านล่างเพื่อขอรหัส แล้วคัดลอกไปวางในแชตกับ OA</li>
@@ -102,7 +133,7 @@ export function LinkLinePanel({ gangId, initial }: { gangId: string; initial: My
 
           <div className="flex flex-wrap gap-2">
             <Button
-              variant="primary"
+              variant={initial.loginAvailable ? 'secondary' : 'primary'}
               label="ขอรหัสผูกบัญชี"
               isLoading={pending}
               onClick={() =>

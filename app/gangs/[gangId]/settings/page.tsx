@@ -13,7 +13,7 @@ import { reminderFromJson } from '@/domain/gangs/settings';
 import { MonthlyPlanForm } from '@/features/billing/MonthlyPlanForm';
 import { RecomputeStatsButton } from '@/features/reports/RecomputeStatsButton';
 import { LineSettingsPanel } from '@/features/line/LineSettingsPanel';
-import { lineStatus, lineUsage } from '@/server/actions/line';
+import { lineLoginStatus, lineStatus, lineUsage } from '@/server/actions/line';
 import {
   courtPlusShuttleFromJson,
   flatRateFromJson,
@@ -94,7 +94,12 @@ export default async function GangSettingsPage({
 
   // [WO-4.A] สถานะ LINE — action ตรวจสิทธิ์ซ้ำเองและคืนค่าที่ปิดบังแล้วเท่านั้น
   // [WO-4.C] โควต้าเดือนนี้ — นับจาก notification_logs
-  const [line, usage] = await Promise.all([lineStatus(gangId), lineUsage(gangId)]);
+  // [WO-4.D] Login channel เป็นคนละใบกับ Messaging API
+  const [line, usage, login] = await Promise.all([
+    lineStatus(gangId),
+    lineUsage(gangId),
+    lineLoginStatus(gangId),
+  ]);
 
   const { data: skillLevels } = await supabase
     .from('gang_skill_levels')
@@ -186,6 +191,7 @@ export default async function GangSettingsPage({
               gangId={gangId}
               initial={line.data}
               usage={usage.success ? usage.data : null}
+              login={login.success ? login.data : null}
             />
           </Card>
         </div>

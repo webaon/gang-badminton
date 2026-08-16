@@ -1214,7 +1214,7 @@ DoD ทั้ง 6 ข้อผ่านจริง:
 
 ---
 
-## WO-4.D: LINE Login — ผูกบัญชีโดยไม่ต้องพิมพ์รหัส
+## WO-4.D: LINE Login — ผูกบัญชีโดยไม่ต้องพิมพ์รหัส ✅ **เสร็จ (16 ส.ค. 2026)**
 
 **Goal**: สมาชิกกดลิงก์เดียวแล้วบัญชี LINE ผูกกับบัญชีในระบบได้เอง
 
@@ -1234,6 +1234,34 @@ DoD ทั้ง 6 ข้อผ่านจริง:
 - ❌ ห้ามให้ LINE Login ข้ามขั้นตอน auth ของ Supabase
 
 **References**: baseline §Roadmap Phase 4 (LINE Login link) · §ตาราง (`member_line_links`) · WO-2.2 (open redirect guard — `lib/url/safe-next.ts`) · ข้อจำกัด 5, 9
+
+**ผลลัพธ์** — migration `0038` (2 คอลัมน์ + 3 ฟังก์ชัน + `unlink_line_account` เวอร์ชันใหม่) ·
+`lib/line/login-state.ts` · `exchangeLoginCode()`/`loginAuthorizeUrl()` ใน `lib/line/client.ts` ·
+`server/line/login.ts` · `server/line/link.ts` (เส้นทางผูกบัญชีร่วมของ 4.B/4.D) ·
+`app/api/line/login/callback/route.ts` · ปุ่ม "ผูกบัญชีด้วย LINE" + ช่องตั้งค่า Login channel ·
+เทสต์ใหม่ 20 ตัว (`tests/line/login.test.ts`)
+
+DoD ทั้ง 5 ข้อผ่านจริง:
+- 🔴 `state` เซ็นด้วย HMAC (พก gangId/userId/nonce/วันหมดอายุมาเอง) **และ** `nonce` ต้องตรงกับ
+  **cookie httpOnly** ของเบราว์เซอร์นั้น ⇒ state ที่ถูกแก้/หมดอายุ/ไม่มี cookie = ปฏิเสธ (เทสต์ครบ)
+- 🔴 ผูกได้เฉพาะผู้ใช้ที่ล็อกอินอยู่ **และต้องเป็นคนเดียวกับใน state** ⇒ state หลุดไปถึงคนอื่น
+  ก็ผูกข้ามคนไม่ได้ (`wrong_user`) · ยิง callback โดยไม่มี session = ไม่ผูกให้ใครเลย
+- LINE ใบเดียวผูกสองคนในก๊วนเดียวกันไม่ได้ (`ALREADY_REGISTERED` → `link_failed`)
+- 🔴 **เลิกผูกแล้วหยุดส่งทันที** — `unlink_line_account()` ปิดแถว `line` ที่ยัง `pending`/`processing`
+  เป็น `failed` พร้อมเหตุผล ไม่ปล่อยให้ worker ไปลองส่งแล้วค่อยล้มเอง (เทสต์ยืนยัน)
+- ❗ **ไม่มีตารางเก็บ state/nonce** — `state` เป็น HMAC stateless · `nonce` อยู่ใน cookie httpOnly
+  ที่ถูกลบทิ้งหลังใช้หนึ่งครั้ง
+
+**การตัดสินใจที่บันทึกไว้**
+- อ่าน `userId` จาก **`GET /v2/profile`** หลังแลก code แทนการถอด `id_token` (JWT) เอง —
+  ได้ค่าเดียวกันโดยไม่ต้อง verify ลายเซ็น JWT เอง ซึ่งพลาดแล้วกลายเป็นช่องโหว่ทันที
+  · ❌ ไม่ log token/id_token ที่ไหนเลย
+- **Login channel เป็นคนละใบกับ Messaging API** ⇒ เก็บ `login_channel_id` (ไม่ลับ เพราะอยู่ใน URL
+  ที่ผู้ใช้เห็นอยู่แล้ว) + secret ลง Vault แยกอีกใบ · หน้าตั้งค่าเตือนว่า**ต้องอยู่ provider เดียวกัน**
+  ไม่งั้น LINE จะให้ `userId` คนละใบ = ผูกได้แต่ส่งข้อความไม่ถึง
+- รวมเส้นทางผูกบัญชีของ 4.B (รหัสในแชต) กับ 4.D (Login) ไว้ที่ `linkAndNotify()` ตัวเดียว
+  ⇒ ทั้งสองทางได้ข้อความยืนยันเหมือนกันเสมอ ไม่มีทางที่ทางหนึ่งจะลืม
+- **ยังคงทางผูกด้วยรหัสในแชตไว้** เป็นทางสำรอง (ก๊วนที่ยังไม่ได้ตั้ง Login channel ใช้ได้ทันที)
 
 ---
 

@@ -3,6 +3,7 @@ import 'server-only';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { verifyLineSignature } from '@/lib/line/signature';
 import { extractLinkCode, verifyLinkCode } from '@/lib/line/link-code';
+import { linkAndNotify } from './link';
 import type { ErrorCode } from '@/shared/errors';
 
 /**
@@ -176,41 +177,8 @@ async function tryLink(
     return false;
   }
 
-  const { error } = await supabaseAdmin().rpc('link_line_account', {
-    p_gang_id: gangId,
-    p_user_id: userId,
-    p_line_user_id: lineUserId,
-    p_correlation_id: correlationId,
-  });
+  // ผูก + เข้าคิวข้อความยืนยัน — เส้นทางเดียวกับ LINE Login (WO-4.D)
+  const result = await linkAndNotify({ gangId, userId, lineUserId, correlationId });
 
-  if (error) {
-    console.warn('[line] ผูกบัญชีไม่สำเร็จ', { correlationId, gangId, message: error.message });
-    return false;
-  }
-
-  // ✅ [WO-4.C] ปิดของที่ค้างจาก WO-4.B: ตอบผู้ใช้ว่าผูกสำเร็จ — **ผ่านคิวเดิม**
-  //    ❌ ไม่เรียก reply API ตรงจาก webhook (ต้องตอบ 200 ให้ LINE เร็ว)
-  //    dedupe ผูกกับ (ก๊วน, ผู้ใช้, บัญชี LINE) ⇒ ส่งรหัสซ้ำใบเดิมไม่ได้ข้อความซ้ำ
-  const { error: queueError } = await supabaseAdmin().rpc('enqueue_notifications', {
-    p_rows: [
-      {
-        gang_id: gangId,
-        recipient_id: userId,
-        event_type: 'line.linked',
-        payload: { correlation_id: correlationId },
-        dedupe_key: `line-link:${gangId}:${userId}:${lineUserId}`,
-      },
-    ],
-  });
-
-  if (queueError) {
-    // ผูกสำเร็จแล้ว — แค่ข้อความยืนยันเข้าคิวไม่ได้ ⇒ ไม่ถือว่า event นี้ล้ม
-    console.error('[line] เข้าคิวข้อความยืนยันการผูกบัญชีไม่สำเร็จ', {
-      correlationId,
-      gangId,
-      message: queueError.message,
-    });
-  }
-
-  return true;
+  return result.ok;
 }

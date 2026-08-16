@@ -12,8 +12,10 @@ import {
   saveLineCredentials,
   sendLineTestMessage,
   setLineEnabled,
+  saveLineLoginCredentials,
   setLineQuota,
   testLineConnection,
+  type LineLoginStatus,
   type LineStatus,
   type LineUsage,
 } from '@/server/actions/line';
@@ -28,14 +30,19 @@ export function LineSettingsPanel({
   gangId,
   initial,
   usage,
+  login,
 }: {
   gangId: string;
   initial: LineStatus;
   usage: LineUsage | null;
+  login: LineLoginStatus | null;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState(initial);
   const [quota, setQuota] = useState(usage?.monthlyQuota?.toString() ?? '');
+  const [loginStatus, setLoginStatus] = useState(login);
+  const [loginChannelId, setLoginChannelId] = useState(login?.loginChannelId ?? '');
+  const [loginSecret, setLoginSecret] = useState('');
   const [accessToken, setAccessToken] = useState('');
   const [channelSecret, setChannelSecret] = useState('');
   const [liffId, setLiffId] = useState(initial.liffId ?? '');
@@ -199,6 +206,63 @@ export function LineSettingsPanel({
           ) : null}
         </div>
       </form>
+
+      {/* [WO-4.D] LINE Login — คนละ channel กับ Messaging API */}
+      <div className="border-t pt-3">
+        <h3 className="mb-1 text-sm font-semibold">
+          LINE Login {loginStatus?.hasLoginChannel ? '(ตั้งค่าแล้ว)' : '(ยังไม่ได้ตั้งค่า)'}
+        </h3>
+        <p className="mb-2 text-xs opacity-70">
+          ⚠️ เป็น <strong>คนละ channel</strong> กับ Messaging API — ต้องอยู่ provider เดียวกัน
+          ไม่งั้น LINE จะให้ id คนละใบแล้วผูกบัญชีได้แต่ส่งข้อความไม่ถึง ·
+          ตั้งค่านี้แล้วสมาชิกกดผูกบัญชีได้ในปุ่มเดียว ไม่ต้องคัดลอกรหัส
+        </p>
+
+        <div className="flex flex-col gap-2">
+          <TextInput
+            label="Login channel ID"
+            value={loginChannelId}
+            onChange={setLoginChannelId}
+            placeholder="เช่น 2001234567"
+          />
+          <TextInput
+            label="Login channel secret"
+            type="password"
+            value={loginSecret}
+            onChange={setLoginSecret}
+            placeholder={
+              loginStatus?.secretLast4
+                ? `ตั้งไว้แล้ว (ลงท้าย ${loginStatus.secretLast4}) — เว้นว่างเพื่อคงเดิม`
+                : 'วางค่าที่นี่'
+            }
+          />
+          <div>
+            <Button
+              size="sm"
+              label="บันทึก LINE Login"
+              isDisabled={pending}
+              onClick={() =>
+                run<LineLoginStatus>(
+                  () =>
+                    saveLineLoginCredentials(gangId, {
+                      channelId: loginChannelId.trim(),
+                      ...(loginSecret.trim() === '' ? {} : { channelSecret: loginSecret.trim() }),
+                    }),
+                  (next) => {
+                    setLoginStatus(next);
+                    setLoginSecret('');
+                    setNotice('บันทึก LINE Login แล้ว');
+                  },
+                )
+              }
+            />
+          </div>
+          <p className="text-xs opacity-70">
+            ตั้ง Callback URL ใน LINE Developers Console เป็น{' '}
+            <code>{'<โดเมนของคุณ>'}/api/line/login/callback</code>
+          </p>
+        </div>
+      </div>
 
       {usage ? (
         <div className="border-t pt-3">
