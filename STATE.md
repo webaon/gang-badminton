@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 15 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — **Phase 2.5 เสร็จครบ 7 ใบ** (`WO-2.5-A` … `WO-2.5-G`)
+> **อัปเดตล่าสุด: 16 ส.ค. 2026** · MVP-0 = `v0.1.0` · Phase 2.5 = `v0.2.0` · **Phase 3 เสร็จครบ 6 ใบ = `v0.3.0`**
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -27,9 +27,9 @@
 ## 2. Git
 
 ```
-tag ล่าสุด: v0.2.0 (Phase 2.5 — merge เข้า main แล้วผ่าน PR #2)
+tag ล่าสุด: v0.3.0 (Phase 3 — merge เข้า main แล้วผ่าน PR #3 `8bfa947`, CI เขียว)
 branch: claude/badminton-group-system-4pfs7o   (ทำงานอยู่บนนี้ — WO ทุกใบ commit ที่นี่)
-        main                                    (มีแค่ commit เอกสาร baseline)
+        main                                    (ตามทันแล้วถึง v0.3.0)
 ```
 
 ✅ **PR #1 merge เข้า `main` แล้ว + tag `v0.1.0`** (13 ส.ค. 2026)
@@ -186,7 +186,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 560 tests, 53 files (15 ส.ค. 2026)
+npm test          # vitest run — 571 tests, 55 files (16 ส.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -224,6 +224,8 @@ npm test          # vitest run — 560 tests, 53 files (15 ส.ค. 2026)
 | `tests/sessions/notifications.test.ts` | **WO-2.10** — worker ส่งจริง · backoff · sweep คืนคิว · เห็นเฉพาะของตัวเอง |
 | `tests/discovery/search.test.ts` | **WO-3.E** — ก๊วนส่วนตัว/ปิด discovery ไม่โผล่ · pg_trgm ค้นไทยบางส่วน · escape wildcard · explain ยืนยันใช้ index |
 | `tests/discovery/join-requests.test.ts` | **WO-3.E** — ขอ/ยกเลิก/อนุมัติ · กดพร้อมกันสองคนได้สมาชิกเดียว · ข้ามก๊วนไม่ได้ · เขียนตารางตรงไม่ได้ |
+| `tests/landing/landing.test.ts` | **WO-3.F** — หน้าแรกต้องยัง static/ISR (ไม่มี `force-dynamic`/`cookies()`) · สรุปตัวเลข pure · อ่าน DB ไม่ได้ต้องไม่พัง |
+| `tests/e2e/phase3-full-path.test.ts` | 🎉 **Phase 3 checkpoint** — ปิดรอบ → rollup → รายงาน reconcile → ประกาศไม่ส่งซ้ำ → ค้นหา+ขอเข้าก๊วน+อนุมัติ |
 | `tests/e2e/mvp0-full-path.test.ts` | 🎉 **MVP-0 checkpoint** — เส้นเต็ม 14 ขั้นตาม baseline §Verification |
 
 ⚠️ **เทสต์ RLS ต้องห่อด้วย `asRole()` / `visibleCount()` เสมอ** — connection ของเทสต์เป็น
@@ -234,18 +236,20 @@ npm test          # vitest run — 560 tests, 53 files (15 ส.ค. 2026)
 
 ---
 
-## 6. ช่องโหว่ — ปิดไป 3 จาก 4 แล้ว
+## 6. ช่องโหว่ — ปิดครบแล้ว (ของที่ยังค้างอยู่ใน `BACKLOG.md`)
 
 | # | ช่องโหว่ | สถานะ |
 |---|---|---|
 | 1 | EXECUTE grant ของ DB functions เปิดให้ `anon` | ✅ ปิดแล้ว — revoke หมด เหลือ `service_role` |
 | 2 | INSERT นัดด้วย status นอก `draft` | ✅ ปิดแล้ว [D-14] |
+| 3 | `transition_payment()` ยังไม่มี (payment เปลี่ยน status ไม่ได้เลย) | ✅ ปิดแล้ว — migration `0022` (WO-2.9) |
 | 4 | เขียน `session_registrations` ตรงๆ | ✅ ปิดแล้ว [D-13] |
-| 3 | **`transition_payment()` ยังไม่มี** | 🔴 **ยังค้าง** |
+| 5 | `member_statistics` เปิด `total_paid` ของทุกคนให้สมาชิกทั้งก๊วน | ✅ ปิดแล้ว — `0031` (WO-3.C) |
+| 6 | `announcements` เปิด**ร่าง**ให้สมาชิกเห็น | ✅ ปิดแล้ว — `0032` (WO-3.D) |
+| 7 | `join_requests` ยิงคำขอเข้าก๊วนส่วนตัวได้ / แอดมินตั้ง `approved` ตรงได้ | ✅ ปิดแล้ว — `0033` (WO-3.E) |
 
-🔴 **ข้อ 3 ที่ยังค้าง**: baseline สั่งติด GUC trigger บน `payments` แต่ Phase 1 ไม่มีฟังก์ชัน
-ที่ปลด GUC ให้ ⇒ ตอนนี้ payment เปลี่ยน status ไม่ได้เลยทุกทาง เป็นงาน Phase 2
-**ห้ามแก้ด้วยการถอด trigger** (ผมไม่ได้ทำใน WO-1.4 เพราะอยู่นอก scope ของ WO นี้)
+🔴 **ที่ยังเปิดอยู่และต้องตัดสิน**: `gangs_select_public` ทำให้ `anon` อ่าน `promptpay_id`
+ของก๊วนสาธารณะได้ — รายละเอียด + สามทางเลือกอยู่ใน §7 และ `BACKLOG.md` §WO-3.E
 
 ➡️ ผลข้างเคียงที่ต้องรู้: **ทุก DB function เรียกได้เฉพาะ `service_role`**
 หมายความว่า guest ลงชื่อต้องผ่าน route handler ฝั่งเรา (ที่ validate + rate limit) เท่านั้น
@@ -255,77 +259,61 @@ npm test          # vitest run — 560 tests, 53 files (15 ส.ค. 2026)
 
 ## 7. ทำอะไรต่อ — เริ่มพรุ่งนี้ที่นี่
 
-🎉 **Phase 2.5 เสร็จครบ 7 ใบ** — merge เข้า `main` แล้วผ่าน PR #2 (`6e04c79`) · tag **`v0.2.0`** · CI เขียว
-(MVP-0 = `v0.1.0`) · 469 เทสต์ / 45 ไฟล์ · cloud **29/29 migrations**
+🎉 **Phase 3 (Growth) เสร็จครบ 6 ใบ** — merge เข้า `main` ผ่าน PR #3 (`8bfa947`) · tag **`v0.3.0`** · CI เขียว
+571 เทสต์ / 55 ไฟล์ · cloud **33/33 migrations** (MVP-0 = `v0.1.0` · Phase 2.5 = `v0.2.0`)
 
-### ✅ แตก WO ของ Phase 3 แล้ว (14 ส.ค. 2026)
+| WO | งาน | migration |
+|---|---|---|
+| 3.A | rollup `member_statistics` + `daily_metrics` + cron | `0030` |
+| 3.B | รายงานรายรับ-รายจ่าย-กำไร (reconcile ได้) | — |
+| 3.C | หน้าสถิติสมาชิก + timeline | `0031` |
+| 3.D | ประกาศ + แจ้งเตือนตอน publish | `0032` |
+| 3.E | Discovery (pg_trgm) + คำขอเข้าก๊วน | `0033` |
+| 3.F | หน้าแรก static/ISR + E2E checkpoint | — |
 
-6 ใบ (`WO-3.A` … `WO-3.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 7 ข้อ
-จาก Phase ก่อนหน้าที่ทุกใบต้องยึด
+### 🔴 ต้องตัดสินก่อนเปิด discovery ให้ผู้ใช้จริง (ค้างจาก WO-3.E)
 
-✅ **`WO-3.A` เสร็จแล้ว** (14 ส.ค. 2026) — migration `0030` push cloud แล้ว (30/30)
-ตรวจของจริงบน cloud: 3 ฟังก์ชัน + pg_cron job `gang-badminton-rollup` active + grants
-
-✅ **`WO-3.B` เสร็จแล้ว** (15 ส.ค. 2026) — **ไม่มี migration ใหม่** (ตาราง + RLS มีอยู่แล้ว)
-⇒ cloud ยังตรงกับ local ที่ 30 migrations
-
-✅ **`WO-3.C` เสร็จแล้ว** (15 ส.ค. 2026) — migration `0031` push cloud แล้ว (31/31)
-ตรวจของจริงบน cloud: policy `member_statistics_select` เป็นเวอร์ชันใหม่แล้ว
-
-✅ **`WO-3.D` เสร็จแล้ว** (15 ส.ค. 2026) — migration `0032` push cloud แล้ว (32/32)
-ตรวจของจริงบน cloud: policy `announcements_select_member` เวอร์ชันใหม่ + `publish_announcement()`
-
-✅ **`WO-3.E` เสร็จแล้ว** (15 ส.ค. 2026) — migration `0033` push cloud แล้ว (33/33)
-ตรวจของจริงบน cloud: 4 ฟังก์ชันครบ (`search_public_gangs` / `request_to_join_gang` /
-`cancel_join_request` / `decide_join_request(p_request_id, p_gang_id, …)`) ·
-`join_requests` เหลือ policy เดียว (`join_requests_select`) และ `authenticated` เหลือ **SELECT** อย่างเดียว
-
-**ต่อไป: `WO-3.F`** — Landing page (static/ISR) + E2E ของ Phase 3 + tag `v0.3.0`
-
-🔴 **ต้องตัดสินก่อนเปิด discovery ให้ผู้ใช้จริง** (เจอตอนไล่ policy 0010 ตามที่ 3.C/3.D สั่งไว้):
-`gangs_select_public` เปิดทั้ง**แถว** ไม่ใช่แค่ metadata ⇒ ใครก็ได้ที่ถือ **anon key**
+`gangs_select_public` (0010) เปิดทั้ง**แถว** ไม่ใช่แค่ metadata ⇒ ใครก็ได้ที่ถือ **anon key**
 ยิง `GET /rest/v1/gangs?select=promptpay_id&is_public=eq.true` แล้วได้ **PromptPay ID ของทุกก๊วนสาธารณะ**
-(ยืนยันของจริงบน local แล้ว) · **ไม่ได้แก้ใน 3.E** เพราะเป็นการนิยามใหม่ว่า "metadata สาธารณะ"
-คือคอลัมน์ไหน = เรื่องสถาปัตยกรรม ⇒ สามทางเลือก (column grant / ถอด policy + ADR / ย้าย `promptpay_id`
-ออกไปตารางแบบ `gang_line_configs`) อยู่ใน `BACKLOG.md` §WO-3.E
-ผลการไล่ policy 0010 ที่เหลือ: `event_logs` ยังเป็นระดับก๊วน (สมาชิกอ่าน payload ดิบผ่าน API ได้ —
-ไทม์ไลน์กรอง `adminOnly` แค่ชั้น domain) · `coupons` เปิดทั้งก๊วน · `payment_adjustments` แอดมินเท่านั้น
-— ทั้งหมดจดไว้ใน `BACKLOG.md` แล้ว
+(ยืนยันของจริงบน local แล้ว) · เป็นการนิยามใหม่ว่า "metadata สาธารณะ" คือคอลัมน์ไหน = เรื่องสถาปัตยกรรม
+⇒ สามทางเลือก (column grant ให้ `anon` / ถอด policy แล้วให้ผ่าน `search_public_gangs()` + ADR /
+ย้าย `promptpay_id` ไปตารางแบบ `gang_line_configs`) อยู่ใน `BACKLOG.md` §WO-3.E
+ผลการไล่ policy 0010 ที่เหลือ: `event_logs` ยังเป็นระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
+`payment_adjustments` แอดมินเท่านั้น — จดไว้ใน `BACKLOG.md` แล้วทั้งหมด
 
-สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้ (WO-3.E):
-- 🔴 `join_requests` **เขียนตรงไม่ได้แล้ว** — `authenticated` เหลือ `select`
-  ⇒ ขอ/ยกเลิก/อนุมัติ ต้องผ่าน `request_to_join_gang()` / `cancel_join_request()` /
-  `decide_join_request()` เท่านั้น (จุดเดียวที่คำขอกลายเป็น `gang_members`)
-- ผลค้นหาก๊วนมาจาก `search_public_gangs()` ที่เดียว — กรอง `is_public` + `features.discovery`
-  อยู่ในฟังก์ชัน ⇒ ❌ ห้ามเขียน query ค้นก๊วนเองในหน้าจอ
-- สิทธิ์ใหม่ `gang.join_request.manage` ผูกกับ `features.discovery` ผ่าน `FEATURE_GATED`
+### ต่อไป: **Phase 4 — LINE** (baseline §Roadmap)
 
-สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
-- ประกาศที่ `published_at is null` = ร่าง **สมาชิกทั่วไปมองไม่เห็น** (RLS 0032)
-- publish ต้องผ่าน `publish_announcement()` เท่านั้น — ❌ ห้าม UPDATE `published_at` ตรง
-  (จุดนั้นคือที่ที่แจ้งเตือนถูกยิงแบบ idempotent)
+ยังไม่ได้แตก WO (กติกา `AGENT-EXECUTION.md`: แตกตอนจะเริ่ม Phase นั้น ไม่แตกล่วงหน้า)
+ขอบเขตตาม baseline: Vault → webhook เฉพาะก๊วน → channel `line` ในคิวเดิม → usage counter → LIFF
+🔴 ใช้ `enqueue_notifications()` + `claim_notifications()` เดิม — ❌ ห้ามสร้าง worker ใหม่
 
-สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
-- 🔴 `member_statistics` **สมาชิกเห็นแถวของตัวเองเท่านั้น** แอดมินเห็นทั้งก๊วน (0031)
-  ⇒ หน้าไหนที่ต้องโชว์สถิติของทุกคน ต้องเป็นหน้าแอดมิน หรือใช้ admin client อย่างตั้งใจ
+### สิ่งที่เปลี่ยนไปใน Phase 3 ที่ Phase ถัดไปต้องรู้
+
+- 🔴 `join_requests` **เขียนตรงไม่ได้** — `authenticated` เหลือ `select` ⇒ ผ่าน
+  `request_to_join_gang()` / `cancel_join_request()` / `decide_join_request()` เท่านั้น
+  (จุดเดียวที่คำขอกลายเป็น `gang_members`)
+- ผลค้นหาก๊วนมาจาก `search_public_gangs()` ที่เดียว (กรอง `is_public` + `features.discovery` ในตัว)
+  ⇒ ❌ ห้ามเขียน query ค้นก๊วนเองในหน้าจอ
+- 🔴 **หน้าแรกเป็น static/ISR** (`app/page.tsx`, `revalidate = 3600`) — ❌ ห้ามใส่ `force-dynamic`
+  หรือเรียก `cookies()` / `supabaseServer()` ที่นั่น (มีเทสต์ `tests/landing/landing.test.ts` คุมไว้)
+  ตัวเลขบนหน้าแรกอ่านจาก `daily_metrics` เท่านั้น และ **ไม่โชว์ `revenue`** ของแพลตฟอร์ม
+- ประกาศที่ `published_at is null` = ร่าง สมาชิกทั่วไปมองไม่เห็น (RLS 0032) ·
+  publish ต้องผ่าน `publish_announcement()` — ❌ ห้าม UPDATE `published_at` ตรง
+- 🔴 `member_statistics` สมาชิกเห็นแถวของตัวเองเท่านั้น แอดมินเห็นทั้งก๊วน (0031)
 - ไทม์ไลน์ต้องผ่าน `buildTimeline()` เสมอ — ❌ ห้ามเรนเดอร์ `event_logs.payload` ดิบ
   (whitelist ต่อ event type · event ที่มีเงินรายคนเป็น `adminOnly`)
-- สิทธิ์ใหม่ `statistics.view` ผูกกับ `features.statistics` ผ่าน `FEATURE_GATED`
+- สิทธิ์ใหม่: `statistics.view` (flag `statistics`) · `gang.finance.manage` ·
+  `gang.join_request.manage` (flag `discovery`)
 
-นิยามการเงินที่ต้องตรงกันทั้งระบบ:
-- **เก็บได้จริง** = allocation ของสลิปที่ `verified` **หัก refund**
-  (`credit`/`correction` ลดหนี้แต่ไม่ใช่เงินสด) — ใช้ทั้งใน rollup (`total_paid`)
-  และรายงาน (`collected`) ⇒ แก้ที่ไหนต้องแก้ให้ตรงกันทั้งสองที่
-- **กำไร** = เก็บได้จริง + รายรับอื่น − รายจ่าย (เงินที่ยังไม่เข้าไม่ใช่กำไร)
-- สิทธิ์ใหม่ `gang.finance.manage` (แอดมินขึ้นไป) สำหรับบันทึกรายรับ-รายจ่าย
+### นิยามการเงิน/สถิติที่ตรึงไว้แล้ว (หน้าจอห้ามนิยามเอง)
 
-นิยามที่ตรึงไว้แล้วใน migration `0030` (หน้าจอห้ามนิยามเอง):
-- `shuttles_used` = ส่วนแบ่งลูกของเกมที่ลง (`/4`)
-- `total_paid` = allocation ของสลิปที่ `verified` **หัก refund** (credit/correction ไม่นับ)
-- `attendance_rate` = มาเล่น ÷ **นัดที่เคยได้ที่** × 100
-- `daily_metrics` ใช้นาฬิกาไทย
+- **เก็บได้จริง** = allocation ของสลิปที่ `verified` **หัก refund** (`credit`/`correction` ลดหนี้
+  แต่ไม่ใช่เงินสด) — ใช้ทั้ง `total_paid` ของ rollup และ `collected` ของรายงาน ⇒ แก้ต้องแก้ทั้งสองที่
+- **กำไร (netCash)** = เก็บได้จริง + รายรับอื่น − รายจ่าย (เงินที่ยังไม่เข้าไม่ใช่กำไร)
+- `shuttles_used` = ส่วนแบ่งลูกของเกมที่ลง (`/4`) · `attendance_rate` = มาเล่น ÷ นัดที่เคยได้ที่ × 100
+- `daily_metrics` ใช้นาฬิกาไทย · `daily_metrics.revenue` รวมนัดที่ยกเลิกกลางคันที่มี charges
 
-<details><summary>ที่มาของลำดับ (เดิม)</summary>
+<details><summary>ที่มาของลำดับ Phase 3 (เดิม)</summary>
 
 baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
 
@@ -334,7 +322,7 @@ baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
 
 </details>
 
-### 🔴 ข้อตกลงจาก Phase 2.5 ที่ใบถัดๆ ไปห้ามทำผิด
+### 🔴 ข้อตกลงจาก Phase 2.5 ที่ใบถัดๆ ไปห้ามทำผิด (ยังใช้อยู่)
 
 **เงิน**
 - ยอดค้างอ่านจาก **ledger** เท่านั้น — `charge_outstanding()` (SQL) หรือ
@@ -372,7 +360,8 @@ baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
 ### ค้างจากก่อนหน้า (ยังไม่ทำ)
 
 - [ ] **Playwright** — E2E ผ่านเบราว์เซอร์จริง (ตอนนี้ E2E เดินผ่าน DB function + domain)
-- [ ] **ให้ก๊วนจริงลองใช้** แล้วเก็บ feedback ก่อนตัดสินลำดับงาน Phase 3
+- [ ] **ให้ก๊วนจริงลองใช้** แล้วเก็บ feedback ก่อนเริ่ม Phase 4
+- [ ] 🔴 ปิดเรื่อง `promptpay_id` ที่หลุดผ่าน `gangs_select_public` ก่อนเปิด discovery จริง
 - [ ] ของค้างอื่นดู `BACKLOG.md`
 
 ---
