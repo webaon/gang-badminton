@@ -8,6 +8,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
 import { getBotInfo, LineApiError } from '@/lib/line/client';
 import { mintLinkCode } from '@/lib/line/link-code';
+import { dispatchNotifications } from '@/server/cron/notifications';
 import { assertCan } from '@/domain/permissions/can';
 import type { GangFeatures, GangRole } from '@/domain/permissions/types';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
@@ -216,6 +217,104 @@ export async function testLineConnection(
       }
       throw err;
     }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// โควต้า + ส่งทดสอบ **[WO-4.C]**
+// ---------------------------------------------------------------------------
+
+export type LineUsage = {
+  periodStart: string;
+  used: number;
+  /** null = ไม่จำกัด */
+  monthlyQuota: number | null;
+  isOver: boolean;
+};
+
+type UsageRow = {
+  period_start: string;
+  used: number;
+  monthly_quota: number | null;
+  is_over: boolean;
+};
+
+/** ใช้ไปกี่ข้อความในเดือนนี้ — 🔴 นับจาก `notification_logs` ที่เดียว */
+export async function lineUsage(gangId: string): Promise<ApiResponse<LineUsage>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    await assertLineAdmin(gangId);
+
+    const { data, error } = await supabaseAdmin().rpc('line_quota_status', { p_gang_id: gangId });
+    if (error) throw error;
+
+    const row = (data as UsageRow[] | null)?.[0];
+
+    return {
+      periodStart: row?.period_start ?? new Date().toISOString().slice(0, 10),
+      used: row?.used ?? 0,
+      monthlyQuota: row?.monthly_quota ?? null,
+      isOver: row?.is_over ?? false,
+    };
+  });
+}
+
+/** ตั้งเพดานต่อเดือน — ส่ง `null` = ไม่จำกัด */
+export async function setLineQuota(
+  gangId: string,
+  quota: number | null,
+): Promise<ApiResponse<{ monthlyQuota: number | null }>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const actorId = await assertLineAdmin(gangId);
+
+    const { data, error } = await supabaseAdmin().rpc('set_gang_line_quota', {
+      p_gang_id: gangId,
+      p_quota: quota,
+      p_actor_id: actorId,
+    });
+
+    if (error) throw error;
+
+    revalidatePath(`/gangs/${gangId}/settings`);
+    return { monthlyQuota: (data as { monthly_quota: number | null }).monthly_quota };
+  });
+}
+
+/**
+ * ส่งข้อความทดสอบหาตัวเอง
+ *
+ * 🔴 เดินผ่าน **คิวและ worker ตัวเดิม** ทุกขั้น (เข้าคิว → `dispatchNotifications()`)
+ *    ⇒ ❌ ไม่มีทางส่งเส้นที่สอง และ **นับรวมโควต้า** เหมือนข้อความจริงทุกประการ
+ *    (ถ้าเขียนเส้นส่งแยกเพื่อความสะดวก ตัวเลขโควต้าบนหน้าจอจะโกหกทันที)
+ */
+export async function sendLineTestMessage(
+  gangId: string,
+): Promise<ApiResponse<{ sent: number; failed: number }>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const actorId = await assertLineAdmin(gangId);
+
+    const { error } = await supabaseAdmin().rpc('enqueue_notifications', {
+      p_rows: [
+        {
+          gang_id: gangId,
+          recipient_id: actorId,
+          event_type: 'line.test',
+          payload: { correlation_id: correlationId },
+          // ไม่ dedupe — กดทดสอบซ้ำได้เรื่อยๆ (แต่ละครั้งกินโควต้าจริง)
+          dedupe_key: null,
+        },
+      ],
+    });
+
+    if (error) throw error;
+
+    const result = await dispatchNotifications(correlationId);
+    return { sent: result.sent, failed: result.failed };
   });
 }
 

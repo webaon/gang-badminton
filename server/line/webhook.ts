@@ -14,10 +14,9 @@ import type { ErrorCode } from '@/shared/errors';
  * 🔴 **ห้ามยิง API ภายนอกใน request นี้** — LINE มี timeout สั้นและ retry เอง
  *    ⇒ ที่นี่ทำแค่ "อ่าน event แล้วเขียน DB" · งานที่ต้องคุยกับ LINE เป็นของ WO-4.C ผ่านคิวเดิม
  *
- * ⚠️ **ผลข้างเคียงที่ตั้งใจ**: ใบนี้ยัง **ไม่ตอบกลับข้อความในแชต** (scope เดิมเขียนว่า
- *    "ตอบกลับข้อความสั้นๆ") เพราะการตอบต้องเรียก reply API ซึ่งขัด DoD ข้อ "ห้ามยิง API
- *    ภายนอกใน request นั้น" ของใบเดียวกัน ⇒ เลื่อนไป WO-4.C ที่มีทางส่งผ่านคิวแล้ว
- *    หน้าเว็บที่ออกรหัสจึงเป็นที่ที่ผู้ใช้เห็นผลว่า "ผูกสำเร็จ" (กด refresh)
+ * ✅ **[WO-4.C]** ข้อความยืนยัน "ผูกบัญชีสำเร็จ" ถูกส่งแล้ว — แต่ **ผ่านคิวเดิม**
+ *    (`enqueue_notifications` → worker) ไม่ใช่ reply API ในคำขอนี้ ⇒ ยังตอบ 200 ให้ LINE ได้เร็ว
+ *    นี่คือของที่ WO-4.B บันทึกไว้ว่า "เลื่อนไป 4.C" และปิดเรียบร้อยแล้ว
  */
 
 export type WebhookOutcome = {
@@ -187,6 +186,30 @@ async function tryLink(
   if (error) {
     console.warn('[line] ผูกบัญชีไม่สำเร็จ', { correlationId, gangId, message: error.message });
     return false;
+  }
+
+  // ✅ [WO-4.C] ปิดของที่ค้างจาก WO-4.B: ตอบผู้ใช้ว่าผูกสำเร็จ — **ผ่านคิวเดิม**
+  //    ❌ ไม่เรียก reply API ตรงจาก webhook (ต้องตอบ 200 ให้ LINE เร็ว)
+  //    dedupe ผูกกับ (ก๊วน, ผู้ใช้, บัญชี LINE) ⇒ ส่งรหัสซ้ำใบเดิมไม่ได้ข้อความซ้ำ
+  const { error: queueError } = await supabaseAdmin().rpc('enqueue_notifications', {
+    p_rows: [
+      {
+        gang_id: gangId,
+        recipient_id: userId,
+        event_type: 'line.linked',
+        payload: { correlation_id: correlationId },
+        dedupe_key: `line-link:${gangId}:${userId}:${lineUserId}`,
+      },
+    ],
+  });
+
+  if (queueError) {
+    // ผูกสำเร็จแล้ว — แค่ข้อความยืนยันเข้าคิวไม่ได้ ⇒ ไม่ถือว่า event นี้ล้ม
+    console.error('[line] เข้าคิวข้อความยืนยันการผูกบัญชีไม่สำเร็จ', {
+      correlationId,
+      gangId,
+      message: queueError.message,
+    });
   }
 
   return true;

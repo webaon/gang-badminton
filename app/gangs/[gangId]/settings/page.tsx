@@ -13,7 +13,7 @@ import { reminderFromJson } from '@/domain/gangs/settings';
 import { MonthlyPlanForm } from '@/features/billing/MonthlyPlanForm';
 import { RecomputeStatsButton } from '@/features/reports/RecomputeStatsButton';
 import { LineSettingsPanel } from '@/features/line/LineSettingsPanel';
-import { lineStatus } from '@/server/actions/line';
+import { lineStatus, lineUsage } from '@/server/actions/line';
 import {
   courtPlusShuttleFromJson,
   flatRateFromJson,
@@ -93,7 +93,8 @@ export default async function GangSettingsPage({
     .maybeSingle();
 
   // [WO-4.A] สถานะ LINE — action ตรวจสิทธิ์ซ้ำเองและคืนค่าที่ปิดบังแล้วเท่านั้น
-  const line = await lineStatus(gangId);
+  // [WO-4.C] โควต้าเดือนนี้ — นับจาก notification_logs
+  const [line, usage] = await Promise.all([lineStatus(gangId), lineUsage(gangId)]);
 
   const { data: skillLevels } = await supabase
     .from('gang_skill_levels')
@@ -181,7 +182,11 @@ export default async function GangSettingsPage({
       {line.success ? (
         <div className="mt-4">
           <Card padding={6}>
-            <LineSettingsPanel gangId={gangId} initial={line.data} />
+            <LineSettingsPanel
+              gangId={gangId}
+              initial={line.data}
+              usage={usage.success ? usage.data : null}
+            />
           </Card>
         </div>
       ) : null}

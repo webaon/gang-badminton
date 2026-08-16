@@ -10,9 +10,12 @@ import { TextInput } from '@astryxdesign/core/TextInput';
 import {
   clearLineCredentials,
   saveLineCredentials,
+  sendLineTestMessage,
   setLineEnabled,
+  setLineQuota,
   testLineConnection,
   type LineStatus,
+  type LineUsage,
 } from '@/server/actions/line';
 
 /**
@@ -21,9 +24,18 @@ import {
  * 🔴 ช่อง token/secret **ว่างเสมอตอนเปิดหน้า** — ค่าที่ตั้งไว้แล้วอ่านกลับมาไม่ได้เลย
  *    (ฐานข้อมูลคืนให้แค่ 4 ตัวท้าย) ⇒ กรอกใหม่ = หมุนค่าใหม่ · เว้นว่าง = คงของเดิม
  */
-export function LineSettingsPanel({ gangId, initial }: { gangId: string; initial: LineStatus }) {
+export function LineSettingsPanel({
+  gangId,
+  initial,
+  usage,
+}: {
+  gangId: string;
+  initial: LineStatus;
+  usage: LineUsage | null;
+}) {
   const router = useRouter();
   const [status, setStatus] = useState(initial);
+  const [quota, setQuota] = useState(usage?.monthlyQuota?.toString() ?? '');
   const [accessToken, setAccessToken] = useState('');
   const [channelSecret, setChannelSecret] = useState('');
   const [liffId, setLiffId] = useState(initial.liffId ?? '');
@@ -154,6 +166,21 @@ export function LineSettingsPanel({ gangId, initial }: { gangId: string; initial
                 }
               />
               <Button
+                label="ส่งข้อความทดสอบ"
+                isDisabled={pending || !status.isEnabled}
+                onClick={() =>
+                  run<{ sent: number; failed: number }>(
+                    () => sendLineTestMessage(gangId),
+                    (result) =>
+                      setNotice(
+                        result.sent > 0
+                          ? 'ส่งข้อความทดสอบแล้ว — เช็คในแชต LINE ของคุณ (นับรวมโควต้าเดือนนี้)'
+                          : 'เข้าคิวแล้วแต่ส่งไม่สำเร็จ — ดูสาเหตุที่ log หรือลองผูกบัญชี LINE ของตัวเองก่อน',
+                      ),
+                  )
+                }
+              />
+              <Button
                 variant="ghost"
                 label="ถอด LINE ออก"
                 isDisabled={pending}
@@ -172,6 +199,54 @@ export function LineSettingsPanel({ gangId, initial }: { gangId: string; initial
           ) : null}
         </div>
       </form>
+
+      {usage ? (
+        <div className="border-t pt-3">
+          <h3 className="mb-1 text-sm font-semibold">โควต้าเดือนนี้</h3>
+          <p className="text-sm">
+            ส่งไปแล้ว <strong>{usage.used.toLocaleString('th-TH')}</strong> ข้อความ
+            {usage.monthlyQuota === null
+              ? ' (ไม่จำกัด)'
+              : ` จาก ${usage.monthlyQuota.toLocaleString('th-TH')}`}
+            {' · '}เริ่มนับ {usage.periodStart}
+          </p>
+
+          {usage.isOver ? (
+            <Banner
+              status="warning"
+              title="เกินโควต้าของเดือนนี้แล้ว"
+              description="ระบบจะหยุดส่ง LINE จนถึงเดือนหน้า — การแจ้งเตือนในแอปยังส่งตามปกติ"
+            />
+          ) : null}
+
+          <div className="mt-2 flex items-end gap-2">
+            <div className="grow">
+              <TextInput
+                label="เพดานต่อเดือน (เว้นว่าง = ไม่จำกัด)"
+                value={quota}
+                onChange={setQuota}
+                placeholder="เช่น 200"
+              />
+            </div>
+            <Button
+              size="sm"
+              label="บันทึกเพดาน"
+              isDisabled={pending}
+              onClick={() =>
+                run<{ monthlyQuota: number | null }>(
+                  () => setLineQuota(gangId, quota.trim() === '' ? null : Number(quota.trim())),
+                  () => setNotice('บันทึกเพดานแล้ว'),
+                )
+              }
+            />
+          </div>
+
+          <p className="mt-1 text-xs opacity-70">
+            นับจากข้อความที่ส่งสำเร็จจริงเท่านั้น (ส่งไม่สำเร็จไม่กินโควต้า) · ปุ่ม “ทดสอบการเชื่อมต่อ”
+            ไม่กินโควต้า แต่ “ส่งข้อความทดสอบ” กิน
+          </p>
+        </div>
+      ) : null}
 
       <p className="text-xs opacity-70">
         เปิดใช้งานได้เมื่อตั้ง token และ secret ครบแล้วเท่านั้น · การแจ้งเตือนในแอปยังทำงานเหมือนเดิม

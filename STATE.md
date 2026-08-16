@@ -85,7 +85,7 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 | | |
 |---|---|
 | project / ref | **gang-badminton** · `emmzeriekkjryhucvctx` |
-| migrations ที่ apply แล้ว | **36 / 36** ✅ (push ล่าสุด 16 ส.ค. 2026 — `0036` ของ WO-4.B) |
+| migrations ที่ apply แล้ว | **37 / 37** ✅ (push ล่าสุด 16 ส.ค. 2026 — `0037` ของ WO-4.C) |
 | ข้อมูลใน DB | 0 แถวทุกตาราง (ไม่ได้ push seed ขึ้นไป — `seeds: []`) |
 | RLS | ✅ 29/29 ตาราง · 50 policies + 16 บน storage.objects |
 | storage | ✅ 4 buckets · cron ✅ 3 jobs active |
@@ -186,7 +186,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 619 tests, 58 files (16 ส.ค. 2026)
+npm test          # vitest run — 639 tests, 59 files (16 ส.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -202,6 +202,7 @@ npm test          # vitest run — 619 tests, 58 files (16 ส.ค. 2026)
 | `tests/rls/write-guards.test.ts` | ช่องโหว่ WO-1.3 ที่ปิดแล้ว — EXECUTE grant · INSERT status · เขียน registrations ตรง |
 | `tests/cron/cron.test.ts` | **DoD WO-1.5** — CRON_SECRET (รวม fail-closed + timing-safe) · pg_cron schedule · sweep ทั้งสาม |
 | `tests/seed/idempotency.test.ts` | **DoD WO-1.5** — รัน seed ไฟล์จริงซ้ำ 3 รอบ สถานะต้องไม่เปลี่ยน |
+| `tests/line/fanout.test.ts` | **WO-4.C** — fan-out `line` (คีย์ `in_app` ไม่เปลี่ยน) · ปิด flag/ไม่ผูก/บล็อก/เกินโควต้า = ไม่มีแถว line · ข้อความ whitelist |
 | `tests/line/webhook.test.ts` | **WO-4.B** — ลายเซ็นจาก raw body · ข้ามก๊วนไม่ผ่าน · flag ปิด = 403 · follow/unfollow · รหัสผูกบัญชี stateless |
 | `tests/line/credentials.test.ts` | **WO-4.A** — Vault: ไม่มี plaintext ใน DB · status ปิดบัง 4 ตัวท้าย · หมุน/ถอด · เปิด flag ต้องครบก่อน |
 | `tests/rls/public-gang-exposure.test.ts` | **WO-3.G / ADR-007** — anon แตะ `gangs` ไม่ได้ · คนนอกอ่านก๊วน public ไม่ได้ · `promptpay_id` ไม่หลุด · discovery ยังทำงาน |
@@ -286,7 +287,7 @@ npm test          # vitest run — 619 tests, 58 files (16 ส.ค. 2026)
 ของที่ยังค้างจากการไล่ policy 0010: `event_logs` ยังเป็นระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
 `payment_adjustments` แอดมินเท่านั้น — จดไว้ใน `BACKLOG.md` แล้วทั้งหมด
 
-### ✅ Phase 4: `WO-4.A` + `WO-4.B` เสร็จแล้ว — **ต่อที่ `WO-4.C`**
+### ✅ Phase 4: `WO-4.A` · `4.B` · `4.C` เสร็จแล้ว — **ต่อที่ `WO-4.D`** (LINE Login)
 
 6 ใบ (`WO-4.A` … `WO-4.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 10 ข้อ
 
@@ -294,7 +295,7 @@ npm test          # vitest run — 619 tests, 58 files (16 ส.ค. 2026)
 |---|---|
 | 4.A | Vault + หน้าตั้งค่า LINE ต่อก๊วน (เก็บแค่ secret id) ✅ **เสร็จ** (`0035`) |
 | 4.B | webhook `/api/line/webhook/[gangId]` + ผูกบัญชี (`member_line_links`) ✅ **เสร็จ** (`0036`) |
-| 4.C | worker ส่ง LINE จริง + fan-out ในคิวเดิม + โควต้าต่อก๊วนต่อเดือน |
+| 4.C | worker ส่ง LINE จริง + fan-out ในคิวเดิม + โควต้าต่อก๊วนต่อเดือน ✅ **เสร็จ** (`0037`) |
 | 4.D | LINE Login — ผูกบัญชีโดยไม่ต้องพิมพ์รหัส |
 | 4.E | LIFF — หน้าจอในแอป LINE |
 | 4.F | checkpoint + tag `v0.4.0` |
@@ -308,11 +309,19 @@ npm test          # vitest run — 619 tests, 58 files (16 ส.ค. 2026)
 ตรวจของจริงบน cloud: คอลัมน์ `blocked_at` + 3 ฟังก์ชัน (`link_line_account` /
 `unlink_line_account` / `set_line_link_blocked`)
 
-🔴 **สิ่งที่ `WO-4.C` ต้องรับช่วงต่อ**
-- fan-out ต้องกรอง **`member_line_links.blocked_at is null`** (คนที่บล็อก OA) ไม่ใช่ส่งแล้วปล่อย fail
-- **ค้างจาก 4.B: ยังไม่มีข้อความตอบกลับในแชต** — การตอบต้องเรียก reply API ซึ่ง 4.B ห้ามทำ
-  ใน request ของ webhook ⇒ ทำใน 4.C ผ่านคิวเดิม (เช่น ตอบ "ผูกบัญชีสำเร็จ" หลังผูกเสร็จ)
-- env ใหม่ที่ต้องมีจริงตอน deploy: **`LINE_LINK_SECRET`** (อยู่ใน `.env.example` แล้ว)
+✅ **`WO-4.C` เสร็จแล้ว** (16 ส.ค. 2026) — migration `0037` push cloud แล้ว (37/37)
+ตรวจของจริงบน cloud: `monthly_quota` + 3 ฟังก์ชัน + `enqueue_notifications` เป็นเวอร์ชัน fan-out แล้ว
+· ปิดของค้างจาก 4.B แล้ว (ข้อความ "ผูกบัญชีเรียบร้อย" ส่งผ่านคิว ไม่ใช่ reply API)
+
+🔴 **กติกาใหม่จาก 4.C ที่ใบถัดไปห้ามทำผิด**
+- คิวมี **สอง channel ต่อหนึ่งงาน**: `in_app` (คีย์เดิม) + `line` (`<คีย์เดิม>:line`)
+  ⇒ ❌ ห้ามเปลี่ยนรูปคีย์ของ `in_app` เด็ดขาด (ของที่เคยกันซ้ำจะพังทั้งระบบ)
+- แถว `line` เกิดเฉพาะเมื่อ: ก๊วนเปิด LINE **และ** ผู้รับผูกบัญชี **และ** ไม่ได้บล็อก OA
+  **และ** ยังไม่เกินโควต้าเดือนนั้น — ตรวจใน `enqueue_notifications()` และซ้ำอีกรอบตอนส่งจริง
+- โควต้าอ่านจาก `notification_logs` (success เท่านั้น) — ❌ ห้ามสร้างตัวนับที่อื่น
+- ข้อความ LINE ต้องผ่าน `domain/notifications/line-message.ts` (whitelist ต่อ event type)
+  ❌ ห้ามยัด payload ดิบหรือยอดเงินรายคนลงข้อความ
+- env ที่ต้องมีจริงตอน deploy: **`LINE_LINK_SECRET`** (อยู่ใน `.env.example` แล้ว)
 
 ของจริงที่ตรวจไว้แล้ว (อย่าเสียเวลาค้นซ้ำ):
 - ❌ **ตัดสินใจไม่ติดตั้ง `@line/bot-sdk`** — ใช้ `fetch` + `node:crypto` แทน
@@ -427,6 +436,9 @@ baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
 - **`service_role` มี BYPASSRLS แต่ BYPASSRLS ไม่ข้าม GRANT** — ต้อง grant ให้ด้วย
 - **helper ของ policy ต้องเป็น SECURITY DEFINER** ไม่งั้น policy ที่อ้างตารางตัวเองจะ recursion
   และ **ห้ามใช้ `FORCE ROW LEVEL SECURITY`** เพราะจะทำให้ owner ถูก policy ตรวจด้วย = วนกลับมาอีก
+- 🔴 **เทสต์ที่ยิง `enqueue_notifications` ต้องใช้ `dedupe_key` ที่ไม่ซ้ำข้ามการรัน**
+  (คีย์เป็น unique ทั้งตารางและเทสต์ไม่ล้างข้อมูล) — ถ้าใช้คีย์ตายตัว รอบสองจะ `do nothing`
+  ทั้งหมดแล้วเทสต์แดงแบบหาสาเหตุยาก (เจอมาแล้วตอน WO-4.C)
 - 🔴 **probe ของ Vault ต้องแยกเป็นคนละ statement** — `with created as (select vault.create_secret(...))
   select ... from vault.decrypted_secrets` จะได้ผลว่า "พัง" เสมอ เพราะ CTE ที่เขียนข้อมูลไม่ถูกมองเห็น
   โดยส่วนอื่นของ statement เดียวกัน (เสียเวลาไปแล้วตอน WO-4.A — Vault ไม่ได้พัง)

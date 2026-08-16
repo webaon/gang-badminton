@@ -76,3 +76,44 @@ export async function getBotInfo(accessToken: string): Promise<LineBotInfo> {
     premiumId: body.premiumId ?? null,
   };
 }
+
+/**
+ * ส่งข้อความหาผู้ใช้คนเดียว — **[WO-4.C]**
+ *
+ * ⚠️ push **กินโควต้าของก๊วน** (ต่างจาก `/v2/bot/info` ที่เป็น GET)
+ *    ⇒ ผู้เรียกต้องตรวจโควต้าก่อนเสมอ และบันทึกผลลง `notification_logs` ผ่าน
+ *      `mark_notification_sent()` (ตัวนับโควต้าอ่านจากที่นั่นที่เดียว)
+ *
+ * 🔴 โยน `LineApiError` เมื่อส่งไม่สำเร็จ — worker จะเอาไปเข้า backoff เดิม
+ *    ❌ ห้าม "กลืน" แล้ว mark sent เพราะจะกลายเป็นข้อความที่หายไปเงียบๆ
+ */
+export async function pushTextMessage(
+  accessToken: string,
+  to: string,
+  text: string,
+): Promise<void> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${LINE_API}/v2/bot/message/push`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ to, messages: [{ type: 'text', text: text.slice(0, 4900) }] }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      cache: 'no-store',
+    });
+  } catch (err) {
+    throw new LineApiError(0, err instanceof Error ? `ส่ง LINE ไม่ได้: ${err.message}` : 'ส่ง LINE ไม่ได้');
+  }
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    throw new LineApiError(
+      response.status,
+      `LINE ตอบ ${response.status}${detail ? ` — ${detail.slice(0, 200)}` : ''}`,
+    );
+  }
+}
