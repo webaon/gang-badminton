@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 13 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — **Phase 2.5 เสร็จครบ 7 ใบ** (`WO-2.5-A` … `WO-2.5-G`)
+> **อัปเดตล่าสุด: 15 ส.ค. 2026** · MVP-0 เสร็จ (tag `v0.1.0`) · กำลังทำ **Phase 2.5** — **Phase 2.5 เสร็จครบ 7 ใบ** (`WO-2.5-A` … `WO-2.5-G`)
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -27,6 +27,7 @@
 ## 2. Git
 
 ```
+tag ล่าสุด: v0.2.0 (Phase 2.5 — merge เข้า main แล้วผ่าน PR #2)
 branch: claude/badminton-group-system-4pfs7o   (ทำงานอยู่บนนี้ — WO ทุกใบ commit ที่นี่)
         main                                    (มีแค่ commit เอกสาร baseline)
 ```
@@ -84,7 +85,7 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 | | |
 |---|---|
 | project / ref | **gang-badminton** · `emmzeriekkjryhucvctx` |
-| migrations ที่ apply แล้ว | **23 / 23** ✅ (push ล่าสุด 13 ส.ค. 2026) |
+| migrations ที่ apply แล้ว | **33 / 33** ✅ (push ล่าสุด 15 ส.ค. 2026 — `0033` ของ WO-3.E) |
 | ข้อมูลใน DB | 0 แถวทุกตาราง (ไม่ได้ push seed ขึ้นไป — `seeds: []`) |
 | RLS | ✅ 29/29 ตาราง · 50 policies + 16 บน storage.objects |
 | storage | ✅ 4 buckets · cron ✅ 3 jobs active |
@@ -185,7 +186,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 305 tests, 30 files
+npm test          # vitest run — 560 tests, 53 files (15 ส.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -221,6 +222,8 @@ npm test          # vitest run — 305 tests, 30 files
 | `tests/domain/promptpay.test.ts` | **WO-2.9** — payload EMVCo + ยอดถูกฝังจริง |
 | `tests/sessions/payments.test.ts` | **WO-2.9** — state machine · verify แล้วแก้ไม่ได้ · สลิปไม่รั่ว |
 | `tests/sessions/notifications.test.ts` | **WO-2.10** — worker ส่งจริง · backoff · sweep คืนคิว · เห็นเฉพาะของตัวเอง |
+| `tests/discovery/search.test.ts` | **WO-3.E** — ก๊วนส่วนตัว/ปิด discovery ไม่โผล่ · pg_trgm ค้นไทยบางส่วน · escape wildcard · explain ยืนยันใช้ index |
+| `tests/discovery/join-requests.test.ts` | **WO-3.E** — ขอ/ยกเลิก/อนุมัติ · กดพร้อมกันสองคนได้สมาชิกเดียว · ข้ามก๊วนไม่ได้ · เขียนตารางตรงไม่ได้ |
 | `tests/e2e/mvp0-full-path.test.ts` | 🎉 **MVP-0 checkpoint** — เส้นเต็ม 14 ขั้นตาม baseline §Verification |
 
 ⚠️ **เทสต์ RLS ต้องห่อด้วย `asRole()` / `visibleCount()` เสมอ** — connection ของเทสต์เป็น
@@ -250,118 +253,127 @@ npm test          # vitest run — 305 tests, 30 files
 
 ---
 
-## 7. ทำอะไรต่อ — Phase 2.5
+## 7. ทำอะไรต่อ — เริ่มพรุ่งนี้ที่นี่
 
-MVP-0 จบแล้ว (tag `v0.1.0`) — baseline §Roadmap กำหนด Phase ถัดไปไว้ว่า:
+🎉 **Phase 2.5 เสร็จครบ 7 ใบ** — merge เข้า `main` แล้วผ่าน PR #2 (`6e04c79`) · tag **`v0.2.0`** · CI เขียว
+(MVP-0 = `v0.1.0`) · 469 เทสต์ / 45 ไฟล์ · cloud **29/29 migrations**
 
-**Phase 2.5 — Core ครบ**: billing strategies ที่เหลือ + MembershipBilling (monthly) →
-`payment_allocations` (จ่ายแทนเพื่อน) + adjustments/refund → session templates +
-auto-generate → QR check-in → reminder jobs
+### ✅ แตก WO ของ Phase 3 แล้ว (14 ส.ค. 2026)
 
-✅ **แตก WO ของ Phase 2.5 แล้ว** — 7 ใบ (`WO-2.5-A` … `WO-2.5-G`) อยู่ท้าย `AGENT-EXECUTION.md`
-(ใช้ตัวอักษรเพราะ Phase 2 มีใบชื่อ WO-2.5 อยู่แล้ว)
+6 ใบ (`WO-3.A` … `WO-3.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 7 ข้อ
+จาก Phase ก่อนหน้าที่ทุกใบต้องยึด
 
-✅ **`WO-2.5-A` เสร็จแล้ว** (13 ส.ค. 2026) — migration `0024` + 15 เทสต์ใหม่ · push ขึ้น cloud แล้ว
-(ตรวจของจริงบน cloud: 3 ฟังก์ชันเป็น security definer และ EXECUTE มีแค่ `postgres`, `service_role`)
+✅ **`WO-3.A` เสร็จแล้ว** (14 ส.ค. 2026) — migration `0030` push cloud แล้ว (30/30)
+ตรวจของจริงบน cloud: 3 ฟังก์ชัน + pg_cron job `gang-badminton-rollup` active + grants
 
-สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
-- `mark_no_show()` · `update_game_shuttles()` · `check_in_all()` เป็น DB function
-  ⇒ **ห้ามกลับไป UPDATE `session_registrations` / `games` ตรงจาก server action อีก**
-- แก้ `shuttles_used` ได้เฉพาะตอนนัดอยู่ `open`/`in_play` — **หลัง `billing` DB จะ raise**
-  (นี่คือเงื่อนไขที่ทำให้ `court_plus_shuttle` ใน WO-2.5-B ปลอดภัยพอจะเปิดได้)
-- ปิดรอบต้องผ่านหน้า `/gangs/[gangId]/sessions/[sessionId]/close` — `closeSessionWithBilling()`
-  ปฏิเสธด้วย `CONFIRMATION_REQUIRED` ถ้าไม่มีใครเช็คอินและไม่ได้ส่ง `confirmNoCheckIn`
+✅ **`WO-3.B` เสร็จแล้ว** (15 ส.ค. 2026) — **ไม่มี migration ใหม่** (ตาราง + RLS มีอยู่แล้ว)
+⇒ cloud ยังตรงกับ local ที่ 30 migrations
 
-✅ **`WO-2.5-B` เสร็จแล้ว** (13 ส.ค. 2026) — **ไม่มี migration ใหม่** (schema มีคอลัมน์ครบตั้งแต่ 0003)
-⇒ cloud ยังตรงกับ local ที่ 24 migrations
+✅ **`WO-3.C` เสร็จแล้ว** (15 ส.ค. 2026) — migration `0031` push cloud แล้ว (31/31)
+ตรวจของจริงบน cloud: policy `member_statistics_select` เป็นเวอร์ชันใหม่แล้ว
 
-สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
-- `IMPLEMENTED_PRICING_TYPES` = `flat_rate` + `court_plus_shuttle` — `monthly` ยัง**ปิดอยู่**
-  จนกว่า WO-2.5-C จะมี MembershipBilling จริง
-- **ADR-005** ตรึงวิธีหาร: ค่าสนามหารเฉพาะคนที่ไม่ใช่สมาชิกรายเดือน · ค่าลูกตาม
-  `monthly_member_pays_shuttle` · ปัดแยกก้อน · เศษรายคนอยู่ใน `breakdown.rounding_surplus`
-  และบวกกันได้ surplus ของนัดเป๊ะ
-- snapshot มีคีย์ใหม่ `pricing_plan.monthly_member_pays_shuttle` (additive ไม่ขึ้น version)
-- `calculateSessionCharges()` ต้องได้ `shuttlesUsedTotal` เมื่อเป็น `court_plus_shuttle`
-  — **throw ถ้าไม่ส่ง** ห้าม default 0
+✅ **`WO-3.D` เสร็จแล้ว** (15 ส.ค. 2026) — migration `0032` push cloud แล้ว (32/32)
+ตรวจของจริงบน cloud: policy `announcements_select_member` เวอร์ชันใหม่ + `publish_announcement()`
 
-✅ **`WO-2.5-C` เสร็จแล้ว** (13 ส.ค. 2026) — migration `0025` push cloud แล้ว (25/25)
-ตรวจของจริงบน cloud: `commit_monthly_fees()` เป็น security definer · EXECUTE = `postgres`, `service_role`
+✅ **`WO-3.E` เสร็จแล้ว** (15 ส.ค. 2026) — migration `0033` push cloud แล้ว (33/33)
+ตรวจของจริงบน cloud: 4 ฟังก์ชันครบ (`search_public_gangs` / `request_to_join_gang` /
+`cancel_join_request` / `decide_join_request(p_request_id, p_gang_id, …)`) ·
+`join_requests` เหลือ policy เดียว (`join_requests_select`) และ `authenticated` เหลือ **SELECT** อย่างเดียว
 
-สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
-- **ADR-006**: `monthly` เป็นแผนราคา**คนละแถว**กับแผนของนัด — ทุก query ที่หา
-  "แผนราคาของนัด" ต้องกรอง `SESSION_PRICING_TYPES` ไม่งั้นจะหยิบแผนรายเดือนไปแช่แข็งใน snapshot
-- ค่าสมาชิกรายเดือน: **เข้ากลางเดือนเก็บเต็มเดือน** · ออกบิลต้นเดือนสำหรับเดือนนั้น
-- `commit_monthly_fees()` เป็นจุด commit เดียวของ `monthly_fee` (ADR-001)
-  ⇒ ❌ ห้าม insert `session_charges` ประเภทนี้ที่อื่น
-- cron ใหม่ `/api/cron/monthly-fees` (Vercel Cron, **รายวัน** — ดูเหตุผลใน ADR-006)
-- โฟลเดอร์ใหม่ `server/membership/` ใช้ร่วมกันระหว่าง cron กับ server action
-  (แนวเดียวกับ `server/guest/`)
+**ต่อไป: `WO-3.F`** — Landing page (static/ISR) + E2E ของ Phase 3 + tag `v0.3.0`
 
-✅ **`WO-2.5-D` เสร็จแล้ว** (13 ส.ค. 2026) — migration `0026` push cloud แล้ว (26/26)
-ตรวจของจริงบน cloud: 3 ฟังก์ชัน + trigger `session_charges_no_edit_after_paid` +
-`event_logs_aggregate_type_check` ที่มี `'charge'` แล้ว
+🔴 **ต้องตัดสินก่อนเปิด discovery ให้ผู้ใช้จริง** (เจอตอนไล่ policy 0010 ตามที่ 3.C/3.D สั่งไว้):
+`gangs_select_public` เปิดทั้ง**แถว** ไม่ใช่แค่ metadata ⇒ ใครก็ได้ที่ถือ **anon key**
+ยิง `GET /rest/v1/gangs?select=promptpay_id&is_public=eq.true` แล้วได้ **PromptPay ID ของทุกก๊วนสาธารณะ**
+(ยืนยันของจริงบน local แล้ว) · **ไม่ได้แก้ใน 3.E** เพราะเป็นการนิยามใหม่ว่า "metadata สาธารณะ"
+คือคอลัมน์ไหน = เรื่องสถาปัตยกรรม ⇒ สามทางเลือก (column grant / ถอด policy + ADR / ย้าย `promptpay_id`
+ออกไปตารางแบบ `gang_line_configs`) อยู่ใน `BACKLOG.md` §WO-3.E
+ผลการไล่ policy 0010 ที่เหลือ: `event_logs` ยังเป็นระดับก๊วน (สมาชิกอ่าน payload ดิบผ่าน API ได้ —
+ไทม์ไลน์กรอง `adminOnly` แค่ชั้น domain) · `coupons` เปิดทั้งก๊วน · `payment_adjustments` แอดมินเท่านั้น
+— ทั้งหมดจดไว้ใน `BACKLOG.md` แล้ว
+
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้ (WO-3.E):
+- 🔴 `join_requests` **เขียนตรงไม่ได้แล้ว** — `authenticated` เหลือ `select`
+  ⇒ ขอ/ยกเลิก/อนุมัติ ต้องผ่าน `request_to_join_gang()` / `cancel_join_request()` /
+  `decide_join_request()` เท่านั้น (จุดเดียวที่คำขอกลายเป็น `gang_members`)
+- ผลค้นหาก๊วนมาจาก `search_public_gangs()` ที่เดียว — กรอง `is_public` + `features.discovery`
+  อยู่ในฟังก์ชัน ⇒ ❌ ห้ามเขียน query ค้นก๊วนเองในหน้าจอ
+- สิทธิ์ใหม่ `gang.join_request.manage` ผูกกับ `features.discovery` ผ่าน `FEATURE_GATED`
 
 สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
-- **ยอดค้างอ่านจาก ledger เท่านั้น** — `charge_outstanding()` (SQL) หรือ
+- ประกาศที่ `published_at is null` = ร่าง **สมาชิกทั่วไปมองไม่เห็น** (RLS 0032)
+- publish ต้องผ่าน `publish_announcement()` เท่านั้น — ❌ ห้าม UPDATE `published_at` ตรง
+  (จุดนั้นคือที่ที่แจ้งเตือนถูกยิงแบบ idempotent)
+
+สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
+- 🔴 `member_statistics` **สมาชิกเห็นแถวของตัวเองเท่านั้น** แอดมินเห็นทั้งก๊วน (0031)
+  ⇒ หน้าไหนที่ต้องโชว์สถิติของทุกคน ต้องเป็นหน้าแอดมิน หรือใช้ admin client อย่างตั้งใจ
+- ไทม์ไลน์ต้องผ่าน `buildTimeline()` เสมอ — ❌ ห้ามเรนเดอร์ `event_logs.payload` ดิบ
+  (whitelist ต่อ event type · event ที่มีเงินรายคนเป็น `adminOnly`)
+- สิทธิ์ใหม่ `statistics.view` ผูกกับ `features.statistics` ผ่าน `FEATURE_GATED`
+
+นิยามการเงินที่ต้องตรงกันทั้งระบบ:
+- **เก็บได้จริง** = allocation ของสลิปที่ `verified` **หัก refund**
+  (`credit`/`correction` ลดหนี้แต่ไม่ใช่เงินสด) — ใช้ทั้งใน rollup (`total_paid`)
+  และรายงาน (`collected`) ⇒ แก้ที่ไหนต้องแก้ให้ตรงกันทั้งสองที่
+- **กำไร** = เก็บได้จริง + รายรับอื่น − รายจ่าย (เงินที่ยังไม่เข้าไม่ใช่กำไร)
+- สิทธิ์ใหม่ `gang.finance.manage` (แอดมินขึ้นไป) สำหรับบันทึกรายรับ-รายจ่าย
+
+นิยามที่ตรึงไว้แล้วใน migration `0030` (หน้าจอห้ามนิยามเอง):
+- `shuttles_used` = ส่วนแบ่งลูกของเกมที่ลง (`/4`)
+- `total_paid` = allocation ของสลิปที่ `verified` **หัก refund** (credit/correction ไม่นับ)
+- `attendance_rate` = มาเล่น ÷ **นัดที่เคยได้ที่** × 100
+- `daily_metrics` ใช้นาฬิกาไทย
+
+<details><summary>ที่มาของลำดับ (เดิม)</summary>
+
+baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
+
+> `member_statistics` rollup · `daily_metrics` · รายงาน · ประกาศ ·
+> Discovery + join request · Landing page
+
+</details>
+
+### 🔴 ข้อตกลงจาก Phase 2.5 ที่ใบถัดๆ ไปห้ามทำผิด
+
+**เงิน**
+- ยอดค้างอ่านจาก **ledger** เท่านั้น — `charge_outstanding()` (SQL) หรือ
   `domain/billing/ledger.ts` (หน้าจอ) ❌ ห้ามนับจาก `payments.status`
-- allocation นับเฉพาะสลิปที่ **verified** · "ค้างเก็บ" กับ "ต้องคืน" ไม่หักกลบกัน
-- `create_payment_for_charges()` **ไม่ออกใบซ้ำ** — คืนใบเดิมถ้ายังไม่ verified
-  และเขียน `payment_allocations` ให้อัตโนมัติ
+- allocation นับเฉพาะสลิปที่ **verified** · "ค้างเก็บ" กับ "ต้องคืน" **ไม่หักกลบกัน**
 - แก้ยอดหลัง verify ต้องผ่าน `add_payment_adjustment()` — มี trigger กัน UPDATE
   `session_charges.amount` ของหนี้ที่จ่ายแล้ว
-
-✅ **`WO-2.5-E` เสร็จแล้ว** (13 ส.ค. 2026) — migration `0027` push cloud แล้ว (27/27)
-ตรวจของจริงบน cloud: unique index `sessions_template_slot_key` ตรงกับ local
-
-สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
-- **snapshot ของนัดประกอบที่เดียว**: `server/sessions/snapshot.ts`
-  ⇒ ❌ ห้ามประกอบ snapshot เองที่อื่นอีก (นัดที่ generate ต้องปิดรอบได้เหมือนนัดที่สร้างมือ)
-- `sessions.template_id` + unique `(template_id, starts_at)` = กุญแจ idempotency ของ cron
-  **จงใจไม่กรอง `deleted_at`** ⇒ นัดที่ลบแล้วจะไม่ถูกสร้างกลับ
-- cron ใหม่ `/api/cron/session-generate` (Vercel Cron, รายวัน, ล่วงหน้า 14 วัน)
-- `domain/sessions/recurrence.ts` ใช้เลขวันแบบ JS (0 = อาทิตย์) และรองรับจบข้ามเที่ยงคืน
-
-✅ **`WO-2.5-F` เสร็จแล้ว** (14 ส.ค. 2026) — migration `0028` push cloud แล้ว (28/28)
-ตรวจของจริงบน cloud: 2 ฟังก์ชัน + คอลัมน์ `checkin_token_hash` · EXECUTE = `postgres`, `service_role`
-
-สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
-- **guest token อยู่ใน cookie httpOnly แล้ว** (path ผูกกับ `/guest/<registrationId>`)
-  ⇒ `cancelAsGuest(registrationId)` ไม่รับ token จาก client อีกต่อไป
-  ลิงก์เดิมที่มี `?t=` ยังใช้ได้ — หน้าจะเด้งไป `/claim` แลกเป็น cookie ให้เอง
-- QR เช็คอิน: `issue_checkin_token()` / `check_in_by_token()` — **ผูกกับนัดเสมอ**
-  ⇒ ❌ ห้ามเขียนทางเช็คอินที่หา registration จาก token ล้วนโดยไม่เทียบ `session_id`
-- `issueCheckinQr()` คืน **ภาพ QR** ไม่ใช่ token — ห้ามเปลี่ยนให้คืน token กลับไปที่ client
-
-✅ **`WO-2.5-G` เสร็จแล้ว** (14 ส.ค. 2026) — migration `0029` push cloud แล้ว (29/29)
-ตรวจของจริงบน cloud: คอลัมน์ `dedupe_key` + unique index + grants
-
-🎉 **Phase 2.5 เสร็จครบทั้ง 7 ใบ** · E2E ของ Phase 2.5 ผ่าน
-(`tests/e2e/phase25-full-path.test.ts`) และ E2E ของ MVP-0 ยังผ่านเหมือนเดิม
-
-**ยังไม่ได้ทำ**: merge เข้า `main` + tag `v0.2.0` — รอเจ้าของงานสั่ง
-
-สิ่งที่เปลี่ยนไปแล้วและใบถัดๆ ไปต้องรู้:
-- 🔴 **PostgREST คืน `numeric` เป็น JSON number ไม่ใช่ string**
-  ⇒ ทุกครั้งที่อ่านคอลัมน์เงินผ่าน `supabase-js` ต้องผ่าน `moneyFromDb()`
-  (`lib/supabase/money.ts`) ก่อนส่งเข้า `domain/billing`
+- `monthly_fee` commit ผ่าน `commit_monthly_fees()` ที่เดียว (ADR-001)
+- **ADR-005**: ค่าสนามหารเฉพาะคนที่ไม่ใช่สมาชิกรายเดือน · ค่าลูกตาม
+  `monthly_member_pays_shuttle` · ปัดแยกก้อน · เศษรายคนใน `breakdown.rounding_surplus`
+- **ADR-006**: แผน `monthly` เป็น**คนละแถว**กับแผนของนัด ⇒ ทุก query ที่หา
+  "แผนราคาของนัด" ต้องกรอง `SESSION_PRICING_TYPES`
+- 🔴 **PostgREST คืน `numeric` เป็น JSON number ไม่ใช่ string** ⇒ อ่านเงินผ่าน
+  `supabase-js` ต้องผ่าน `moneyFromDb()` (`lib/supabase/money.ts`) ก่อนเข้า `domain/`
   ⚠️ เทสต์ระดับ DB จับไม่ได้ เพราะ `pg` driver คืนเป็น string
+
+**นัด / หน้างาน**
+- snapshot ของนัดประกอบที่เดียว: `server/sessions/snapshot.ts`
+  ⇒ นัดที่ generate ต้องปิดรอบได้เหมือนนัดที่สร้างมือ
+- `mark_no_show()` · `update_game_shuttles()` · `check_in_all()` · `check_in_by_token()`
+  เป็น DB function ⇒ ❌ ห้ามกลับไป UPDATE `session_registrations` / `games` ตรงจาก action
+- แก้ `shuttles_used` ได้เฉพาะตอน `open`/`in_play` — หลัง `billing` DB จะ raise
+- ปิดรอบผ่านหน้า `/gangs/[gangId]/sessions/[sessionId]/close` และจะถูกปฏิเสธด้วย
+  `CONFIRMATION_REQUIRED` ถ้าไม่มีใครเช็คอินโดยไม่ยืนยัน
+- unique `(template_id, starts_at)` **จงใจไม่กรอง `deleted_at`** ⇒ นัดที่ลบแล้วไม่ถูกสร้างกลับ
+
+**ความปลอดภัย / คิว**
+- guest token อยู่ใน cookie httpOnly (path ผูกกับ `/guest/<registrationId>`)
+  ⇒ `cancelAsGuest(registrationId)` ไม่รับ token จาก client
+- QR เช็คอินผูกกับนัดเสมอ · `issueCheckinQr()` คืน **ภาพ QR** ไม่ใช่ token
 - งานเตือนเข้าคิวผ่าน `enqueue_notifications()` พร้อม `dedupe_key`
   ⇒ ❌ ห้าม insert `notifications` ตรงสำหรับงานที่ต้องกันซ้ำ
-- `gangs.settings.reminder` = `{ session_hours_before, payment_due_after_hours }` (0 = ปิด)
+  ❌ ห้ามสร้าง worker ใหม่ — ใช้ `claim_notifications()` + `dispatchNotifications()` เดิม
 
-**ต่อไปหลัง merge**: Phase 3 ตาม baseline §Roadmap (รายงาน · ประกาศ · Discovery)
+### ค้างจากก่อนหน้า (ยังไม่ทำ)
 
-### สิ่งที่ควรทำก่อนเริ่ม Phase 2.5
-
-- [ ] **Playwright** — E2E ผ่านเบราว์เซอร์จริง (`tests/e2e/mvp0-full-path.test.ts`
-      เดินเส้นเดียวกันแล้วแต่ไม่ครอบการ render/กดปุ่ม/อัปโหลดไฟล์)
-- [ ] **ให้ก๊วนจริงลองใช้** แล้วเก็บ feedback ก่อนตัดสินว่า Phase 2.5 ต้องทำอะไรก่อน
-      — รายการใน BACKLOG ยาวกว่าที่ควรทำทั้งหมด
-- [ ] **ปิดช่องที่ยังค้าง** (ดู `BACKLOG.md`) ที่สำคัญที่สุด:
-      guest token อยู่ใน query string (WO-2.5-F) · ออกใบจ่ายซ้ำได้ (WO-2.5-D)
-- [x] ~~`confirmed` ที่ไม่เคยเช็คอินถูกคิดเหมือน no-show~~ — WO-2.5-A ปิดแล้ว
-      (ปุ่ม "เช็คอินทุกคน" + หน้าสรุปยอด + ด่าน `CONFIRMATION_REQUIRED`)
+- [ ] **Playwright** — E2E ผ่านเบราว์เซอร์จริง (ตอนนี้ E2E เดินผ่าน DB function + domain)
+- [ ] **ให้ก๊วนจริงลองใช้** แล้วเก็บ feedback ก่อนตัดสินลำดับงาน Phase 3
+- [ ] ของค้างอื่นดู `BACKLOG.md`
 
 ---
 

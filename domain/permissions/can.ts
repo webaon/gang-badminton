@@ -32,6 +32,8 @@ const MEMBER: readonly Action[] = [
   'payment.submit.self',
   'announcement.view',
   'notification.view.self',
+  // [WO-3.C] ดูสถิติ — RLS เป็นคนตัดสินว่าเห็นของใครบ้าง (ตัวเอง / ทั้งก๊วนถ้าเป็นแอดมิน)
+  'statistics.view',
 ];
 
 const ADMIN: readonly Action[] = [
@@ -41,6 +43,7 @@ const ADMIN: readonly Action[] = [
   'gang.skill.manage',
   'gang.pricing.manage',
   'gang.finance.view',
+  'gang.finance.manage',
   'session.create',
   'session.update',
   'session.transition',
@@ -54,6 +57,8 @@ const ADMIN: readonly Action[] = [
   'billing.close',
   'payment.verify',
   'announcement.manage',
+  // [WO-3.E] อนุมัติ/ปฏิเสธคำขอเข้าก๊วน — ผูกกับ features.discovery
+  'gang.join_request.manage',
 ];
 
 // owner ต่างจาก admin แค่เชิงความเป็นเจ้าของ (ลบก๊วน/ย้ายเจ้าของ) ซึ่งยังไม่มีใน MVP-0
@@ -74,6 +79,11 @@ const ROLE_ACTIONS = {
 const FEATURE_GATED: Partial<Record<Action, Feature>> = {
   'registration.create.guest': 'guests',
   'session.invite.manage': 'guests',
+  // [WO-3.C] ก๊วนที่ปิดสถิติ = ปิดจริงทั้งหน้าและ action ไม่ใช่แค่ซ่อนลิงก์
+  'statistics.view': 'statistics',
+  // [WO-3.E] ก๊วนที่ปิด discovery ไม่มีคำขอเข้าก๊วนให้จัดการตั้งแต่ต้น
+  //          (`request_to_join_gang()` ตอบ FEATURE_DISABLED อยู่แล้ว — สองที่ต้องตรงกัน)
+  'gang.join_request.manage': 'discovery',
 };
 
 /**

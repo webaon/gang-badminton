@@ -39,6 +39,9 @@ export const ACTIONS = [
   'gang.skill.manage',
   'gang.pricing.manage',
   'gang.finance.view',
+  'gang.finance.manage',
+  'statistics.view',
+  'gang.join_request.manage',
 
   // นัดเล่น
   'session.view',

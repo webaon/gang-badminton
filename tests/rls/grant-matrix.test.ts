@@ -24,6 +24,8 @@ const EXPECTED: Record<string, { anon: string[]; authenticated: string[] }> = {
   payment_allocations: { anon: [], authenticated: ['SELECT'] },
   payment_adjustments: { anon: [], authenticated: ['SELECT'] },
   member_line_links: { anon: [], authenticated: ['SELECT'] },
+  // [WO-3.E] 0033 ถอน INSERT/UPDATE ออก — ขอ/ยกเลิก/อนุมัติผ่าน DB function เท่านั้น
+  join_requests: { anon: [], authenticated: ['SELECT'] },
 
   // อ่าน + เขียนบางส่วน
   profiles: { anon: [], authenticated: ['SELECT', 'INSERT', 'UPDATE'] },
@@ -34,7 +36,6 @@ const EXPECTED: Record<string, { anon: string[]; authenticated: string[] }> = {
   sessions: { anon: [], authenticated: ['SELECT', 'INSERT', 'UPDATE'] },
   payments: { anon: [], authenticated: ['SELECT', 'INSERT', 'UPDATE'] },
   notifications: { anon: [], authenticated: ['SELECT', 'UPDATE'] },
-  join_requests: { anon: [], authenticated: ['SELECT', 'INSERT', 'UPDATE'] },
 
   // แอดมินจัดการเต็ม (policy FOR ALL)
   gang_skill_levels: { anon: [], authenticated: ['SELECT', 'INSERT', 'UPDATE', 'DELETE'] },

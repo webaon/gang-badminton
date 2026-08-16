@@ -40,6 +40,8 @@ export const CRON_JOBS = {
   'waitlist-sweep': 'sweep_waitlist',
   'notification-sweep': 'sweep_stuck_notifications',
   'rate-limits-purge': 'purge_rate_limits',
+  // [WO-3.A] rollup สถิติ/ตัวเลขรายวัน — SQL ล้วน จึงอยู่ฝั่งนี้ (มี pg_cron คู่ขนานด้วย)
+  rollup: 'run_rollup',
 } as const;
 
 /**

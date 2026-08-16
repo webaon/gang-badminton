@@ -10,6 +10,8 @@ import type { GangRole } from '@/domain/permissions/types';
 import { formatInTimeZone } from '@/domain/time/timezone';
 import { RegistrationActions } from '@/features/sessions/RegistrationActions';
 import { CheckinQrButton } from '@/features/sessions/CheckinQrButton';
+import { SessionTimeline } from '@/features/reports/SessionTimeline';
+import { buildTimeline, type TimelineEvent } from '@/domain/reports/timeline';
 import { RosterSync } from '@/features/sessions/RosterSync';
 
 export const dynamic = 'force-dynamic';
@@ -78,6 +80,34 @@ export default async function SessionDetailPage({
   const waitlist = active.filter((r) => r.status === 'waitlist');
 
   const mine = rows.find((r) => r.user_id === user.id && !['cancelled'].includes(r.status));
+
+  // 🔴 [WO-3.C] timeline อ่านผ่าน client ที่ผูก session — **RLS เป็นด่านจริง**
+  //    ไม่ใช่ admin client แล้วมากรองเองใน TS
+  const { data: eventRows } = await supabase
+    .from('event_logs')
+    .select('id, event_type, created_at, payload, profiles:actor_id(display_name)')
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  type EventRow = {
+    id: string;
+    event_type: string;
+    created_at: string;
+    payload: Record<string, unknown> | null;
+    profiles: { display_name: string } | null;
+  };
+
+  const events: TimelineEvent[] = ((eventRows ?? []) as unknown as EventRow[]).map((e) => ({
+    id: e.id,
+    eventType: e.event_type,
+    createdAt: e.created_at,
+    actorName: e.profiles?.display_name ?? null,
+    payload: e.payload ?? {},
+  }));
+
+  // เรื่องเงินรายคนแสดงเฉพาะคนที่มีสิทธิ์ดู (กติกาเดียวกับ payments ใน WO-2.9)
+  const timeline = buildTimeline(events, can({ role }, 'payment.verify'));
 
   return (
     <main className="mx-auto max-w-2xl p-4">
@@ -156,6 +186,13 @@ export default async function SessionDetailPage({
               ))}
             </ul>
           )}
+        </Card>
+      </div>
+
+      <div className="mt-4">
+        <Card padding={6}>
+          <h2 className="mb-3 text-base font-semibold">ไทม์ไลน์</h2>
+          <SessionTimeline items={timeline} />
         </Card>
       </div>
     </main>

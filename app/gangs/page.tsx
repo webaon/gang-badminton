@@ -24,7 +24,13 @@ export default async function GangsPage() {
 
   return (
     <main className="mx-auto max-w-2xl p-4">
-      <h1 className="mb-4 text-xl font-semibold">ก๊วนของฉัน</h1>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">ก๊วนของฉัน</h1>
+        {/* [WO-3.E] ทางเข้า discovery — หาก๊วนใหม่เข้าโดยไม่ต้องรอใครชวน */}
+        <Link href="/discover" className="underline">
+          ค้นหาก๊วน
+        </Link>
+      </div>
 
       {gangs.length === 0 ? (
         <Card padding={4} variant="muted">

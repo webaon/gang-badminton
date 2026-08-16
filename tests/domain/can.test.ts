@@ -27,6 +27,8 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'payment.submit.self',
     'announcement.view',
     'notification.view.self',
+    // [WO-3.C] ต้องเปิด features.statistics ด้วยถึงจะได้ (ตารางนี้เทสต์ด้วย ALL_FEATURES)
+    'statistics.view',
   ],
   admin: [
     'gang.view',
@@ -37,11 +39,16 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'payment.submit.self',
     'announcement.view',
     'notification.view.self',
+    'statistics.view',
     'gang.update',
     'gang.member.manage',
     'gang.skill.manage',
     'gang.pricing.manage',
     'gang.finance.view',
+    // [WO-3.B] บันทึกรายรับ-รายจ่ายของก๊วน (ข้อมูลการเงิน — แอดมินเท่านั้น)
+    'gang.finance.manage',
+    // [WO-3.E] อนุมัติคำขอเข้าก๊วน (ต้องเปิด features.discovery ด้วย)
+    'gang.join_request.manage',
     'session.create',
     'session.update',
     'session.transition',
@@ -122,6 +129,16 @@ describe('can() — feature flag', () => {
     expect(can({ role: 'owner' }, 'registration.create.guest')).toBe(false);
     // แต่ action ที่ไม่ผูกกับ flag ต้องยังทำได้ตามปกติ
     expect(can({ role: 'owner' }, 'session.create')).toBe(true);
+  });
+
+  it('🔴 [WO-3.E] ปิด discovery → จัดการคำขอเข้าก๊วนไม่ได้ทุก role', () => {
+    const off = { ...ALL_FEATURES, discovery: false };
+    for (const role of GANG_ROLES) {
+      expect(can({ role, features: off }, 'gang.join_request.manage'), role).toBe(false);
+    }
+    expect(can({ role: 'admin', features: ALL_FEATURES }, 'gang.join_request.manage')).toBe(true);
+    // สมาชิกทั่วไปยังไม่ได้แม้เปิด flag
+    expect(can({ role: 'member', features: ALL_FEATURES }, 'gang.join_request.manage')).toBe(false);
   });
 
   it('flag ปิดไม่กระทบ action ที่ไม่เกี่ยวกับ flag นั้น', () => {

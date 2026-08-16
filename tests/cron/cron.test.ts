@@ -69,13 +69,15 @@ describe('WO-1.5 — cron', () => {
 
   // ===========================================================================
   describe('pg_cron ตั้งตารางไว้ครบ', () => {
-    it('job ทั้งสามถูก schedule และ active', async () => {
+    it('job ทุกใบถูก schedule และ active', async () => {
       const { rows } = await pool.query<{ jobname: string; active: boolean }>(
         `select jobname, active from cron.job where jobname like 'gang-badminton-%' order by jobname`,
       );
       expect(rows.map((r) => r.jobname)).toEqual([
         'gang-badminton-notification-sweep',
         'gang-badminton-rate-limits-purge',
+        // [WO-3.A] rollup รายคืน — ตี 2 เวลาไทย (19:00 UTC)
+        'gang-badminton-rollup',
         'gang-badminton-waitlist-sweep',
       ]);
       expect(rows.every((r) => r.active)).toBe(true);

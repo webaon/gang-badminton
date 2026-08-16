@@ -23,6 +23,11 @@ const EVENT_LABELS: Record<string, string> = {
   // [WO-2.5-G] งานเตือน
   'session.reminder': 'ใกล้ถึงเวลานัดแล้ว',
   'payment.overdue': 'ยังมียอดค้างจ่าย',
+  // [WO-3.D] ประกาศของก๊วน
+  'announcement.published': 'ประกาศใหม่จากก๊วน',
+  // [WO-3.E] คำขอเข้าก๊วน
+  'gang.join_requested': 'มีคนขอเข้าก๊วน',
+  'gang.join_decided': 'ผลคำขอเข้าก๊วนของคุณ',
 };
 
 export function NotificationList({ items }: { items: NotificationRow[] }) {

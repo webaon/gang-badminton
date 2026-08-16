@@ -11,6 +11,7 @@ import { GangSettingsForm } from '@/features/gangs/GangSettingsForm';
 import { PricingAndSkills } from '@/features/gangs/PricingAndSkills';
 import { reminderFromJson } from '@/domain/gangs/settings';
 import { MonthlyPlanForm } from '@/features/billing/MonthlyPlanForm';
+import { RecomputeStatsButton } from '@/features/reports/RecomputeStatsButton';
 import {
   courtPlusShuttleFromJson,
   flatRateFromJson,
@@ -162,6 +163,13 @@ export default async function GangSettingsPage({
               ดูรอบบิลรายเดือน
             </Link>
           </p>
+        </Card>
+      </div>
+
+      <div className="mt-4">
+        <Card padding={6}>
+          <h2 className="mb-2 text-base font-semibold">สถิติสมาชิก</h2>
+          <RecomputeStatsButton gangId={gangId} />
         </Card>
       </div>
     </main>
