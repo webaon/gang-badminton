@@ -303,23 +303,30 @@ npm test          # vitest run — 673 tests, 62 files (16 ส.ค. 2026)
 | 4.E | LIFF — หน้าจอในแอป LINE | — |
 | 4.F | E2E checkpoint + `v0.4.0` | — |
 
-### ✅ แตก WO ของ Phase 5 แล้ว (16 ส.ค. 2026) — **เริ่มที่ `WO-5.A`**
+### ✅ Phase 5: `WO-5.A` เสร็จแล้ว — **ต่อที่ `WO-5.B`** (security headers + CSP)
 
 6 ใบ (`WO-5.A` … `WO-5.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 8 ข้อ
 
 | WO | งาน |
 |---|---|
-| 5.A | ตัดสินเรื่อง dependency ที่มีช่องโหว่ (`npm audit` 4 high) — ต้องมี ADR |
+| 5.A | ตัดสินเรื่อง dependency ที่มีช่องโหว่ — ✅ **เสร็จ**: ขึ้น `next@16.3.1` (ADR-008) |
 | 5.B | Security headers + CSP ใน `next.config.ts` |
 | 5.C | rate limit ให้ครบทุกทางเข้าสาธารณะ + grep gate ของ secret/log |
 | 5.D | ปิดของค้างด้าน RLS (`event_logs` · `coupons` · `payment_adjustments` · ย้าย `promptpay_id`) |
 | 5.E | Playwright smoke + แยก CI gate เร็ว/ช้า |
 | 5.F | README ไทย + deploy runbook + ปิด §Security Checklist + tag `v1.0.0` |
 
+✅ **`WO-5.A` เสร็จแล้ว** (16 ส.ค. 2026) — **`next@15.5.23` → `16.3.1`** ตาม **ADR-008**
+`npm audit` = **0 vulnerabilities** (ไม่ต้องใช้ `overrides`) · 673 เทสต์ผ่าน · หน้าแรกยัง ISR
+
+🔴 **กติกาใหม่จาก 5.A**
+- ❌ **ห้ามส่ง `as={NextLink}` จาก server component** — Next 16 ห้ามส่ง component ข้ามขอบ RSC
+  ⇒ ลิงก์ Astryx ได้ `next/link` จาก `LinkProvider` ใน `app/providers.tsx` แล้ว (เผลอส่ง = build พัง)
+- entry point ของ Next คือ **`proxy.ts`** (เดิม `middleware.ts`) · `lib/supabase/middleware.ts` ชื่อเดิม
+- `tsconfig.json` ถูก Next แก้ให้เอง (`jsx: react-jsx`) — commit แล้ว อย่าย้อน
+
 ของจริงที่ตรวจไว้แล้วตอนแตกใบ (อย่าเสียเวลาค้นซ้ำ):
 - **`next.config.ts` ยังว่างเปล่า** — ไม่มี security headers / CSP เลย
-- **`npm audit` = 4 high**: `nanoid <3.3.18` (แก้ด้วย `npm audit fix` ธรรมดาได้) ·
-  `postcss` + `sharp` เป็น transitive ของ `next@15.5.23` ⇒ แก้ต้องขึ้น next@16 = **ADR**
 - **rate limit มีที่เดียว** (`enforceGuestRateLimit()` ของ guest ลงชื่อ)
   🔴 ที่ยังไม่มี: `searchGangs()` (คนไม่ล็อกอินยิง trgm ได้ไม่จำกัด) · LINE login callback ·
   guest claim · auth callback

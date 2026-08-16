@@ -1,4 +1,3 @@
-import NextLink from 'next/link';
 import { Card } from '@astryxdesign/core/Card';
 import { Heading } from '@astryxdesign/core/Heading';
 import { Link } from '@astryxdesign/core/Link';
@@ -61,13 +60,13 @@ export default async function LandingPage() {
           </Text>
 
           <HStack gap={4} wrap="wrap">
-            <Link as={NextLink} href="/discover" isStandalone hasUnderline>
+            <Link href="/discover" isStandalone hasUnderline>
               ค้นหาก๊วนใกล้ตัว
             </Link>
-            <Link as={NextLink} href="/sign-up" isStandalone hasUnderline>
+            <Link href="/sign-up" isStandalone hasUnderline>
               สมัครใช้งาน
             </Link>
-            <Link as={NextLink} href="/sign-in" isStandalone hasUnderline>
+            <Link href="/sign-in" isStandalone hasUnderline>
               เข้าสู่ระบบ
             </Link>
           </HStack>
@@ -115,10 +114,10 @@ export default async function LandingPage() {
               สมัครแล้วสร้างก๊วนของตัวเองได้เลย หรือค้นหาก๊วนที่เปิดรับสมาชิกแล้วส่งคำขอเข้าร่วม
             </Text>
             <HStack gap={4} wrap="wrap">
-              <Link as={NextLink} href="/gangs" isStandalone hasUnderline>
+              <Link href="/gangs" isStandalone hasUnderline>
                 สร้างก๊วนของฉัน
               </Link>
-              <Link as={NextLink} href="/discover" isStandalone hasUnderline>
+              <Link href="/discover" isStandalone hasUnderline>
                 ดูก๊วนที่เปิดรับ
               </Link>
             </HStack>

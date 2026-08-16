@@ -1410,7 +1410,7 @@ DoD ทั้ง 4 ข้อผ่านจริง:
 
 ---
 
-## WO-5.A: ตัดสินเรื่อง dependency ที่มีช่องโหว่ (`npm audit`)
+## WO-5.A: ตัดสินเรื่อง dependency ที่มีช่องโหว่ (`npm audit`) ✅ **เสร็จ (16 ส.ค. 2026)**
 
 **Goal**: ไม่มี high severity ค้างโดยไม่มีใครตัดสินใจ — และถ้าเลือกอยู่กับของเดิม ต้องมีเหตุผลที่ตรวจย้อนได้
 
@@ -1432,6 +1432,27 @@ DoD ทั้ง 4 ข้อผ่านจริง:
 - ❌ ห้ามปิดเสียง audit ด้วยการลบ lockfile หรือ pin ย้อนหลังแบบไม่บันทึกเหตุผล
 
 **References**: baseline §Security Checklist · `CLAUDE.md §7` (ตารางเวอร์ชันที่ pin) · `BACKLOG.md` §WO-1.1
+
+**ผลลัพธ์** — **ADR-008** ต่อท้าย baseline · `next@15.5.23` → **`16.3.1`** · `npm audit` **0 vulnerabilities** ·
+`app/providers.tsx` ใช้ `LinkProvider` ของ Astryx · `middleware.ts` → `proxy.ts` ·
+`CLAUDE.md §7` อัปตารางเวอร์ชัน · **ไม่มี `overrides`** ใน `package.json`
+
+DoD ทั้ง 4 ข้อผ่านจริง:
+- 🔴 ตัดสินใจบันทึกเป็น **ADR-008** พร้อมตัวเลขที่วัดเอง ไม่ใช่ commit message
+- **วัดก่อนตัดสิน**: อัปใน git worktree แยกแล้ววัด — `tsc` 0 error · `eslint` สะอาด ·
+  `npm test` 673/673 ผ่าน · `build` พังจุดเดียว (`<Link as={NextLink}>` บนหน้าแรก)
+  ⇒ เอาตัวเลขจริงไปเสนอเจ้าของงานแทนการเดา แล้วเจ้าของงานเลือก "ขึ้น 16 ตอนนี้"
+- หลังอัป: typecheck · lint · build · **673 เทสต์ผ่านครบ** · หน้าแรกยัง **`○ /` Revalidate 1h**
+  (ข้อจำกัด 7) · ทุกหน้าที่เคย `force-dynamic` ยังเหมือนเดิม
+- `npm audit` เหลือ **0 high** โดยไม่ต้องใช้ `overrides`
+
+**สิ่งที่เปลี่ยนและใบถัดไปต้องรู้**
+- 🔴 **ห้ามส่ง `as={NextLink}` จาก server component** — Next 16 ห้ามส่ง component ข้ามขอบ RSC
+  ⇒ ลิงก์ Astryx ได้ `next/link` จาก `LinkProvider` ใน `app/providers.tsx` อัตโนมัติแล้ว
+  (เผลอส่งจะพังตอน **build** ไม่ใช่ runtime ซึ่งดีกว่า)
+- entry point ของ Next คือ **`proxy.ts`** (ชื่อใหม่ของ middleware ใน 16) —
+  `lib/supabase/middleware.ts` ยังชื่อเดิมโดยตั้งใจ เพราะเป็น helper ของ Supabase
+- `tsconfig.json` ถูก Next แก้ให้เอง (`jsx: react-jsx` + include `.next/dev/types`) และ commit แล้ว
 
 ---
 

@@ -9,13 +9,19 @@
 
 ### 🔴 ความปลอดภัย — ต้องปิดก่อน production
 
-- [ ] **`npm audit`: 3 high severity ใน transitive deps ของ `next@15.5.23`**
+- [x] ~~**`npm audit`: 3 high severity ใน transitive deps ของ `next@15.5.23`**~~ — ✅ **WO-5.A / ADR-008**
+      (ตอนปิดจริงเป็น **4 high**: `nanoid` เพิ่มมาอีกตัว) · แก้ด้วยการ **ขึ้น `next@16.3.1`**
+      หลังวัดต้นทุนจริงใน worktree แยกก่อน (พังจุดเดียว: `<Link as={NextLink}>` บนหน้าแรก)
+      ⇒ `npm audit` = 0 vulnerabilities โดยไม่ต้องใช้ `overrides`
+
+  <details><summary>บริบทเดิม</summary>
   - `postcss <=8.5.22` — XSS ผ่าน unescaped `</style>`, path traversal ผ่าน `sourceMappingURL` (4 CVE)
   - `sharp <0.35.0` — libvips CVE-2026-33327 / 33328 / 35590 / 35591
   - `npm audit fix --force` จะดัน **next@16.3.0** = breaking + ขัด baseline ("Next.js 15") ⇒ **ต้องผ่าน ADR**
   - ⚠️ `sharp` คือตัวที่ `next/image` ใช้ประมวลผลรูป — โปรเจกต์นี้จะมี **avatar + สลิปโอนเงินที่ user อัปโหลด**
     ⇒ ประเมินความเสี่ยงจริงตอน Phase 3 (avatars) และ **บังคับปิดใน Phase 5 Security Checklist**
   - ทางเลือกที่ไม่ต้องขึ้น major: รอ Next 15.5.x patch, หรือ `overrides` ใน package.json บังคับ postcss/sharp เวอร์ชันใหม่
+  </details>
 
 ### CI / Tooling (baseline §Verification + §CI Gates — ยังไม่มี WO รองรับ)
 

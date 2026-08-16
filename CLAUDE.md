@@ -270,7 +270,7 @@ npm run supabase -- <cmd>  # Supabase CLI (local dev, migrations)
 
 | Package | Version | หมายเหตุ |
 |---|---|---|
-| `next` | `15.5.23` | baseline ระบุ Next.js 15 — ขึ้น 16 = ADR |
+| `next` | `16.3.1` | **[ADR-008]** ขึ้นจาก 15.5.23 เมื่อ 16 ส.ค. 2026 (ปิด `npm audit` 4 high) — ลิงก์ Astryx ใช้ `LinkProvider` แทน `as={NextLink}` · entry point คือ `proxy.ts` ไม่ใช่ `middleware.ts` |
 | `react` / `react-dom` | `19.2.8` | Astryx ต้องการ >= 19 |
 | `tailwindcss` | `4.3.3` | v4 (bridge ใช้ `@theme inline`) |
 | `@astryxdesign/core` · `theme-neutral` · `cli` | `0.3.0` | **Beta — pin ตายตัวทั้งชุด ต้องเวอร์ชันตรงกัน** |
