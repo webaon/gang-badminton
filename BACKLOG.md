@@ -385,7 +385,13 @@
 
 ### 🔴 ความปลอดภัย — `anon` อ่านคอลัมน์ลับของก๊วน public ได้
 
-- [ ] **`gangs_select_public` (0010) เปิดทั้ง "แถว" ไม่ใช่แค่ metadata**
+- [x] ~~**`gangs_select_public` (0010) เปิดทั้ง "แถว" ไม่ใช่แค่ metadata**~~ — ✅ **WO-3.G / ADR-007**
+      เลือกทางเลือก (ข): ถอด policy + `revoke select from anon` (migration `0034`)
+      คนนอกอ่านก๊วนผ่าน `search_public_gangs()` เท่านั้น · เทสต์ `tests/rls/public-gang-exposure.test.ts`
+      ⚠️ ทางเลือก (ค) **ย้าย `promptpay_id` ไปตาราง server-only ยังทำเพิ่มได้เป็น defense in depth**
+      (ตอนนี้คอลัมน์นี้ยังอ่านได้โดยสมาชิกทุกคนของก๊วน ซึ่งรับได้ แต่ไม่จำเป็นต้องเปิดถึงขนาดนั้น)
+
+  <details><summary>บริบทเดิมของช่องโหว่</summary>
       RLS กรองได้แค่ระดับแถว ⇒ ใครก็ได้ที่มี anon key ยิง
       `GET /rest/v1/gangs?select=promptpay_id&is_public=eq.true` แล้วได้
       **PromptPay ID (เบอร์โทร) ของทุกก๊วนที่เปิดสาธารณะ** — ยืนยันของจริงบน local แล้ว
@@ -402,6 +408,8 @@
             ปิดสนิททั้งสอง role แต่ขัดตัวอักษรของ baseline ⇒ ต้องมี **ADR**
         (ค) ย้าย `promptpay_id` ออกจาก `gangs` ไปตารางที่ server-only เหมือน `gang_line_configs`
       · **ควรปิดก่อนเปิด discovery ให้ผู้ใช้จริง**
+  </details>
+
 - [ ] **`event_logs` ยังเป็นระดับก๊วน** — สมาชิกทั่วไปยิง PostgREST อ่าน `payload` ดิบได้
       (ไทม์ไลน์กรอง `adminOnly` ที่ชั้น `domain/` เท่านั้น — ตัดสินไว้ตั้งแต่ WO-3.C)
       ⇒ ถ้าจะปิดจริงต้องรัด RLS ของ `event_logs` ตาม event type ซึ่งกระทบทุกหน้าที่อ่าน timeline

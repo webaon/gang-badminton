@@ -186,20 +186,20 @@ describe('WO-1.4 — ช่องโหว่ที่ WO-1.3 เปิดค้
   });
 
   // ---------------------------------------------------------------------------
-  it('anon เห็นเฉพาะก๊วน public และเห็นแค่ตาราง gangs เท่านั้น', async () => {
+  it('🔴 [ADR-007] anon แตะตาราง gangs ไม่ได้แล้ว แม้ก๊วนนั้นเปิดสาธารณะ', async () => {
     const pubOwner = await createUser('wg-pub-owner');
     const pub = await createFixture({ ownerId: pubOwner, maxPlayers: 4 });
     await pool.query(`update public.gangs set is_public = true where id = $1`, [pub.gangId]);
 
-    await asRole('anon', null, async (c) => {
-      const seen = await c.query(`select id from public.gangs where id = $1`, [pub.gangId]);
-      expect(seen.rows, 'anon ต้องเห็นก๊วน public').toHaveLength(1);
+    // ⚠️ เทสต์นี้เคยยืนยันว่า "anon ต้องเห็นก๊วน public" ตาม policy `gangs_select_public`
+    //    ของ WO-1.4 — migration 0034 ถอด policy นั้นทิ้งตาม **ADR-007** เพราะ RLS กรอง
+    //    ได้แค่แถว ทำให้ `promptpay_id` ของก๊วนสาธารณะหลุดถึงใครก็ได้ที่ถือ anon key
+    //    ⇒ คนนอกอ่านก๊วนผ่าน `search_public_gangs()` เท่านั้น (ดู tests/rls/public-gang-exposure)
+    expect(
+      await attempt(null, `select 1 from public.gangs where id = $1`, [pub.gangId], 'anon'),
+    ).toBe('42501');
 
-      const hidden = await c.query(`select id from public.gangs where id = $1`, [gangId]);
-      expect(hidden.rows, 'anon ต้องไม่เห็นก๊วนที่ไม่ public').toHaveLength(0);
-    });
-
-    // ตารางอื่นแม้แต่ของก๊วน public ก็ต้องไม่หลุด
+    // ตารางอื่นแม้แต่ของก๊วน public ก็ต้องไม่หลุด (เหมือนเดิม)
     expect(
       await attempt(null, `select 1 from public.gang_members where gang_id = $1`, [pub.gangId], 'anon'),
     ).toBe('42501');

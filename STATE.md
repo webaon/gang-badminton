@@ -27,7 +27,7 @@
 ## 2. Git
 
 ```
-tag ล่าสุด: v0.3.0 (Phase 3 — merge เข้า main แล้วผ่าน PR #3 `8bfa947`, CI เขียว)
+tag ล่าสุด: v0.3.1 (WO-3.G — ปิดช่องโหว่ ADR-007) · v0.3.0 = Phase 3 ครบ (PR #3)
 branch: claude/badminton-group-system-4pfs7o   (ทำงานอยู่บนนี้ — WO ทุกใบ commit ที่นี่)
         main                                    (ตามทันแล้วถึง v0.3.0)
 ```
@@ -85,7 +85,7 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 | | |
 |---|---|
 | project / ref | **gang-badminton** · `emmzeriekkjryhucvctx` |
-| migrations ที่ apply แล้ว | **33 / 33** ✅ (push ล่าสุด 15 ส.ค. 2026 — `0033` ของ WO-3.E) |
+| migrations ที่ apply แล้ว | **34 / 34** ✅ (push ล่าสุด 16 ส.ค. 2026 — `0034` ของ WO-3.G) |
 | ข้อมูลใน DB | 0 แถวทุกตาราง (ไม่ได้ push seed ขึ้นไป — `seeds: []`) |
 | RLS | ✅ 29/29 ตาราง · 50 policies + 16 บน storage.objects |
 | storage | ✅ 4 buckets · cron ✅ 3 jobs active |
@@ -186,7 +186,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 571 tests, 55 files (16 ส.ค. 2026)
+npm test          # vitest run — 577 tests, 56 files (16 ส.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -202,6 +202,7 @@ npm test          # vitest run — 571 tests, 55 files (16 ส.ค. 2026)
 | `tests/rls/write-guards.test.ts` | ช่องโหว่ WO-1.3 ที่ปิดแล้ว — EXECUTE grant · INSERT status · เขียน registrations ตรง |
 | `tests/cron/cron.test.ts` | **DoD WO-1.5** — CRON_SECRET (รวม fail-closed + timing-safe) · pg_cron schedule · sweep ทั้งสาม |
 | `tests/seed/idempotency.test.ts` | **DoD WO-1.5** — รัน seed ไฟล์จริงซ้ำ 3 รอบ สถานะต้องไม่เปลี่ยน |
+| `tests/rls/public-gang-exposure.test.ts` | **WO-3.G / ADR-007** — anon แตะ `gangs` ไม่ได้ · คนนอกอ่านก๊วน public ไม่ได้ · `promptpay_id` ไม่หลุด · discovery ยังทำงาน |
 | `tests/rls/grant-matrix.test.ts` | สิทธิ์ระดับตารางตรงกับที่ประกาศไว้เป๊ะ — กัน default ACL ของ environment แอบให้สิทธิ์เกิน |
 | `tests/domain/can.test.ts` | **WO-2.1** — ทุก role × action + feature flag (pure ไม่แตะ DB) |
 | `tests/domain/action-helper.test.ts` | **WO-2.1** — `rowCount 0 → FORBIDDEN` · storage path + path traversal |
@@ -247,9 +248,7 @@ npm test          # vitest run — 571 tests, 55 files (16 ส.ค. 2026)
 | 5 | `member_statistics` เปิด `total_paid` ของทุกคนให้สมาชิกทั้งก๊วน | ✅ ปิดแล้ว — `0031` (WO-3.C) |
 | 6 | `announcements` เปิด**ร่าง**ให้สมาชิกเห็น | ✅ ปิดแล้ว — `0032` (WO-3.D) |
 | 7 | `join_requests` ยิงคำขอเข้าก๊วนส่วนตัวได้ / แอดมินตั้ง `approved` ตรงได้ | ✅ ปิดแล้ว — `0033` (WO-3.E) |
-
-🔴 **ที่ยังเปิดอยู่และต้องตัดสิน**: `gangs_select_public` ทำให้ `anon` อ่าน `promptpay_id`
-ของก๊วนสาธารณะได้ — รายละเอียด + สามทางเลือกอยู่ใน §7 และ `BACKLOG.md` §WO-3.E
+| 8 | `gangs_select_public` ทำให้ `anon` อ่าน `promptpay_id` ของก๊วนสาธารณะได้ | ✅ ปิดแล้ว — `0034` (WO-3.G / ADR-007) |
 
 ➡️ ผลข้างเคียงที่ต้องรู้: **ทุก DB function เรียกได้เฉพาะ `service_role`**
 หมายความว่า guest ลงชื่อต้องผ่าน route handler ฝั่งเรา (ที่ validate + rate limit) เท่านั้น
@@ -271,14 +270,18 @@ npm test          # vitest run — 571 tests, 55 files (16 ส.ค. 2026)
 | 3.E | Discovery (pg_trgm) + คำขอเข้าก๊วน | `0033` |
 | 3.F | หน้าแรก static/ISR + E2E checkpoint | — |
 
-### 🔴 ต้องตัดสินก่อนเปิด discovery ให้ผู้ใช้จริง (ค้างจาก WO-3.E)
+### ✅ ปิดช่องโหว่ `promptpay_id` แล้ว — `WO-3.G` / **ADR-007** (16 ส.ค. 2026)
 
-`gangs_select_public` (0010) เปิดทั้ง**แถว** ไม่ใช่แค่ metadata ⇒ ใครก็ได้ที่ถือ **anon key**
-ยิง `GET /rest/v1/gangs?select=promptpay_id&is_public=eq.true` แล้วได้ **PromptPay ID ของทุกก๊วนสาธารณะ**
-(ยืนยันของจริงบน local แล้ว) · เป็นการนิยามใหม่ว่า "metadata สาธารณะ" คือคอลัมน์ไหน = เรื่องสถาปัตยกรรม
-⇒ สามทางเลือก (column grant ให้ `anon` / ถอด policy แล้วให้ผ่าน `search_public_gangs()` + ADR /
-ย้าย `promptpay_id` ไปตารางแบบ `gang_line_configs`) อยู่ใน `BACKLOG.md` §WO-3.E
-ผลการไล่ policy 0010 ที่เหลือ: `event_logs` ยังเป็นระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
+`gangs_select_public` (0010) เปิดทั้ง**แถว** ⇒ ใครถือ **anon key** ก็อ่าน `promptpay_id`
+ของทุกก๊วนสาธารณะได้ (ยืนยันของจริงแล้ว) · **แก้ด้วยทางเลือก (ข)**: ถอด policy ทิ้ง +
+`revoke select on gangs from anon` (migration `0034`) ⇒ คนนอกอ่านก๊วนได้ทางเดียวคือ
+`search_public_gangs()` ที่ประกาศคอลัมน์ไว้ชัด · cloud **34/34** (ตรวจของจริง: เหลือ 3 policy
+บน `gangs` และ `anon` ไม่มี grant ใดๆ)
+
+➡️ **หน้าโปรไฟล์ก๊วนสาธารณะในอนาคตต้องเพิ่ม DB function** ❌ ห้ามเปิด policy ให้อ่าน `gangs` ตรงกลับมา
+➡️ ทางเลือก (ค) ย้าย `promptpay_id` ไปตาราง server-only ยังทำเพิ่มได้เป็น defense in depth (`BACKLOG.md`)
+
+ของที่ยังค้างจากการไล่ policy 0010: `event_logs` ยังเป็นระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
 `payment_adjustments` แอดมินเท่านั้น — จดไว้ใน `BACKLOG.md` แล้วทั้งหมด
 
 ### ต่อไป: **Phase 4 — LINE** (baseline §Roadmap)
@@ -361,7 +364,6 @@ baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
 
 - [ ] **Playwright** — E2E ผ่านเบราว์เซอร์จริง (ตอนนี้ E2E เดินผ่าน DB function + domain)
 - [ ] **ให้ก๊วนจริงลองใช้** แล้วเก็บ feedback ก่อนเริ่ม Phase 4
-- [ ] 🔴 ปิดเรื่อง `promptpay_id` ที่หลุดผ่าน `gangs_select_public` ก่อนเปิด discovery จริง
 - [ ] ของค้างอื่นดู `BACKLOG.md`
 
 ---
