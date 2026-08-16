@@ -1311,7 +1311,7 @@ DoD ทั้ง 5 ข้อผ่านจริง:
 
 ---
 
-## WO-4.F: Phase 4 checkpoint + `v0.4.0`
+## WO-4.F: Phase 4 checkpoint + `v0.4.0` ✅ **เสร็จ (16 ส.ค. 2026)**
 
 **Goal**: พิสูจน์ว่า LINE ทั้งชุดทำงานร่วมกับของเดิมได้จริง แล้วปิด Phase
 
@@ -1332,3 +1332,28 @@ DoD ทั้ง 5 ข้อผ่านจริง:
 - ❌ ห้ามข้าม E2E ของ Phase ก่อนหน้า · ❌ ห้าม commit ค่า credential จริงลง `.env.example`
 
 **References**: baseline §Roadmap Phase 4 · §Verification · §Release Versioning
+
+**ผลลัพธ์** — **ไม่มี migration ใหม่** · `tests/e2e/phase4-full-path.test.ts` (3 เทสต์) ·
+`.env.example` ส่วน LINE ครบพร้อมที่มาของค่าทุกตัวใน LINE Developers Console
+
+DoD ทั้ง 4 ข้อผ่านจริง:
+- **E2E ของ Phase 4**: ตั้งค่า LINE ผ่าน Vault (ยืนยันว่าตารางไม่มี plaintext) →
+  ผูกบัญชี**ผ่าน webhook จริง** (ลายเซ็นถูก 200 / ลายเซ็นผิด 401) → ประกาศหนึ่งใบ →
+  ได้ `in_app` 3 ใบ + `line` 1 ใบ (เฉพาะคนที่ผูกบัญชี) → worker ส่งจริง →
+  `notification_logs` นับโควต้าตรง → ตั้งโควต้าเต็มแล้วไม่มีแถว `line` อีก →
+  เลิกผูกแล้วรอบถัดไปก็ไม่มี · เส้นเต็มของ MVP-0 / Phase 2.5 / Phase 3 ยังผ่านครบ
+  (`npm test` = 673 เทสต์ / 62 ไฟล์)
+- 🔴 **ก๊วนที่ไม่ได้ต่อ LINE เลยทำงานเหมือนเดิมทุกประการ** — ได้ `in_app` ครบ ไม่มีแถว/log ของ `line`
+  และ worker ไม่ล้ม (เทสต์แยกใบ)
+- `.env.example` ครบ: `LINE_LINK_SECRET`, `APP_BASE_URL` + บล็อกอธิบายว่า **ค่าของแต่ละก๊วน
+  ไม่ได้อยู่ใน env** แต่กรอกในหน้าตั้งค่าแล้วเก็บลง Vault พร้อมทางเดินใน LINE Developers Console
+  ของทุกค่า (Messaging API token/secret · Login channel · LIFF · Webhook/Callback/Endpoint URL)
+- tag **`v0.4.0`** ตาม §Release Versioning
+
+**การตัดสินใจของเทสต์ที่บันทึกไว้**
+- ปลายทาง LINE ถูกแทนด้วย `fetch` ปลอมที่ **ส่ง request อื่นต่อให้ตัวจริง** — `supabase-js`
+  ก็ใช้ `fetch` ⇒ ดักทั้งหมดเมื่อไหร่ RPC พังทันที (เสียเวลาไปแล้วรอบหนึ่ง)
+- ใช้ `drainQueue()` วนเรียก worker จนคิวหมด แทนการเรียกครั้งเดียว — `dispatchNotifications()`
+  หยิบงานของ**ทั้งฐานข้อมูล**ครั้งละ 25 แถว ⇒ ของค้างจากเทสต์อื่นกิน batch จนงานของเทสต์นี้
+  ไม่ถูกหยิบได้ (เทสต์ชุดนี้ไม่ล้างข้อมูลระหว่างรันโดยตั้งใจ)
+- ❌ ไม่ assert "ไม่มี push เลย" แบบรวมทั้งระบบ — assert เฉพาะขอบเขตของก๊วนในเทสต์นั้น

@@ -1,7 +1,8 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 16 ส.ค. 2026** · MVP-0 = `v0.1.0` · Phase 2.5 = `v0.2.0` · **Phase 3 เสร็จครบ 6 ใบ = `v0.3.0`**
+> **อัปเดตล่าสุด: 16 ส.ค. 2026** · MVP-0 = `v0.1.0` · Phase 2.5 = `v0.2.0` ·
+> Phase 3 = `v0.3.0` (+ `v0.3.1` ปิดช่องโหว่ ADR-007) · **Phase 4 (LINE) เสร็จครบ 6 ใบ = `v0.4.0`**
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -27,7 +28,7 @@
 ## 2. Git
 
 ```
-tag ล่าสุด: v0.3.1 (WO-3.G — ปิดช่องโหว่ ADR-007) · v0.3.0 = Phase 3 ครบ (PR #3)
+tag ล่าสุด: v0.4.0 (Phase 4 — LINE ครบ 6 ใบ) · v0.3.1 (ADR-007) · v0.3.0 (Phase 3)
 branch: claude/badminton-group-system-4pfs7o   (ทำงานอยู่บนนี้ — WO ทุกใบ commit ที่นี่)
         main                                    (ตามทันแล้วถึง v0.3.0)
 ```
@@ -186,7 +187,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 670 tests, 61 files (16 ส.ค. 2026)
+npm test          # vitest run — 673 tests, 62 files (16 ส.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -202,6 +203,7 @@ npm test          # vitest run — 670 tests, 61 files (16 ส.ค. 2026)
 | `tests/rls/write-guards.test.ts` | ช่องโหว่ WO-1.3 ที่ปิดแล้ว — EXECUTE grant · INSERT status · เขียน registrations ตรง |
 | `tests/cron/cron.test.ts` | **DoD WO-1.5** — CRON_SECRET (รวม fail-closed + timing-safe) · pg_cron schedule · sweep ทั้งสาม |
 | `tests/seed/idempotency.test.ts` | **DoD WO-1.5** — รัน seed ไฟล์จริงซ้ำ 3 รอบ สถานะต้องไม่เปลี่ยน |
+| `tests/e2e/phase4-full-path.test.ts` | 🎉 **Phase 4 checkpoint** — ตั้งค่า Vault → ผูกผ่าน webhook → ประกาศ → ส่งจริง → โควต้า → เลิกผูก · ก๊วนที่ไม่ต่อ LINE ต้องเหมือนเดิม |
 | `tests/line/liff.test.ts` | **WO-4.E** — ที่ว่างนับแบบ [D-10] · หนี้จากนัดที่ปิดแล้วยังนับ · ไม่มี service-role/LIFF SDK ในเส้นทาง |
 | `tests/line/login.test.ts` | **WO-4.D** — state/nonce · ไม่ล็อกอิน/คนละคน = ปฏิเสธ · เลิกผูกแล้วคิวถูกปิด |
 | `tests/line/fanout.test.ts` | **WO-4.C** — fan-out `line` (คีย์ `in_app` ไม่เปลี่ยน) · ปิด flag/ไม่ผูก/บล็อก/เกินโควต้า = ไม่มีแถว line · ข้อความ whitelist |
@@ -289,67 +291,44 @@ npm test          # vitest run — 670 tests, 61 files (16 ส.ค. 2026)
 ของที่ยังค้างจากการไล่ policy 0010: `event_logs` ยังเป็นระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
 `payment_adjustments` แอดมินเท่านั้น — จดไว้ใน `BACKLOG.md` แล้วทั้งหมด
 
-### ✅ Phase 4: `4.A`–`4.E` เสร็จแล้ว — **เหลือ `WO-4.F`** (checkpoint + tag `v0.4.0` + merge เข้า main)
+### 🎉 Phase 4 (LINE) เสร็จครบ 6 ใบ — tag **`v0.4.0`**
 
-6 ใบ (`WO-4.A` … `WO-4.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 10 ข้อ
+| WO | งาน | migration |
+|---|---|---|
+| 4.A | Vault + หน้าตั้งค่า LINE ต่อก๊วน | `0035` |
+| 4.B | webhook ต่อก๊วน + ผูกบัญชีด้วยรหัสในแชต | `0036` |
+| 4.C | fan-out `line` ในคิวเดิม + ส่งจริง + โควต้าต่อเดือน | `0037` |
+| 4.D | LINE Login (ผูกด้วยปุ่มเดียว) | `0038` |
+| 4.E | LIFF — หน้าจอในแอป LINE | — |
+| 4.F | E2E checkpoint + `v0.4.0` | — |
 
-| WO | งาน |
-|---|---|
-| 4.A | Vault + หน้าตั้งค่า LINE ต่อก๊วน (เก็บแค่ secret id) ✅ **เสร็จ** (`0035`) |
-| 4.B | webhook `/api/line/webhook/[gangId]` + ผูกบัญชี (`member_line_links`) ✅ **เสร็จ** (`0036`) |
-| 4.C | worker ส่ง LINE จริง + fan-out ในคิวเดิม + โควต้าต่อก๊วนต่อเดือน ✅ **เสร็จ** (`0037`) |
-| 4.D | LINE Login — ผูกบัญชีโดยไม่ต้องพิมพ์รหัส ✅ **เสร็จ** (`0038`) |
-| 4.E | LIFF — หน้าจอในแอป LINE ✅ **เสร็จ** (ไม่มี migration) |
-| 4.F | checkpoint + tag `v0.4.0` |
+### ต่อไป: **Phase 5 — Hardening & Deploy** (baseline §Roadmap)
 
-✅ **`WO-4.A` เสร็จแล้ว** (16 ส.ค. 2026) — migration `0035` push cloud แล้ว (35/35)
-ตรวจของจริงบน cloud: 6 ฟังก์ชันครบ + **Vault round-trip ผ่าน** (`supabase_vault 0.3.1`)
-⇒ ไม่ต้องใช้ fallback AES-256-GCM · สิ่งที่ `WO-4.B` หยิบไปใช้ได้เลยคือ
-`get_gang_line_credentials(gang_id)` (service_role) ที่คืน `channel_secret` สำหรับ verify signature
+ยังไม่ได้แตก WO (กติกา: แตกตอนจะเริ่ม Phase นั้น) · ขอบเขตตาม baseline:
+**E2E เต็ม flow → RLS tests → README (ไทย): setup Supabase, env vars, Vault, cron, deploy Vercel**
+พร้อม **§Security Checklist** ที่ต้องผ่านก่อน deploy จริง — ของที่ยังค้างจาก checklist นั้น:
+- [ ] **Playwright** (E2E ผ่านเบราว์เซอร์จริง) — ตอนนี้ E2E เดินผ่าน DB function + domain
+- [ ] **Security headers + CSP** บน Next.js config (ยังไม่มี)
+- [ ] **`npm audit` 3 high** ใน transitive deps ของ `next@15.5.23` — แก้ต้องขึ้น next@16 = ADR
+- [ ] **rate limit** บน endpoint ที่ guest/public เรียกได้ทุกตัว (มีเฉพาะ guest register)
+- [ ] ของค้างอื่นดู `BACKLOG.md` (`event_logs` ระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
+      ย้าย `promptpay_id` ไปตาราง server-only เป็น defense in depth)
 
-✅ **`WO-4.B` เสร็จแล้ว** (16 ส.ค. 2026) — migration `0036` push cloud แล้ว (36/36)
-ตรวจของจริงบน cloud: คอลัมน์ `blocked_at` + 3 ฟังก์ชัน (`link_line_account` /
-`unlink_line_account` / `set_line_link_blocked`)
+### 🔴 กติกาของ Phase 4 ที่ Phase ถัดไปห้ามทำผิด
 
-✅ **`WO-4.C` เสร็จแล้ว** (16 ส.ค. 2026) — migration `0037` push cloud แล้ว (37/37)
-ตรวจของจริงบน cloud: `monthly_quota` + 3 ฟังก์ชัน + `enqueue_notifications` เป็นเวอร์ชัน fan-out แล้ว
-· ปิดของค้างจาก 4.B แล้ว (ข้อความ "ผูกบัญชีเรียบร้อย" ส่งผ่านคิว ไม่ใช่ reply API)
-
-✅ **`WO-4.D` เสร็จแล้ว** (16 ส.ค. 2026) — migration `0038` push cloud แล้ว (38/38)
-ตรวจของจริงบน cloud: 3 ฟังก์ชันของ Login channel + `unlink_line_account` เป็นเวอร์ชันที่ปิดคิวให้ด้วย
-· callback อยู่ที่ `/api/line/login/callback` (ตั้งใน LINE Developers Console ให้ตรง)
-
-✅ **`WO-4.E` เสร็จแล้ว** (16 ส.ค. 2026) — **ไม่มี migration ใหม่** (cloud ยังตรงที่ 38)
-หน้า LIFF = `/gangs/[gangId]/liff` (ตั้งเป็น Endpoint URL ของ LIFF app)
-🔴 **ไม่ใช้ LIFF SDK / ไม่เชื่อ `liff.getProfile()`** — ใช้ session ของ Supabase เหมือนหน้าปกติ
-⇒ ทุกปุ่มเรียก server action ตัวเดิม ไม่มีเส้นทางที่ข้าม `can()`/RLS (มีเทสต์คุมระดับ source)
-
-🔴 **กติกาใหม่จาก 4.D**
-- ผูกบัญชีมีสองทาง (รหัสในแชต · LINE Login) แต่ทั้งคู่ลงเอยที่ `server/line/link.ts`
-  ⇒ ❌ ห้ามเขียนทางผูกบัญชีทางที่สามที่ไม่ผ่านไฟล์นี้
-- `state`/`nonce` เป็น stateless ทั้งคู่ (HMAC + cookie httpOnly) — ❌ ห้ามเพิ่มตารางเก็บ
-- **Login channel ต้องอยู่ provider เดียวกับ Messaging API** ไม่งั้น `userId` คนละใบ
-
-🔴 **กติกาใหม่จาก 4.C ที่ใบถัดไปห้ามทำผิด**
 - คิวมี **สอง channel ต่อหนึ่งงาน**: `in_app` (คีย์เดิม) + `line` (`<คีย์เดิม>:line`)
   ⇒ ❌ ห้ามเปลี่ยนรูปคีย์ของ `in_app` เด็ดขาด (ของที่เคยกันซ้ำจะพังทั้งระบบ)
-- แถว `line` เกิดเฉพาะเมื่อ: ก๊วนเปิด LINE **และ** ผู้รับผูกบัญชี **และ** ไม่ได้บล็อก OA
-  **และ** ยังไม่เกินโควต้าเดือนนั้น — ตรวจใน `enqueue_notifications()` และซ้ำอีกรอบตอนส่งจริง
-- โควต้าอ่านจาก `notification_logs` (success เท่านั้น) — ❌ ห้ามสร้างตัวนับที่อื่น
+- แถว `line` เกิดเฉพาะเมื่อ ก๊วนเปิด LINE **และ** ผู้รับผูกบัญชี **และ** ไม่บล็อก OA
+  **และ** ยังไม่เกินโควต้า — ตรวจใน `enqueue_notifications()` และซ้ำอีกรอบตอนส่งจริง
+- โควต้าอ่านจาก `notification_logs` (`success` เท่านั้น) — ❌ ห้ามสร้างตัวนับที่อื่น
 - ข้อความ LINE ต้องผ่าน `domain/notifications/line-message.ts` (whitelist ต่อ event type)
   ❌ ห้ามยัด payload ดิบหรือยอดเงินรายคนลงข้อความ
-- env ที่ต้องมีจริงตอน deploy: **`LINE_LINK_SECRET`** (อยู่ใน `.env.example` แล้ว)
-
-ของจริงที่ตรวจไว้แล้ว (อย่าเสียเวลาค้นซ้ำ):
-- ❌ **ตัดสินใจไม่ติดตั้ง `@line/bot-sdk`** — ใช้ `fetch` + `node:crypto` แทน
-  (เหตุผลอยู่ใน `lib/line/client.ts` และท้าย `AGENT-EXECUTION.md` ใบ 4.A)
-- **`enqueue_notifications()` (0029) ฮาร์ดโค้ด `channel = 'in_app'`** ⇒ fan-out ไป `line`
-  ต้องแก้ที่ฟังก์ชันนี้ (migration ใหม่) ไม่ใช่แก้ทีละผู้เรียก
-- **`deliver()` ใน `server/cron/notifications.ts` มี `case 'line'` รออยู่แล้ว** = จุดเสียบของ `WO-4.C`
-- 🔴 `dedupe_key` unique ทั้งตาราง ⇒ fan-out ต้องมี channel ในคีย์ และ
-  **ห้ามเปลี่ยนรูปคีย์ของ `in_app` ที่ส่งไปแล้ว** ไม่งั้นผู้ใช้โดนยิงซ้ำทั้งระบบ
-- ❌ **ห้ามเพิ่มตารางนอก baseline** — `gang_line_configs` / `member_line_links` (0006) และ
-  `notification_logs` (0005) มีครบแล้ว · รหัสผูกบัญชีให้ใช้ nonce แบบ stateless
+- credentials ของก๊วนอยู่ใน **Vault** เท่านั้น (ตารางถือแค่ secret id) ·
+  ฟังก์ชันที่คืน plaintext มีสามตัวและ grant ให้ `service_role` ล้วน
+- ผูกบัญชีมีสองทาง (รหัสในแชต · LINE Login) แต่ทั้งคู่ลงเอยที่ `server/line/link.ts`
+  ⇒ ❌ ห้ามเขียนทางที่สามที่ไม่ผ่านไฟล์นี้
+- LIFF ไม่ใช้ SDK และไม่เชื่อ `liff.getProfile()` — ใช้ session ของ Supabase เหมือนหน้าปกติ
+- env ที่ต้องมีจริงตอน deploy: **`LINE_LINK_SECRET`** (+ `APP_BASE_URL` ถ้าอยู่หลัง proxy)
 
 ### สิ่งที่เปลี่ยนไปใน Phase 3 ที่ Phase ถัดไปต้องรู้
 
