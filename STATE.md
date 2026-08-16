@@ -85,7 +85,7 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 | | |
 |---|---|
 | project / ref | **gang-badminton** · `emmzeriekkjryhucvctx` |
-| migrations ที่ apply แล้ว | **35 / 35** ✅ (push ล่าสุด 16 ส.ค. 2026 — `0035` ของ WO-4.A) |
+| migrations ที่ apply แล้ว | **36 / 36** ✅ (push ล่าสุด 16 ส.ค. 2026 — `0036` ของ WO-4.B) |
 | ข้อมูลใน DB | 0 แถวทุกตาราง (ไม่ได้ push seed ขึ้นไป — `seeds: []`) |
 | RLS | ✅ 29/29 ตาราง · 50 policies + 16 บน storage.objects |
 | storage | ✅ 4 buckets · cron ✅ 3 jobs active |
@@ -186,7 +186,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 592 tests, 57 files (16 ส.ค. 2026)
+npm test          # vitest run — 619 tests, 58 files (16 ส.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -202,6 +202,7 @@ npm test          # vitest run — 592 tests, 57 files (16 ส.ค. 2026)
 | `tests/rls/write-guards.test.ts` | ช่องโหว่ WO-1.3 ที่ปิดแล้ว — EXECUTE grant · INSERT status · เขียน registrations ตรง |
 | `tests/cron/cron.test.ts` | **DoD WO-1.5** — CRON_SECRET (รวม fail-closed + timing-safe) · pg_cron schedule · sweep ทั้งสาม |
 | `tests/seed/idempotency.test.ts` | **DoD WO-1.5** — รัน seed ไฟล์จริงซ้ำ 3 รอบ สถานะต้องไม่เปลี่ยน |
+| `tests/line/webhook.test.ts` | **WO-4.B** — ลายเซ็นจาก raw body · ข้ามก๊วนไม่ผ่าน · flag ปิด = 403 · follow/unfollow · รหัสผูกบัญชี stateless |
 | `tests/line/credentials.test.ts` | **WO-4.A** — Vault: ไม่มี plaintext ใน DB · status ปิดบัง 4 ตัวท้าย · หมุน/ถอด · เปิด flag ต้องครบก่อน |
 | `tests/rls/public-gang-exposure.test.ts` | **WO-3.G / ADR-007** — anon แตะ `gangs` ไม่ได้ · คนนอกอ่านก๊วน public ไม่ได้ · `promptpay_id` ไม่หลุด · discovery ยังทำงาน |
 | `tests/rls/grant-matrix.test.ts` | สิทธิ์ระดับตารางตรงกับที่ประกาศไว้เป๊ะ — กัน default ACL ของ environment แอบให้สิทธิ์เกิน |
@@ -285,14 +286,14 @@ npm test          # vitest run — 592 tests, 57 files (16 ส.ค. 2026)
 ของที่ยังค้างจากการไล่ policy 0010: `event_logs` ยังเป็นระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
 `payment_adjustments` แอดมินเท่านั้น — จดไว้ใน `BACKLOG.md` แล้วทั้งหมด
 
-### ✅ แตก WO ของ Phase 4 แล้ว (16 ส.ค. 2026) — **`WO-4.A` เสร็จแล้ว · ต่อที่ `WO-4.B`**
+### ✅ Phase 4: `WO-4.A` + `WO-4.B` เสร็จแล้ว — **ต่อที่ `WO-4.C`**
 
 6 ใบ (`WO-4.A` … `WO-4.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 10 ข้อ
 
 | WO | งาน |
 |---|---|
 | 4.A | Vault + หน้าตั้งค่า LINE ต่อก๊วน (เก็บแค่ secret id) ✅ **เสร็จ** (`0035`) |
-| 4.B | webhook `/api/line/webhook/[gangId]` + ผูกบัญชี (`member_line_links`) |
+| 4.B | webhook `/api/line/webhook/[gangId]` + ผูกบัญชี (`member_line_links`) ✅ **เสร็จ** (`0036`) |
 | 4.C | worker ส่ง LINE จริง + fan-out ในคิวเดิม + โควต้าต่อก๊วนต่อเดือน |
 | 4.D | LINE Login — ผูกบัญชีโดยไม่ต้องพิมพ์รหัส |
 | 4.E | LIFF — หน้าจอในแอป LINE |
@@ -302,6 +303,16 @@ npm test          # vitest run — 592 tests, 57 files (16 ส.ค. 2026)
 ตรวจของจริงบน cloud: 6 ฟังก์ชันครบ + **Vault round-trip ผ่าน** (`supabase_vault 0.3.1`)
 ⇒ ไม่ต้องใช้ fallback AES-256-GCM · สิ่งที่ `WO-4.B` หยิบไปใช้ได้เลยคือ
 `get_gang_line_credentials(gang_id)` (service_role) ที่คืน `channel_secret` สำหรับ verify signature
+
+✅ **`WO-4.B` เสร็จแล้ว** (16 ส.ค. 2026) — migration `0036` push cloud แล้ว (36/36)
+ตรวจของจริงบน cloud: คอลัมน์ `blocked_at` + 3 ฟังก์ชัน (`link_line_account` /
+`unlink_line_account` / `set_line_link_blocked`)
+
+🔴 **สิ่งที่ `WO-4.C` ต้องรับช่วงต่อ**
+- fan-out ต้องกรอง **`member_line_links.blocked_at is null`** (คนที่บล็อก OA) ไม่ใช่ส่งแล้วปล่อย fail
+- **ค้างจาก 4.B: ยังไม่มีข้อความตอบกลับในแชต** — การตอบต้องเรียก reply API ซึ่ง 4.B ห้ามทำ
+  ใน request ของ webhook ⇒ ทำใน 4.C ผ่านคิวเดิม (เช่น ตอบ "ผูกบัญชีสำเร็จ" หลังผูกเสร็จ)
+- env ใหม่ที่ต้องมีจริงตอน deploy: **`LINE_LINK_SECRET`** (อยู่ใน `.env.example` แล้ว)
 
 ของจริงที่ตรวจไว้แล้ว (อย่าเสียเวลาค้นซ้ำ):
 - ❌ **ตัดสินใจไม่ติดตั้ง `@line/bot-sdk`** — ใช้ `fetch` + `node:crypto` แทน

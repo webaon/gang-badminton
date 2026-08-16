@@ -29,6 +29,8 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'notification.view.self',
     // [WO-3.C] ต้องเปิด features.statistics ด้วยถึงจะได้ (ตารางนี้เทสต์ด้วย ALL_FEATURES)
     'statistics.view',
+    // [WO-4.B] ผูกบัญชี LINE ของตัวเอง (ต้องเปิด features.line)
+    'line.link.self',
   ],
   admin: [
     'gang.view',
@@ -40,6 +42,7 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'announcement.view',
     'notification.view.self',
     'statistics.view',
+    'line.link.self',
     'gang.update',
     'gang.member.manage',
     'gang.skill.manage',
@@ -138,6 +141,14 @@ describe('can() — feature flag', () => {
     expect(can({ role: 'admin', features: off }, 'gang.line.manage')).toBe(true);
     // แต่สมาชิกทั่วไปยังทำไม่ได้
     expect(can({ role: 'member', features: off }, 'gang.line.manage')).toBe(false);
+  });
+
+  it('🔴 [WO-4.B] ปิด features.line → ผูกบัญชี LINE ไม่ได้ทุก role', () => {
+    const off = { ...ALL_FEATURES, line: false };
+    for (const role of GANG_ROLES) {
+      expect(can({ role, features: off }, 'line.link.self'), role).toBe(false);
+    }
+    expect(can({ role: 'member', features: ALL_FEATURES }, 'line.link.self')).toBe(true);
   });
 
   it('🔴 [WO-3.E] ปิด discovery → จัดการคำขอเข้าก๊วนไม่ได้ทุก role', () => {

@@ -7,8 +7,9 @@ import { requireUser } from '@/lib/supabase/auth';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
 import { getBotInfo, LineApiError } from '@/lib/line/client';
+import { mintLinkCode } from '@/lib/line/link-code';
 import { assertCan } from '@/domain/permissions/can';
-import type { GangRole } from '@/domain/permissions/types';
+import type { GangFeatures, GangRole } from '@/domain/permissions/types';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { AppError, runAction } from '@/shared/action';
 
@@ -215,5 +216,107 @@ export async function testLineConnection(
       }
       throw err;
     }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// ฝั่งสมาชิก — ผูกบัญชี LINE ของตัวเอง **[WO-4.B]**
+// ---------------------------------------------------------------------------
+
+/**
+ * 🔴 ต่างจากส่วนบน: ตรงนี้เป็นของ **สมาชิกทั่วไป** ⇒ ตรวจ `line.link.self`
+ *    ซึ่งผูกกับ `features.line` (ก๊วนที่ยังไม่เปิด LINE ไม่มีอะไรให้ผูก)
+ */
+async function assertGangMemberForLine(gangId: string): Promise<string> {
+  const user = await requireUser();
+  const supabase = await supabaseServer();
+
+  const [{ data: membership }, { data: gang }] = await Promise.all([
+    supabase
+      .from('gang_members')
+      .select('role')
+      .eq('gang_id', gangId)
+      .eq('user_id', user.id)
+      .is('deleted_at', null)
+      .maybeSingle(),
+    supabase.from('gangs').select('features').eq('id', gangId).is('deleted_at', null).maybeSingle(),
+  ]);
+
+  assertCan(
+    {
+      role: (membership?.role as GangRole | undefined) ?? null,
+      features: (gang?.features ?? {}) as Partial<GangFeatures>,
+    },
+    'line.link.self',
+  );
+
+  return user.id;
+}
+
+export type MyLineLink = {
+  isLinked: boolean;
+  linkedAt: string | null;
+  /** ผู้ใช้บล็อก/ลบเพื่อน OA อยู่ ⇒ ระบบจะไม่ส่ง LINE ให้จนกว่าจะ follow กลับ */
+  isBlocked: boolean;
+};
+
+export async function myLineLink(gangId: string): Promise<ApiResponse<MyLineLink>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const userId = await assertGangMemberForLine(gangId);
+    const supabase = await supabaseServer();
+
+    // RLS ของ `member_line_links` ให้เห็นเฉพาะแถวของตัวเอง (หรือแอดมินของก๊วน)
+    const { data } = await supabase
+      .from('member_line_links')
+      .select('linked_at, blocked_at')
+      .eq('gang_id', gangId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    return {
+      isLinked: data !== null,
+      linkedAt: (data?.linked_at as string | undefined) ?? null,
+      isBlocked: (data?.blocked_at as string | null | undefined) != null,
+    };
+  });
+}
+
+/**
+ * ออกรหัสผูกบัญชี — ผู้ใช้เอาไปวางในแชตของ OA ก๊วนนั้น
+ *
+ * 🔴 รหัสเป็น **stateless** (ดู `lib/line/link-code.ts`) ⇒ ไม่มีตารางรหัส
+ *    และรหัสของก๊วนหนึ่งใช้กับอีกก๊วนไม่ได้เพราะ `gangId` อยู่ในลายเซ็น
+ */
+export async function issueLineLinkCode(
+  gangId: string,
+): Promise<ApiResponse<{ code: string; expiresAt: string }>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const userId = await assertGangMemberForLine(gangId);
+
+    const { code, expiresAt } = mintLinkCode(gangId, userId);
+    return { code, expiresAt: expiresAt.toISOString() };
+  });
+}
+
+export async function unlinkMyLineAccount(gangId: string): Promise<ApiResponse<{ removed: boolean }>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const userId = await assertGangMemberForLine(gangId);
+
+    const { data, error } = await supabaseAdmin().rpc('unlink_line_account', {
+      p_gang_id: gangId,
+      p_user_id: userId,
+      p_correlation_id: correlationId,
+    });
+
+    if (error) throw error;
+
+    revalidatePath(`/gangs/${gangId}/line`);
+    return { removed: data === true };
   });
 }
