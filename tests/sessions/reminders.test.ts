@@ -332,11 +332,22 @@ describe('WO-2.5-G — ใช้คิวเดิม ไม่มี worker ใ
     const ctx = await openSessionIn(12);
     await sendSessionReminders(crypto.randomUUID(), new Date());
 
-    const { rows } = await pool.query<{ id: string; event_type: string }>(
-      `select * from public.claim_notifications(50)`,
-    );
+    // ⚠️ `claim_notifications()` หยิบงานของ **ทั้งฐานข้อมูล** ครั้งละไม่กี่แถวและเรียงตามเวลา
+    //    ⇒ ของค้างจากเทสต์อื่นกินโควต้าของ batch จนแถวของเทสต์นี้ไม่ถูกหยิบได้
+    //    (เทสต์ชุดนี้ไม่ล้างข้อมูลระหว่างรัน) ⇒ ต้องวน claim จนกว่าจะเจอของตัวเอง
+    const mine: { id: string; event_type: string; gang_id: string }[] = [];
 
-    const mine = rows.filter((r) => r.event_type === 'session.reminder');
+    for (let round = 0; round < 20 && mine.length === 0; round++) {
+      const { rows } = await pool.query<{ id: string; event_type: string; gang_id: string }>(
+        `select * from public.claim_notifications(50)`,
+      );
+      if (rows.length === 0) break;
+
+      mine.push(
+        ...rows.filter((r) => r.event_type === 'session.reminder' && r.gang_id === ctx.gangId),
+      );
+    }
+
     expect(mine.length).toBeGreaterThan(0);
 
     // worker บันทึกผลด้วยฟังก์ชันเดิม
