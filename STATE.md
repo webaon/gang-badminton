@@ -188,7 +188,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 673 tests, 62 files (16 ส.ค. 2026)
+npm test          # vitest run — 688 tests, 63 files (17 ส.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -204,6 +204,7 @@ npm test          # vitest run — 673 tests, 62 files (16 ส.ค. 2026)
 | `tests/rls/write-guards.test.ts` | ช่องโหว่ WO-1.3 ที่ปิดแล้ว — EXECUTE grant · INSERT status · เขียน registrations ตรง |
 | `tests/cron/cron.test.ts` | **DoD WO-1.5** — CRON_SECRET (รวม fail-closed + timing-safe) · pg_cron schedule · sweep ทั้งสาม |
 | `tests/seed/idempotency.test.ts` | **DoD WO-1.5** — รัน seed ไฟล์จริงซ้ำ 3 รอบ สถานะต้องไม่เปลี่ยน |
+| `tests/security/csp.test.ts` | **WO-5.B** — script-src ไม่มี unsafe-* ใน prod · หน้า static ห้ามมี strict-dynamic · connect-src มาจาก env · HSTS เฉพาะ prod |
 | `tests/e2e/phase4-full-path.test.ts` | 🎉 **Phase 4 checkpoint** — ตั้งค่า Vault → ผูกผ่าน webhook → ประกาศ → ส่งจริง → โควต้า → เลิกผูก · ก๊วนที่ไม่ต่อ LINE ต้องเหมือนเดิม |
 | `tests/line/liff.test.ts` | **WO-4.E** — ที่ว่างนับแบบ [D-10] · หนี้จากนัดที่ปิดแล้วยังนับ · ไม่มี service-role/LIFF SDK ในเส้นทาง |
 | `tests/line/login.test.ts` | **WO-4.D** — state/nonce · ไม่ล็อกอิน/คนละคน = ปฏิเสธ · เลิกผูกแล้วคิวถูกปิด |
@@ -303,14 +304,14 @@ npm test          # vitest run — 673 tests, 62 files (16 ส.ค. 2026)
 | 4.E | LIFF — หน้าจอในแอป LINE | — |
 | 4.F | E2E checkpoint + `v0.4.0` | — |
 
-### ✅ Phase 5: `WO-5.A` เสร็จแล้ว — **ต่อที่ `WO-5.B`** (security headers + CSP)
+### ✅ Phase 5: `5.A` เสร็จ · `5.B` เสร็จบางส่วน — **ต่อที่ `WO-5.C`** (rate limit + secret hygiene)
 
 6 ใบ (`WO-5.A` … `WO-5.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 8 ข้อ
 
 | WO | งาน |
 |---|---|
 | 5.A | ตัดสินเรื่อง dependency ที่มีช่องโหว่ — ✅ **เสร็จ**: ขึ้น `next@16.3.1` (ADR-008) |
-| 5.B | Security headers + CSP ใน `next.config.ts` |
+| 5.B | Security headers + CSP — ⚠️ **เสร็จบางส่วน** (เหลือตรวจ console ในเบราว์เซอร์ → ยกไป 5.E) |
 | 5.C | rate limit ให้ครบทุกทางเข้าสาธารณะ + grep gate ของ secret/log |
 | 5.D | ปิดของค้างด้าน RLS (`event_logs` · `coupons` · `payment_adjustments` · ย้าย `promptpay_id`) |
 | 5.E | Playwright smoke + แยก CI gate เร็ว/ช้า |
@@ -325,8 +326,20 @@ npm test          # vitest run — 673 tests, 62 files (16 ส.ค. 2026)
 - entry point ของ Next คือ **`proxy.ts`** (เดิม `middleware.ts`) · `lib/supabase/middleware.ts` ชื่อเดิม
 - `tsconfig.json` ถูก Next แก้ให้เอง (`jsx: react-jsx`) — commit แล้ว อย่าย้อน
 
+⚠️ **`WO-5.B` เสร็จบางส่วน** (17 ส.ค. 2026) — CSP ต่อ request (nonce) + static header ครบแล้ว
+ยืนยันกับ `next start` จริง: `/discover` มี nonce **16/16 script** ตรงกับ header
+🔴 **ที่ยังค้าง: ยังไม่ได้เปิดเบราว์เซอร์จริงดู console ว่าไม่มี CSP violation**
+   (สภาพแวดล้อมนี้ไม่มี browser tool) ⇒ **ยกไปปิดใน `WO-5.E` ด้วย Playwright**
+   ห้ามติ๊ก §Security Checklist ข้อ "Security headers + CSP" จนกว่าข้อนี้จะผ่าน
+
+🔴 **กติกาใหม่จาก 5.B**
+- หน้าแรก (static) ได้ CSP คนละชุด (`'unsafe-inline'` แทน nonce) เพราะ Next ติด nonce ให้
+  หน้า prerender ไม่ได้ ⇒ **เพิ่มหน้า static ใหม่ต้องเติมใน `STATIC_ROUTES`** (`lib/security/csp.ts`)
+  ไม่งั้นหน้านั้นจะขาวโดยไม่มี error ฝั่ง server
+- ส่ง nonce ต่อด้วย `NextResponse.next({ request: { headers } })` เท่านั้น (ส่ง `{ request }` เฉยๆ
+  แล้ว header หาย → script ไม่มี nonce ทั้งหน้า) — มีเทสต์ล็อกไว้
+
 ของจริงที่ตรวจไว้แล้วตอนแตกใบ (อย่าเสียเวลาค้นซ้ำ):
-- **`next.config.ts` ยังว่างเปล่า** — ไม่มี security headers / CSP เลย
 - **rate limit มีที่เดียว** (`enforceGuestRateLimit()` ของ guest ลงชื่อ)
   🔴 ที่ยังไม่มี: `searchGangs()` (คนไม่ล็อกอินยิง trgm ได้ไม่จำกัด) · LINE login callback ·
   guest claim · auth callback

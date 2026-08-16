@@ -1456,7 +1456,7 @@ DoD ทั้ง 4 ข้อผ่านจริง:
 
 ---
 
-## WO-5.B: Security headers + CSP
+## WO-5.B: Security headers + CSP ⚠️ **เสร็จบางส่วน (17 ส.ค. 2026)**
 
 **Goal**: เบราว์เซอร์บังคับกฎให้อีกชั้น — สคริปต์แปลกปลอมรันไม่ได้ และหน้าเว็บฝังในเว็บอื่นไม่ได้
 
@@ -1479,6 +1479,41 @@ DoD ทั้ง 4 ข้อผ่านจริง:
 - ❌ ห้ามตั้ง CSP แบบ report-only แล้วถือว่าเสร็จ
 
 **References**: baseline §Security Checklist · WO-4.E (ไม่มีสคริปต์ภายนอกในเส้นทาง LIFF)
+
+**ผลลัพธ์** — `lib/security/csp.ts` · CSP ต่อ request ใน `proxy.ts` (nonce ใหม่ทุกครั้ง) ·
+static header ใน `next.config.ts` · เทสต์ใหม่ 15 ตัว (`tests/security/csp.test.ts`)
+
+ผ่านแล้ว 4 จาก 5 ข้อ:
+- 🔴 `script-src` ของ production **ไม่มี `unsafe-inline`/`unsafe-eval`** — ใช้ **nonce ต่อ request**
+  + `strict-dynamic` · ยืนยันกับเซิร์ฟเวอร์จริง (`next start`): `/discover` มี nonce ครบ **16/16 script**
+  และค่าตรงกับใน header เป๊ะ
+- `frame-ancestors 'none'` + `X-Frame-Options: DENY` · **ยืนยันแล้วว่าไม่กระทบ LIFF** —
+  เอกสารของ LINE ระบุว่า LIFF ใช้ **WKWebView/Android WebView ไม่ใช่ iframe**
+  (developers.line.biz/en/docs/liff/overview) ⇒ ไม่ใช่การเดา
+- HSTS + `upgrade-insecure-requests` เฉพาะ production · `connect-src`/`img-src` มาจาก
+  `NEXT_PUBLIC_SUPABASE_URL` (มี `wss:` ด้วย ไม่งั้นกระดานคิวสดเงียบ) · env เพี้ยน = ไม่เติมอะไรเลย
+  (ห้ามกลายเป็น wildcard)
+- header พื้นฐานครบ: `nosniff` · `Referrer-Policy` · `Permissions-Policy` ที่ **ปิดกล้องด้วย**
+  (WO-2.5-F จงใจใช้กล้องเนทีฟ ไม่เคยขอสิทธิ์ผ่านเบราว์เซอร์)
+
+🔴 **ข้อยกเว้นที่บันทึกไว้ — หน้าแรก (static) ใช้ `'unsafe-inline'`**
+Next ติด `nonce=` ให้ `<script>` ได้เฉพาะหน้าที่ render ตอน request (วัดจริง: `/discover` 16/16 ·
+`/` 0/16) ⇒ ส่ง CSP แบบ nonce ให้หน้า prerender = **สคริปต์โดนบล็อกทั้งหน้า**
+· ทางเลือกคือบังคับ nonce แล้วหน้าแรกกลายเป็น dynamic ซึ่ง **ขัด DoD ของ WO-3.F**
+⇒ เลือกยกเว้นเฉพาะ `STATIC_ROUTES` (ตอนนี้มี `/` หน้าเดียว) เพราะหน้าแรก **ไม่มีข้อมูลผู้ใช้เลย**
+(ตัวเลขมาจาก rollup ระดับแพลตฟอร์ม · ไม่มีชื่อก๊วน/ชื่อคน/ค่าจาก query string)
+⚠️ เพิ่มหน้า static ใหม่ต้องมาเติมใน `STATIC_ROUTES` ไม่งั้นหน้านั้นจะขาวโดยไม่มี error ฝั่ง server
+
+⚠️ **ยังไม่ผ่าน 1 ข้อ — "เดินครบทุกหน้าหลักแล้วไม่มี CSP violation ใน console"**
+ตรวจได้แค่ระดับ header + HTML (nonce ครบทุก script · ทุกหน้าตอบ 200/307 ตามที่ควร)
+แต่ **ยังไม่ได้เปิดในเบราว์เซอร์จริงเพื่อดู console** เพราะสภาพแวดล้อมนี้ไม่มี browser tool
+⇒ **ยกไปปิดใน `WO-5.E`** ที่มี Playwright แล้ว (assert ว่าไม่มี CSP violation ตอน smoke)
+· ห้ามถือว่า `WO-5.B` ปิดสมบูรณ์จนกว่าข้อนี้จะผ่าน
+
+**กับดักที่เจอระหว่างทาง (เสียเวลาไปแล้ว — อย่าพลาดซ้ำ)**
+ตอนแรกเซ็ต `request.headers.set('x-nonce', …)` แล้วส่ง `NextResponse.next({ request })`
+⇒ **header ที่เพิ่งเซ็ตไม่ถูกส่งต่อ** สคริปต์ทั้งหน้าจึงไม่มี nonce (0/16) และจะถูกบล็อกหมด
+ต้องส่งเป็น `NextResponse.next({ request: { headers } })` เท่านั้น — มีเทสต์ล็อกไว้แล้ว
 
 ---
 

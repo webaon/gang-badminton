@@ -1,6 +1,8 @@
 import type { NextRequest } from 'next/server';
 
 import { updateSession } from '@/lib/supabase/middleware';
+import { buildContentSecurityPolicy, STATIC_ROUTES } from '@/lib/security/csp';
+import { publicSupabaseEnv } from '@/lib/supabase/env';
 
 /**
  * รีเฟรช session ของ Supabase ทุก request
@@ -17,7 +19,27 @@ import { updateSession } from '@/lib/supabase/middleware';
  * ซึ่งจะลืมอัปเดตแน่นอนเมื่อเพิ่มหน้าใหม่ — ให้หน้าประกาศความต้องการของตัวเองดีกว่า
  */
 export async function proxy(request: NextRequest) {
-  return updateSession(request);
+  // 🔴 **[WO-5.B]** nonce ต้องใหม่ทุก request — nonce ที่ซ้ำได้เท่ากับไม่มี nonce
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+
+  // Next อ่าน nonce จาก header นี้แล้วติดให้ `<script>` ของตัวเองอัตโนมัติ
+  // 🔴 ต้องส่งต่อผ่าน `NextResponse.next({ request: { headers } })` เท่านั้น (ดู updateSession)
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
+
+  const response = await updateSession(request, requestHeaders);
+
+  response.headers.set(
+    'Content-Security-Policy',
+    buildContentSecurityPolicy({
+      nonce,
+      supabaseUrl: publicSupabaseEnv().url,
+      isProduction: process.env.NODE_ENV === 'production',
+      isStaticRoute: STATIC_ROUTES.has(request.nextUrl.pathname),
+    }),
+  );
+
+  return response;
 }
 
 export const config = {
