@@ -188,7 +188,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 688 tests, 63 files (17 ส.ค. 2026)
+npm test          # vitest run — 705 tests, 64 files (17 ส.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -204,6 +204,7 @@ npm test          # vitest run — 688 tests, 63 files (17 ส.ค. 2026)
 | `tests/rls/write-guards.test.ts` | ช่องโหว่ WO-1.3 ที่ปิดแล้ว — EXECUTE grant · INSERT status · เขียน registrations ตรง |
 | `tests/cron/cron.test.ts` | **DoD WO-1.5** — CRON_SECRET (รวม fail-closed + timing-safe) · pg_cron schedule · sweep ทั้งสาม |
 | `tests/seed/idempotency.test.ts` | **DoD WO-1.5** — รัน seed ไฟล์จริงซ้ำ 3 รอบ สถานะต้องไม่เปลี่ยน |
+| `tests/security/rate-limit.test.ts` | **WO-5.C** — เกินเพดาน = RATE_LIMITED · ทุกทางเข้าสาธารณะมีเพดานจริง · grep gate ของ secret/log |
 | `tests/security/csp.test.ts` | **WO-5.B** — script-src ไม่มี unsafe-* ใน prod · หน้า static ห้ามมี strict-dynamic · connect-src มาจาก env · HSTS เฉพาะ prod |
 | `tests/e2e/phase4-full-path.test.ts` | 🎉 **Phase 4 checkpoint** — ตั้งค่า Vault → ผูกผ่าน webhook → ประกาศ → ส่งจริง → โควต้า → เลิกผูก · ก๊วนที่ไม่ต่อ LINE ต้องเหมือนเดิม |
 | `tests/line/liff.test.ts` | **WO-4.E** — ที่ว่างนับแบบ [D-10] · หนี้จากนัดที่ปิดแล้วยังนับ · ไม่มี service-role/LIFF SDK ในเส้นทาง |
@@ -304,7 +305,7 @@ npm test          # vitest run — 688 tests, 63 files (17 ส.ค. 2026)
 | 4.E | LIFF — หน้าจอในแอป LINE | — |
 | 4.F | E2E checkpoint + `v0.4.0` | — |
 
-### ✅ Phase 5: `5.A` เสร็จ · `5.B` เสร็จบางส่วน — **ต่อที่ `WO-5.C`** (rate limit + secret hygiene)
+### ✅ Phase 5: `5.A` · `5.C` เสร็จ · `5.B` เสร็จบางส่วน — **ต่อที่ `WO-5.D`** (ปิดของค้าง RLS)
 
 6 ใบ (`WO-5.A` … `WO-5.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 8 ข้อ
 
@@ -312,7 +313,7 @@ npm test          # vitest run — 688 tests, 63 files (17 ส.ค. 2026)
 |---|---|
 | 5.A | ตัดสินเรื่อง dependency ที่มีช่องโหว่ — ✅ **เสร็จ**: ขึ้น `next@16.3.1` (ADR-008) |
 | 5.B | Security headers + CSP — ⚠️ **เสร็จบางส่วน** (เหลือตรวจ console ในเบราว์เซอร์ → ยกไป 5.E) |
-| 5.C | rate limit ให้ครบทุกทางเข้าสาธารณะ + grep gate ของ secret/log |
+| 5.C | rate limit ให้ครบทุกทางเข้าสาธารณะ + grep gate — ✅ **เสร็จ** (`docs/rate-limits.md`) |
 | 5.D | ปิดของค้างด้าน RLS (`event_logs` · `coupons` · `payment_adjustments` · ย้าย `promptpay_id`) |
 | 5.E | Playwright smoke + แยก CI gate เร็ว/ช้า |
 | 5.F | README ไทย + deploy runbook + ปิด §Security Checklist + tag `v1.0.0` |
@@ -331,6 +332,15 @@ npm test          # vitest run — 688 tests, 63 files (17 ส.ค. 2026)
 🔴 **ที่ยังค้าง: ยังไม่ได้เปิดเบราว์เซอร์จริงดู console ว่าไม่มี CSP violation**
    (สภาพแวดล้อมนี้ไม่มี browser tool) ⇒ **ยกไปปิดใน `WO-5.E` ด้วย Playwright**
    ห้ามติ๊ก §Security Checklist ข้อ "Security headers + CSP" จนกว่าข้อนี้จะผ่าน
+
+✅ **`WO-5.C` เสร็จแล้ว** (17 ส.ค. 2026) — ทางเข้าสาธารณะมีเพดานครบทุกทาง
+ตารางเพดาน + เหตุผลอยู่ใน **`docs/rate-limits.md`** · ตัวนับเหลือ helper เดียว
+(`server/security/rate-limit.ts`) และมีเทสต์ยืนยันว่าไม่มีไฟล์อื่นเรียก `check_rate_limit` อีก
+
+🔴 **กติกาใหม่จาก 5.C**
+- เปิดทางเข้าใหม่ให้คนไม่ล็อกอินเมื่อไหร่ → **ต้องมีเพดาน + เติมใน `docs/rate-limits.md`**
+  (มีเทสต์ตรวจว่าเอกสารกับโค้ดตรงกัน)
+- ❌ ห้าม log ค่า token/secret และห้ามฝัง JWT/service key ในโค้ด — มี grep gate 4 ชั้นคุมแล้ว
 
 🔴 **กติกาใหม่จาก 5.B**
 - หน้าแรก (static) ได้ CSP คนละชุด (`'unsafe-inline'` แทน nonce) เพราะ Next ติด nonce ให้

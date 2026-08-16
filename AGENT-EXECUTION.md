@@ -1517,7 +1517,7 @@ Next ติด `nonce=` ให้ `<script>` ได้เฉพาะหน้�
 
 ---
 
-## WO-5.C: Rate limit ให้ครบทุกทางเข้าสาธารณะ + secret/log hygiene
+## WO-5.C: Rate limit ให้ครบทุกทางเข้าสาธารณะ + secret/log hygiene ✅ **เสร็จ (17 ส.ค. 2026)**
 
 **Goal**: ทางเข้าที่คนไม่ล็อกอินยิงได้ ต้องมีเพดานทุกทาง และไม่มี secret หลุดในโค้ด/log
 
@@ -1539,6 +1539,34 @@ Next ติด `nonce=` ให้ `<script>` ได้เฉพาะหน้�
 - ❌ ห้ามสร้างตาราง/กลไก rate limit ใหม่ · ❌ ห้ามใส่เพดานแบบ "ต่อผู้ใช้" กับ endpoint ที่ไม่ต้องล็อกอิน
 
 **References**: baseline §Security Checklist · WO-1.3 (`check_rate_limit`) · WO-2.5 (guest rate limit)
+
+**ผลลัพธ์** — `server/security/rate-limit.ts` (helper กลาง) · `docs/rate-limits.md` (ตารางเพดานทั้งหมด) ·
+เพดานใหม่ 4 ทาง · เทสต์ใหม่ 17 ตัว (`tests/security/rate-limit.test.ts`)
+
+DoD ทั้ง 5 ข้อผ่านจริง:
+- 🔴 **ทุกทางเข้าสาธารณะมีเพดาน** และมีรายการใน `docs/rate-limits.md` พร้อมเหตุผลของตัวเลข
+  · เพิ่ม: `discovery:search` (30/นาที) · `guest:claim` (10/ชม.) · `auth:callback` (30/ชม.) ·
+  `line:login-callback` (20/ชม.) · ของเดิม: guest ลงชื่อ (10/ชม.)
+  · เกินเพดาน = `RATE_LIMITED` ไม่ใช่ 500 (route handler ที่ต้อง redirect ใช้ `withinRateLimit()`)
+- 🔴 `searchGangs()` มีเพดานต่อ IP แล้ว — เดิมคนไม่ล็อกอินยิง trgm query ได้ไม่จำกัดตั้งแต่ WO-3.E
+- เทสต์ยิงเกินเพดานจริงแล้วได้ `RATE_LIMITED` · คนละ IP / คนละ scope / คนละ subject นับคนละถัง
+- 🔴 **grep gate 4 ชั้น**: ไม่มี JWT/service key ฝังในโค้ด · ไม่มี `console.*` ที่ log ค่า
+  token/secret · migration ไม่เอาค่า secret ไปใส่ใน `raise` หรือ `event_logs` ·
+  secret token ในฐานข้อมูลเก็บเป็น `token_hash` ตาม CLAUDE.md §2.5
+- `rate_limits` ยังถูกล้างด้วย cron `purge_rate_limits` เดิม (unlogged table ⇒ ไม่โตค้าง)
+
+**การตัดสินใจที่บันทึกไว้**
+- รวมตัวนับเหลือ **helper เดียว** (`server/security/rate-limit.ts`) — `server/guest/rate-limit.ts`
+  กลายเป็น wrapper บางๆ ที่เก็บแค่ค่า default ของฝั่ง guest
+  ⇒ มีเทสต์ยืนยันว่า **มีไฟล์เดียวในโปรเจกต์ที่เรียก `check_rate_limit`**
+- ❌ **จงใจไม่ใส่เพดานให้ `/api/line/webhook/<gangId>`** — ผ่าน HMAC signature ก่อนแตะอะไรทั้งสิ้น
+  และเพดานต่อ IP เสี่ยงทิ้ง event จริงของ LINE ตอนคนคุยกับ OA พร้อมกันเยอะ
+  (ถ้าวันหนึ่งเจอ flood ของ signature ผิดจริง ค่อยเพิ่มเพดานเฉพาะกรณี verify ไม่ผ่าน)
+
+**กับดักของเทสต์ที่บันทึกไว้** — grep แบบ "จับระยะใกล้ๆ" ให้ false positive ทันที
+(`console.warn('แลก token ไม่สำเร็จ', { correlationId })` ที่มีบรรทัด `p_guest_token: token`
+อยู่ถัดไป) ⇒ ต้อง **นับวงเล็บของ `console.*` จริง** แล้วตัด string literal ออกก่อนตรวจ ·
+ฝั่ง SQL ก็ต้องตัดรูป `p_x is not null` ทิ้งก่อน (นั่นคือการบันทึก boolean ไม่ใช่ค่า)
 
 ---
 

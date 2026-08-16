@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server';
 import { currentUser } from '@/lib/supabase/server';
 import { LINE_LOGIN_NONCE_COOKIE } from '@/lib/line/login-state';
 import { handleLoginCallback } from '@/server/line/login';
+import { withinRateLimit } from '@/server/security/rate-limit';
 import { correlationIdFrom } from '@/shared/api';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,20 @@ export async function GET(request: Request): Promise<Response> {
   const correlationId = correlationIdFrom(request.headers);
   const url = new URL(request.url);
   const jar = await cookies();
+
+  // 🔴 **[WO-5.C]** เปิดสาธารณะและแลก code กับ LINE ทุกครั้ง ⇒ ต้องมีเพดานต่อ IP
+  const allowed = await withinRateLimit({
+    scope: 'line:login-callback',
+    headers: request.headers,
+    limit: 20,
+    window: '1 hour',
+  });
+
+  if (!allowed) {
+    const response = NextResponse.redirect(new URL('/gangs?error=rate_limited', url.origin));
+    response.cookies.set(LINE_LOGIN_NONCE_COOKIE, '', { path: '/', maxAge: 0 });
+    return response;
+  }
 
   const result = await handleLoginCallback(
     {
