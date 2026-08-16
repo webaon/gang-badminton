@@ -87,7 +87,7 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 | | |
 |---|---|
 | project / ref | **gang-badminton** · `emmzeriekkjryhucvctx` |
-| migrations ที่ apply แล้ว | **38 / 38** ✅ (push ล่าสุด 16 ส.ค. 2026 — `0038` ของ WO-4.D) |
+| migrations ที่ apply แล้ว | **39 / 39** — `0039` (WO-5.D) ยังไม่ push cloud (Phase 5 ยังไม่ merge) |
 | ข้อมูลใน DB | 0 แถวทุกตาราง (ไม่ได้ push seed ขึ้นไป — `seeds: []`) |
 | RLS | ✅ 29/29 ตาราง · 50 policies + 16 บน storage.objects |
 | storage | ✅ 4 buckets · cron ✅ 3 jobs active |
@@ -188,7 +188,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 705 tests, 64 files (17 ส.ค. 2026)
+npm test          # vitest run — 712 tests, 65 files (17 ส.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -204,6 +204,7 @@ npm test          # vitest run — 705 tests, 64 files (17 ส.ค. 2026)
 | `tests/rls/write-guards.test.ts` | ช่องโหว่ WO-1.3 ที่ปิดแล้ว — EXECUTE grant · INSERT status · เขียน registrations ตรง |
 | `tests/cron/cron.test.ts` | **DoD WO-1.5** — CRON_SECRET (รวม fail-closed + timing-safe) · pg_cron schedule · sweep ทั้งสาม |
 | `tests/seed/idempotency.test.ts` | **DoD WO-1.5** — รัน seed ไฟล์จริงซ้ำ 3 รอบ สถานะต้องไม่เปลี่ยน |
+| `tests/rls/event-log-privacy.test.ts` | **WO-5.D** — สมาชิกอ่าน event เรื่องเงินจาก API ตรงไม่ได้ · SQL ตรงกับ `adminOnly` ของ domain · เจ้าของหนี้เห็น refund ของตัวเอง |
 | `tests/security/rate-limit.test.ts` | **WO-5.C** — เกินเพดาน = RATE_LIMITED · ทุกทางเข้าสาธารณะมีเพดานจริง · grep gate ของ secret/log |
 | `tests/security/csp.test.ts` | **WO-5.B** — script-src ไม่มี unsafe-* ใน prod · หน้า static ห้ามมี strict-dynamic · connect-src มาจาก env · HSTS เฉพาะ prod |
 | `tests/e2e/phase4-full-path.test.ts` | 🎉 **Phase 4 checkpoint** — ตั้งค่า Vault → ผูกผ่าน webhook → ประกาศ → ส่งจริง → โควต้า → เลิกผูก · ก๊วนที่ไม่ต่อ LINE ต้องเหมือนเดิม |
@@ -305,7 +306,7 @@ npm test          # vitest run — 705 tests, 64 files (17 ส.ค. 2026)
 | 4.E | LIFF — หน้าจอในแอป LINE | — |
 | 4.F | E2E checkpoint + `v0.4.0` | — |
 
-### ✅ Phase 5: `5.A` · `5.C` เสร็จ · `5.B` เสร็จบางส่วน — **ต่อที่ `WO-5.D`** (ปิดของค้าง RLS)
+### ✅ Phase 5: `5.A` · `5.C` เสร็จ · `5.B`/`5.D` เสร็จบางส่วน — **ต่อที่ `WO-5.E`** (Playwright + CI)
 
 6 ใบ (`WO-5.A` … `WO-5.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 8 ข้อ
 
@@ -314,7 +315,7 @@ npm test          # vitest run — 705 tests, 64 files (17 ส.ค. 2026)
 | 5.A | ตัดสินเรื่อง dependency ที่มีช่องโหว่ — ✅ **เสร็จ**: ขึ้น `next@16.3.1` (ADR-008) |
 | 5.B | Security headers + CSP — ⚠️ **เสร็จบางส่วน** (เหลือตรวจ console ในเบราว์เซอร์ → ยกไป 5.E) |
 | 5.C | rate limit ให้ครบทุกทางเข้าสาธารณะ + grep gate — ✅ **เสร็จ** (`docs/rate-limits.md`) |
-| 5.D | ปิดของค้างด้าน RLS (`event_logs` · `coupons` · `payment_adjustments` · ย้าย `promptpay_id`) |
+| 5.D | ปิดของค้างด้าน RLS — ⚠️ **เสร็จ 3/4** (`0039`) · ข้อ `promptpay_id` เสนอให้ทบทวน |
 | 5.E | Playwright smoke + แยก CI gate เร็ว/ช้า |
 | 5.F | README ไทย + deploy runbook + ปิด §Security Checklist + tag `v1.0.0` |
 
@@ -332,6 +333,15 @@ npm test          # vitest run — 705 tests, 64 files (17 ส.ค. 2026)
 🔴 **ที่ยังค้าง: ยังไม่ได้เปิดเบราว์เซอร์จริงดู console ว่าไม่มี CSP violation**
    (สภาพแวดล้อมนี้ไม่มี browser tool) ⇒ **ยกไปปิดใน `WO-5.E` ด้วย Playwright**
    ห้ามติ๊ก §Security Checklist ข้อ "Security headers + CSP" จนกว่าข้อนี้จะผ่าน
+
+⚠️ **`WO-5.D` เสร็จ 3 จาก 4** (17 ส.ค. 2026) — migration `0039`
+· `event_logs` รัดที่ RLS แล้ว (สมาชิกอ่าน event เรื่องเงินจาก API ตรงไม่ได้ · มีเทสต์เทียบ
+  กติกา SQL กับ `adminOnly` ของ domain ว่าตรงกัน)
+· `payment_adjustments` เจ้าของหนี้เห็นของตัวเองได้แล้ว
+· `coupons` ตรวจแล้ว **ไม่ต้องแก้** (คูปองเป็นของก๊วน ไม่ใช่รายคน)
+🔴 **ค้าง: ย้าย `promptpay_id`** — ตรวจแล้วพบว่า `sessions.snapshot.promptpay_id` เก็บค่าเดียวกัน
+   อยู่แล้ว (723 นัดบน local) และสมาชิกอ่าน snapshot ได้ ⇒ ย้ายคอลัมน์อย่างเดียวแทบไม่ได้อะไร
+   ถ้าจะทำต้องแตะ snapshot ที่แช่แข็งราคาไว้ ⇒ **ต้องมี ADR + ใบแยก** (รอเจ้าของงานตัดสิน)
 
 ✅ **`WO-5.C` เสร็จแล้ว** (17 ส.ค. 2026) — ทางเข้าสาธารณะมีเพดานครบทุกทาง
 ตารางเพดาน + เหตุผลอยู่ใน **`docs/rate-limits.md`** · ตัวนับเหลือ helper เดียว
