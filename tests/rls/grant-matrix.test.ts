@@ -31,7 +31,8 @@ const EXPECTED: Record<string, { anon: string[]; authenticated: string[] }> = {
   profiles: { anon: [], authenticated: ['SELECT', 'INSERT', 'UPDATE'] },
   organizations: { anon: [], authenticated: ['SELECT', 'INSERT', 'UPDATE'] },
   organization_members: { anon: [], authenticated: ['SELECT', 'INSERT', 'DELETE'] },
-  gangs: { anon: ['SELECT'], authenticated: ['SELECT', 'INSERT', 'UPDATE'] },
+  // [ADR-007] anon ไม่แตะ gangs อีกต่อไป — คนนอกอ่านผ่าน search_public_gangs() เท่านั้น
+  gangs: { anon: [], authenticated: ['SELECT', 'INSERT', 'UPDATE'] },
   gang_members: { anon: [], authenticated: ['SELECT', 'INSERT', 'UPDATE'] },
   sessions: { anon: [], authenticated: ['SELECT', 'INSERT', 'UPDATE'] },
   payments: { anon: [], authenticated: ['SELECT', 'INSERT', 'UPDATE'] },
