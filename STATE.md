@@ -186,7 +186,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 659 tests, 60 files (16 ส.ค. 2026)
+npm test          # vitest run — 670 tests, 61 files (16 ส.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -202,6 +202,7 @@ npm test          # vitest run — 659 tests, 60 files (16 ส.ค. 2026)
 | `tests/rls/write-guards.test.ts` | ช่องโหว่ WO-1.3 ที่ปิดแล้ว — EXECUTE grant · INSERT status · เขียน registrations ตรง |
 | `tests/cron/cron.test.ts` | **DoD WO-1.5** — CRON_SECRET (รวม fail-closed + timing-safe) · pg_cron schedule · sweep ทั้งสาม |
 | `tests/seed/idempotency.test.ts` | **DoD WO-1.5** — รัน seed ไฟล์จริงซ้ำ 3 รอบ สถานะต้องไม่เปลี่ยน |
+| `tests/line/liff.test.ts` | **WO-4.E** — ที่ว่างนับแบบ [D-10] · หนี้จากนัดที่ปิดแล้วยังนับ · ไม่มี service-role/LIFF SDK ในเส้นทาง |
 | `tests/line/login.test.ts` | **WO-4.D** — state/nonce · ไม่ล็อกอิน/คนละคน = ปฏิเสธ · เลิกผูกแล้วคิวถูกปิด |
 | `tests/line/fanout.test.ts` | **WO-4.C** — fan-out `line` (คีย์ `in_app` ไม่เปลี่ยน) · ปิด flag/ไม่ผูก/บล็อก/เกินโควต้า = ไม่มีแถว line · ข้อความ whitelist |
 | `tests/line/webhook.test.ts` | **WO-4.B** — ลายเซ็นจาก raw body · ข้ามก๊วนไม่ผ่าน · flag ปิด = 403 · follow/unfollow · รหัสผูกบัญชี stateless |
@@ -288,7 +289,7 @@ npm test          # vitest run — 659 tests, 60 files (16 ส.ค. 2026)
 ของที่ยังค้างจากการไล่ policy 0010: `event_logs` ยังเป็นระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
 `payment_adjustments` แอดมินเท่านั้น — จดไว้ใน `BACKLOG.md` แล้วทั้งหมด
 
-### ✅ Phase 4: `WO-4.A` · `4.B` · `4.C` · `4.D` เสร็จแล้ว — **ต่อที่ `WO-4.E`** (LIFF)
+### ✅ Phase 4: `4.A`–`4.E` เสร็จแล้ว — **เหลือ `WO-4.F`** (checkpoint + tag `v0.4.0` + merge เข้า main)
 
 6 ใบ (`WO-4.A` … `WO-4.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 10 ข้อ
 
@@ -298,7 +299,7 @@ npm test          # vitest run — 659 tests, 60 files (16 ส.ค. 2026)
 | 4.B | webhook `/api/line/webhook/[gangId]` + ผูกบัญชี (`member_line_links`) ✅ **เสร็จ** (`0036`) |
 | 4.C | worker ส่ง LINE จริง + fan-out ในคิวเดิม + โควต้าต่อก๊วนต่อเดือน ✅ **เสร็จ** (`0037`) |
 | 4.D | LINE Login — ผูกบัญชีโดยไม่ต้องพิมพ์รหัส ✅ **เสร็จ** (`0038`) |
-| 4.E | LIFF — หน้าจอในแอป LINE |
+| 4.E | LIFF — หน้าจอในแอป LINE ✅ **เสร็จ** (ไม่มี migration) |
 | 4.F | checkpoint + tag `v0.4.0` |
 
 ✅ **`WO-4.A` เสร็จแล้ว** (16 ส.ค. 2026) — migration `0035` push cloud แล้ว (35/35)
@@ -317,6 +318,11 @@ npm test          # vitest run — 659 tests, 60 files (16 ส.ค. 2026)
 ✅ **`WO-4.D` เสร็จแล้ว** (16 ส.ค. 2026) — migration `0038` push cloud แล้ว (38/38)
 ตรวจของจริงบน cloud: 3 ฟังก์ชันของ Login channel + `unlink_line_account` เป็นเวอร์ชันที่ปิดคิวให้ด้วย
 · callback อยู่ที่ `/api/line/login/callback` (ตั้งใน LINE Developers Console ให้ตรง)
+
+✅ **`WO-4.E` เสร็จแล้ว** (16 ส.ค. 2026) — **ไม่มี migration ใหม่** (cloud ยังตรงที่ 38)
+หน้า LIFF = `/gangs/[gangId]/liff` (ตั้งเป็น Endpoint URL ของ LIFF app)
+🔴 **ไม่ใช้ LIFF SDK / ไม่เชื่อ `liff.getProfile()`** — ใช้ session ของ Supabase เหมือนหน้าปกติ
+⇒ ทุกปุ่มเรียก server action ตัวเดิม ไม่มีเส้นทางที่ข้าม `can()`/RLS (มีเทสต์คุมระดับ source)
 
 🔴 **กติกาใหม่จาก 4.D**
 - ผูกบัญชีมีสองทาง (รหัสในแชต · LINE Login) แต่ทั้งคู่ลงเอยที่ `server/line/link.ts`

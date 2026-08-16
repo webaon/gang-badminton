@@ -81,6 +81,12 @@ export function LinkLinePanel({ gangId, initial }: { gangId: string; initial: My
               ? ` เมื่อ ${new Date(initial.linkedAt).toLocaleDateString('th-TH')}`
               : ''}
           </p>
+          <p className="text-sm">
+            เปิดหน้าย่อสำหรับใช้ในแอป LINE ได้ที่{' '}
+            <a href={`/gangs/${gangId}/liff`} className="underline">
+              ก๊วนของฉัน
+            </a>
+          </p>
           <div>
             <Button
               variant="ghost"

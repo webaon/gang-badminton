@@ -260,6 +260,8 @@ export function LineSettingsPanel({
           <p className="text-xs opacity-70">
             ตั้ง Callback URL ใน LINE Developers Console เป็น{' '}
             <code>{'<โดเมนของคุณ>'}/api/line/login/callback</code>
+            {' · '}[WO-4.E] ถ้าจะทำ LIFF ให้ตั้ง Endpoint URL เป็น{' '}
+            <code>{`<โดเมนของคุณ>/gangs/${gangId}/liff`}</code> แล้วเอา LIFF ID มาใส่ด้านบน
           </p>
         </div>
       </div>
