@@ -326,12 +326,12 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 
 ### 🚀 Production ขึ้นแล้ว (20 ส.ค. 2026)
 
-**https://gang-badminton-ruddy.vercel.app** — Vercel team `webaons-projects` (บัญชีส่วนตัว)
+**https://gang-badminton.vercel.app** — Vercel team `webaons-projects` (บัญชีส่วนตัว)
 · project `gang-badminton` · ชี้ Supabase cloud `emmzeriekkjryhucvctx` (39/39 migrations)
 
 🔴 **ย้ายบัญชีเมื่อ 20 ส.ค. 2026** — ตอน deploy รอบแรกไปขึ้นบน Vercel team `triple-t`
-ซึ่งเป็น**บัญชีบริษัท** ⇒ ย้ายมาบัญชีส่วนตัวแล้ว · URL เปลี่ยนเพราะ `gang-badminton.vercel.app`
-ยังถูกจองโดย project เดิม (ได้ชื่อคืนเมื่อลบของเดิมทิ้ง)
+ซึ่งเป็น**บัญชีบริษัท** ⇒ ย้ายมาบัญชีส่วนตัวแล้ว และลบ project เดิมทิ้ง จึงได้ URL เดิมคืน
+(`gang-badminton-ruddy.vercel.app` เป็น alias ที่ยังใช้ได้อยู่)
 **GitHub ↔ Vercel เชื่อมแล้ว** — push เข้า `main` = deploy production อัตโนมัติ · เปิด PR = preview
 (บทเรียน: Vercel GitHub App ผูกกับ **บัญชี Vercel ที่กด install** — ติดตั้งจากบัญชีผิดแล้วอีกบัญชีจะมองไม่เห็นเลย)
 

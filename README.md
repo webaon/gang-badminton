@@ -122,7 +122,7 @@ npm run supabase -- db query --linked "select count(*) from supabase_migrations.
 
 ## 5. Deploy (Vercel)
 
-> ✅ **production ตอนนี้อยู่ที่ https://gang-badminton-ruddy.vercel.app**
+> ✅ **production ตอนนี้อยู่ที่ https://gang-badminton.vercel.app**
 > (Vercel team `webaons-projects` · ชี้ Supabase cloud `emmzeriekkjryhucvctx`)
 >
 > ✅ **auto-deploy เปิดแล้ว** — push เข้า `main` = ขึ้น production เอง · เปิด PR = ได้ preview URL
