@@ -122,8 +122,11 @@ npm run supabase -- db query --linked "select count(*) from supabase_migrations.
 
 ## 5. Deploy (Vercel)
 
-> ✅ **production ตอนนี้อยู่ที่ https://gang-badminton.vercel.app**
-> (Vercel team `triple-t` · ชี้ Supabase cloud `emmzeriekkjryhucvctx`)
+> ✅ **production ตอนนี้อยู่ที่ https://gang-badminton-ruddy.vercel.app**
+> (Vercel team `webaons-projects` · ชี้ Supabase cloud `emmzeriekkjryhucvctx`)
+>
+> ✅ **auto-deploy เปิดแล้ว** — push เข้า `main` = ขึ้น production เอง · เปิด PR = ได้ preview URL
+> ⇒ ไม่ต้องรัน `vercel --prod` ด้วยมืออีก
 >
 > 🔴 **Hobby plan ให้ cron วันละครั้งต่อ job** ⇒ งานที่ต้องถี่ (ส่งข้อความ · reminder)
 > ขับด้วย **GitHub Actions** แทน — ดู `docs/cron.md`
