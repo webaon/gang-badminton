@@ -1,0 +1,69 @@
+name: Full verification (main / nightly)
+
+# 🔴 **[WO-5.E]** ของช้าตาม baseline §CI Gates — RLS · concurrency · Playwright smoke
+#    แยกจาก PR gate เพื่อให้ PR ไม่ช้าจนคนเลี่ยงการรัน
+on:
+  push:
+    branches: [main]
+  schedule:
+    # ตี 3 ตามเวลาไทย = 20:00 UTC ของวันก่อนหน้า
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: full-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+      LINE_LINK_SECRET: ci-not-a-real-secret
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # เทสต์ชุดนี้แตะ auth.users / storage / schema cron และต่อผ่าน pooled port (supavisor)
+      # ⇒ `services: postgres` ธรรมดาใช้แทนไม่ได้ · ห้ามตัด supavisor ออกจาก -x
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.112.0
+
+      - name: Start Supabase
+        run: supabase start -x studio,logflare,vector,edge-runtime,mailpit
+
+      - name: Migration status
+        run: supabase migration list --local
+
+      - name: All tests (RLS + concurrency + E2E)
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      # 🔴 smoke ผ่านเบราว์เซอร์จริง — เป็นตัวเดียวที่จับ CSP violation ได้
+      - name: Playwright smoke
+        run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: .playwright/results
+          retention-days: 7

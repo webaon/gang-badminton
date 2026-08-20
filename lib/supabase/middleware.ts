@@ -13,9 +13,20 @@ import { publicSupabaseEnv } from './env';
  *
  * ⚠️ ห้ามใส่ logic อื่นระหว่าง `createServerClient` กับ `getUser()`
  *    ถ้ามีอะไรคั่นแล้ว throw จะได้ response ที่ไม่มี cookie ใหม่ ⇒ ผู้ใช้หลุด session แบบสุ่ม
+ *
+ * 🔴 **[WO-5.B]** `requestHeaders` ต้องถูกส่งต่อในรูป `{ request: { headers } }` เท่านั้น
+ *    Next อ่าน `x-nonce` จาก **request headers ที่ proxy ส่งต่อ** เพื่อไปติด `nonce=` ให้
+ *    `<script>` ของตัวเอง ⇒ ถ้าส่ง `{ request }` เฉยๆ header ที่เพิ่งเซ็ตจะไม่ถูกส่งต่อ
+ *    และ script ทุกตัวจะไม่มี nonce = ถูก CSP บล็อกทั้งหน้า (เจอมาแล้วตอนทำ WO-5.B)
  */
-export async function updateSession(request: NextRequest): Promise<NextResponse> {
-  let response = NextResponse.next({ request });
+export async function updateSession(
+  request: NextRequest,
+  requestHeaders?: Headers,
+): Promise<NextResponse> {
+  const forward = () =>
+    NextResponse.next({ request: { headers: requestHeaders ?? request.headers } });
+
+  let response = forward();
 
   const { url, anonKey } = publicSupabaseEnv();
 
@@ -28,7 +39,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
         for (const { name, value } of cookiesToSet) {
           request.cookies.set(name, value);
         }
-        response = NextResponse.next({ request });
+        response = forward();
         for (const { name, value, options } of cookiesToSet) {
           response.cookies.set(name, value, options);
         }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { GUEST_COOKIE, guestCookieOptions } from '@/lib/guest/session';
+import { withinRateLimit } from '@/server/security/rate-limit';
 import { correlationIdFrom } from '@/shared/api';
 
 // แตะฐานข้อมูลและตั้ง cookie ทุกครั้ง — ห้าม cache
@@ -28,6 +29,21 @@ export async function GET(
   const clean = new URL(`/guest/${registrationId}`, request.url);
 
   if (!token) return NextResponse.redirect(clean);
+
+  // 🔴 **[WO-5.C]** เปิดสาธารณะ + รับ token จาก query ⇒ ไม่มีเพดาน = เดา token ได้ไม่จำกัด
+  //    เกินเพดานส่งกลับหน้าเดิมเงียบๆ (ไม่บอกว่าโดนจำกัด — ไม่งั้นใช้วัดได้ว่าเดาถูกหรือผิด)
+  const allowed = await withinRateLimit({
+    scope: 'guest:claim',
+    subject: registrationId,
+    headers: request.headers,
+    limit: 10,
+    window: '1 hour',
+  });
+
+  if (!allowed) {
+    console.warn('[guest] เกินเพดานการแลก token', { correlationId, registrationId });
+    return NextResponse.redirect(clean);
+  }
 
   const { error } = await supabaseAdmin().rpc('guest_registration', {
     p_registration_id: registrationId,

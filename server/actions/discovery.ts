@@ -8,6 +8,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { currentUser, supabaseServer } from '@/lib/supabase/server';
 import { assertCan } from '@/domain/permissions/can';
 import type { GangFeatures, GangRole } from '@/domain/permissions/types';
+import { enforceRateLimit } from '@/server/security/rate-limit';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { runAction } from '@/shared/action';
 
@@ -55,6 +56,15 @@ export async function searchGangs(query: string): Promise<ApiResponse<GangSearch
 
   return runAction(correlationId, async () => {
     // ❗ ไม่ใช้ `requireUser()` — หน้านี้เปิดสาธารณะ ⇒ ไม่มี user ก็ค้นได้
+    // 🔴 **[WO-5.C]** จึงต้องมีเพดานต่อ IP: query นี้เป็น trgm บนตารางก๊วนทั้งแพลตฟอร์ม
+    //    ปล่อยไว้เท่ากับเปิดให้ใครก็ได้ยิงงานหนักใส่ฐานข้อมูลฟรีๆ
+    await enforceRateLimit({
+      scope: 'discovery:search',
+      headers: await headers(),
+      limit: 30,
+      window: '1 minute',
+    });
+
     const user = await currentUser();
 
     const { data, error } = await supabaseAdmin().rpc('search_public_gangs', {

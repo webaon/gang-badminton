@@ -28,7 +28,8 @@
 ## 2. Git
 
 ```
-tag ล่าสุด: v0.4.0 (Phase 4 — LINE ครบ 6 ใบ) · v0.3.1 (ADR-007) · v0.3.0 (Phase 3)
+tag ล่าสุด: v0.4.0 (Phase 4 — LINE ครบ 6 ใบ · merge เข้า main ผ่าน PR #5 `5288042`, CI เขียว)
+           v0.3.1 (ADR-007) · v0.3.0 (Phase 3) · v0.2.0 (Phase 2.5) · v0.1.0 (MVP-0)
 branch: claude/badminton-group-system-4pfs7o   (ทำงานอยู่บนนี้ — WO ทุกใบ commit ที่นี่)
         main                                    (ตามทันแล้วถึง v0.3.0)
 ```
@@ -86,7 +87,7 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 | | |
 |---|---|
 | project / ref | **gang-badminton** · `emmzeriekkjryhucvctx` |
-| migrations ที่ apply แล้ว | **38 / 38** ✅ (push ล่าสุด 16 ส.ค. 2026 — `0038` ของ WO-4.D) |
+| migrations ที่ apply แล้ว | **39 / 39** — `0039` (WO-5.D) ยังไม่ push cloud (Phase 5 ยังไม่ merge) |
 | ข้อมูลใน DB | 0 แถวทุกตาราง (ไม่ได้ push seed ขึ้นไป — `seeds: []`) |
 | RLS | ✅ 29/29 ตาราง · 50 policies + 16 บน storage.objects |
 | storage | ✅ 4 buckets · cron ✅ 3 jobs active |
@@ -187,7 +188,9 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 ## 5. เทสต์ — DoD ผ่านครบ
 
 ```bash
-npm test          # vitest run — 673 tests, 62 files (16 ส.ค. 2026)
+npm test          # vitest run — 712 tests, 65 files (17 ส.ค. 2026)
+npm run test:unit # เทสต์ที่ไม่ต้องมี DB (273) — ใช้เป็น PR gate
+npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLIC_* ก่อน)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -203,6 +206,9 @@ npm test          # vitest run — 673 tests, 62 files (16 ส.ค. 2026)
 | `tests/rls/write-guards.test.ts` | ช่องโหว่ WO-1.3 ที่ปิดแล้ว — EXECUTE grant · INSERT status · เขียน registrations ตรง |
 | `tests/cron/cron.test.ts` | **DoD WO-1.5** — CRON_SECRET (รวม fail-closed + timing-safe) · pg_cron schedule · sweep ทั้งสาม |
 | `tests/seed/idempotency.test.ts` | **DoD WO-1.5** — รัน seed ไฟล์จริงซ้ำ 3 รอบ สถานะต้องไม่เปลี่ยน |
+| `tests/rls/event-log-privacy.test.ts` | **WO-5.D** — สมาชิกอ่าน event เรื่องเงินจาก API ตรงไม่ได้ · SQL ตรงกับ `adminOnly` ของ domain · เจ้าของหนี้เห็น refund ของตัวเอง |
+| `tests/security/rate-limit.test.ts` | **WO-5.C** — เกินเพดาน = RATE_LIMITED · ทุกทางเข้าสาธารณะมีเพดานจริง · grep gate ของ secret/log |
+| `tests/security/csp.test.ts` | **WO-5.B** — script-src ไม่มี unsafe-* ใน prod · หน้า static ห้ามมี strict-dynamic · connect-src มาจาก env · HSTS เฉพาะ prod |
 | `tests/e2e/phase4-full-path.test.ts` | 🎉 **Phase 4 checkpoint** — ตั้งค่า Vault → ผูกผ่าน webhook → ประกาศ → ส่งจริง → โควต้า → เลิกผูก · ก๊วนที่ไม่ต่อ LINE ต้องเหมือนเดิม |
 | `tests/line/liff.test.ts` | **WO-4.E** — ที่ว่างนับแบบ [D-10] · หนี้จากนัดที่ปิดแล้วยังนับ · ไม่มี service-role/LIFF SDK ในเส้นทาง |
 | `tests/line/login.test.ts` | **WO-4.D** — state/nonce · ไม่ล็อกอิน/คนละคน = ปฏิเสธ · เลิกผูกแล้วคิวถูกปิด |
@@ -291,7 +297,7 @@ npm test          # vitest run — 673 tests, 62 files (16 ส.ค. 2026)
 ของที่ยังค้างจากการไล่ policy 0010: `event_logs` ยังเป็นระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
 `payment_adjustments` แอดมินเท่านั้น — จดไว้ใน `BACKLOG.md` แล้วทั้งหมด
 
-### 🎉 Phase 4 (LINE) เสร็จครบ 6 ใบ — tag **`v0.4.0`**
+### 🎉 Phase 4 (LINE) เสร็จครบ 6 ใบ — merge เข้า `main` ผ่าน PR #5 · tag **`v0.4.0`** · CI เขียว
 
 | WO | งาน | migration |
 |---|---|---|
@@ -302,17 +308,77 @@ npm test          # vitest run — 673 tests, 62 files (16 ส.ค. 2026)
 | 4.E | LIFF — หน้าจอในแอป LINE | — |
 | 4.F | E2E checkpoint + `v0.4.0` | — |
 
-### ต่อไป: **Phase 5 — Hardening & Deploy** (baseline §Roadmap)
+### ✅ Phase 5: `5.A` · `5.B` · `5.C` เสร็จ · `5.D`/`5.E` บางส่วน — **เหลือ `WO-5.F`** (README + `v1.0.0`)
 
-ยังไม่ได้แตก WO (กติกา: แตกตอนจะเริ่ม Phase นั้น) · ขอบเขตตาม baseline:
-**E2E เต็ม flow → RLS tests → README (ไทย): setup Supabase, env vars, Vault, cron, deploy Vercel**
-พร้อม **§Security Checklist** ที่ต้องผ่านก่อน deploy จริง — ของที่ยังค้างจาก checklist นั้น:
-- [ ] **Playwright** (E2E ผ่านเบราว์เซอร์จริง) — ตอนนี้ E2E เดินผ่าน DB function + domain
-- [ ] **Security headers + CSP** บน Next.js config (ยังไม่มี)
-- [ ] **`npm audit` 3 high** ใน transitive deps ของ `next@15.5.23` — แก้ต้องขึ้น next@16 = ADR
-- [ ] **rate limit** บน endpoint ที่ guest/public เรียกได้ทุกตัว (มีเฉพาะ guest register)
-- [ ] ของค้างอื่นดู `BACKLOG.md` (`event_logs` ระดับก๊วน · `coupons` เปิดทั้งก๊วน ·
-      ย้าย `promptpay_id` ไปตาราง server-only เป็น defense in depth)
+6 ใบ (`WO-5.A` … `WO-5.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 8 ข้อ
+
+| WO | งาน |
+|---|---|
+| 5.A | ตัดสินเรื่อง dependency ที่มีช่องโหว่ — ✅ **เสร็จ**: ขึ้น `next@16.3.1` (ADR-008) |
+| 5.B | Security headers + CSP — ⚠️ **เสร็จบางส่วน** (เหลือตรวจ console ในเบราว์เซอร์ → ยกไป 5.E) |
+| 5.C | rate limit ให้ครบทุกทางเข้าสาธารณะ + grep gate — ✅ **เสร็จ** (`docs/rate-limits.md`) |
+| 5.D | ปิดของค้างด้าน RLS — ⚠️ **เสร็จ 3/4** (`0039`) · ข้อ `promptpay_id` เสนอให้ทบทวน |
+| 5.E | Playwright smoke + แยก CI gate — ⚠️ **เสร็จ (smoke ครอบบางส่วน)** |
+| 5.F | README ไทย + deploy runbook + ปิด §Security Checklist + tag `v1.0.0` |
+
+✅ **`WO-5.A` เสร็จแล้ว** (16 ส.ค. 2026) — **`next@15.5.23` → `16.3.1`** ตาม **ADR-008**
+`npm audit` = **0 vulnerabilities** (ไม่ต้องใช้ `overrides`) · 673 เทสต์ผ่าน · หน้าแรกยัง ISR
+
+🔴 **กติกาใหม่จาก 5.A**
+- ❌ **ห้ามส่ง `as={NextLink}` จาก server component** — Next 16 ห้ามส่ง component ข้ามขอบ RSC
+  ⇒ ลิงก์ Astryx ได้ `next/link` จาก `LinkProvider` ใน `app/providers.tsx` แล้ว (เผลอส่ง = build พัง)
+- entry point ของ Next คือ **`proxy.ts`** (เดิม `middleware.ts`) · `lib/supabase/middleware.ts` ชื่อเดิม
+- `tsconfig.json` ถูก Next แก้ให้เอง (`jsx: react-jsx`) — commit แล้ว อย่าย้อน
+
+⚠️ **`WO-5.B` เสร็จบางส่วน** (17 ส.ค. 2026) — CSP ต่อ request (nonce) + static header ครบแล้ว
+ยืนยันกับ `next start` จริง: `/discover` มี nonce **16/16 script** ตรงกับ header
+🔴 **ที่ยังค้าง: ยังไม่ได้เปิดเบราว์เซอร์จริงดู console ว่าไม่มี CSP violation**
+   (สภาพแวดล้อมนี้ไม่มี browser tool) ⇒ **ยกไปปิดใน `WO-5.E` ด้วย Playwright**
+   ห้ามติ๊ก §Security Checklist ข้อ "Security headers + CSP" จนกว่าข้อนี้จะผ่าน
+
+⚠️ **`WO-5.E` เสร็จ (smoke ครอบบางส่วน)** (17 ส.ค. 2026)
+· `e2e-browser/` 8 เทสต์ผ่าน · **ปิด DoD ที่ค้างของ 5.B แล้ว** (ไม่มี CSP violation ในเบราว์เซอร์จริง)
+· แยก CI: `ci.yml` (PR เร็ว ~2-3 นาที) / `full.yml` (main + nightly: ทั้งชุด + Playwright)
+
+🔴 **บั๊กจริงสองตัวที่เจอเพราะมีเบราว์เซอร์**
+1. `/sign-up` พังสนิทเพราะเป็นหน้า prerender ที่ตกจาก `STATIC_ROUTES` (CSP บล็อกสคริปต์ทั้งหน้า
+   โดย server ตอบ 200) ⇒ แก้แล้ว + มีเทสต์อ่าน `.next/prerender-manifest.json` มาเทียบ
+2. 🔴 **`NEXT_PUBLIC_*` ต้องมีตั้งแต่ตอน `npm run build`** ไม่ใช่แค่ตอนรัน — ไม่งั้นหน้ารายละเอียดนัด
+   พังทั้งหน้า (client component ที่ต่อ realtime โยน error) ⇒ **ต้องเขียนย้ำใน runbook ของ 5.F**
+
+⚠️ smoke ครอบถึงแค่ "เปิดรับสมัคร" — หาง (ลงชื่อ → ปิดรอบ → เห็นยอด) ยังไม่ครอบใน UI
+   (ครอบใน `tests/e2e/mvp0-full-path.test.ts` แล้ว) · จดไว้ใน `BACKLOG.md`
+
+⚠️ **`WO-5.D` เสร็จ 3 จาก 4** (17 ส.ค. 2026) — migration `0039`
+· `event_logs` รัดที่ RLS แล้ว (สมาชิกอ่าน event เรื่องเงินจาก API ตรงไม่ได้ · มีเทสต์เทียบ
+  กติกา SQL กับ `adminOnly` ของ domain ว่าตรงกัน)
+· `payment_adjustments` เจ้าของหนี้เห็นของตัวเองได้แล้ว
+· `coupons` ตรวจแล้ว **ไม่ต้องแก้** (คูปองเป็นของก๊วน ไม่ใช่รายคน)
+🔴 **ค้าง: ย้าย `promptpay_id`** — ตรวจแล้วพบว่า `sessions.snapshot.promptpay_id` เก็บค่าเดียวกัน
+   อยู่แล้ว (723 นัดบน local) และสมาชิกอ่าน snapshot ได้ ⇒ ย้ายคอลัมน์อย่างเดียวแทบไม่ได้อะไร
+   ถ้าจะทำต้องแตะ snapshot ที่แช่แข็งราคาไว้ ⇒ **ต้องมี ADR + ใบแยก** (รอเจ้าของงานตัดสิน)
+
+✅ **`WO-5.C` เสร็จแล้ว** (17 ส.ค. 2026) — ทางเข้าสาธารณะมีเพดานครบทุกทาง
+ตารางเพดาน + เหตุผลอยู่ใน **`docs/rate-limits.md`** · ตัวนับเหลือ helper เดียว
+(`server/security/rate-limit.ts`) และมีเทสต์ยืนยันว่าไม่มีไฟล์อื่นเรียก `check_rate_limit` อีก
+
+🔴 **กติกาใหม่จาก 5.C**
+- เปิดทางเข้าใหม่ให้คนไม่ล็อกอินเมื่อไหร่ → **ต้องมีเพดาน + เติมใน `docs/rate-limits.md`**
+  (มีเทสต์ตรวจว่าเอกสารกับโค้ดตรงกัน)
+- ❌ ห้าม log ค่า token/secret และห้ามฝัง JWT/service key ในโค้ด — มี grep gate 4 ชั้นคุมแล้ว
+
+🔴 **กติกาใหม่จาก 5.B**
+- หน้าแรก (static) ได้ CSP คนละชุด (`'unsafe-inline'` แทน nonce) เพราะ Next ติด nonce ให้
+  หน้า prerender ไม่ได้ ⇒ **เพิ่มหน้า static ใหม่ต้องเติมใน `STATIC_ROUTES`** (`lib/security/csp.ts`)
+  ไม่งั้นหน้านั้นจะขาวโดยไม่มี error ฝั่ง server
+- ส่ง nonce ต่อด้วย `NextResponse.next({ request: { headers } })` เท่านั้น (ส่ง `{ request }` เฉยๆ
+  แล้ว header หาย → script ไม่มี nonce ทั้งหน้า) — มีเทสต์ล็อกไว้
+
+ของจริงที่ตรวจไว้แล้วตอนแตกใบ (อย่าเสียเวลาค้นซ้ำ):
+- **rate limit มีที่เดียว** (`enforceGuestRateLimit()` ของ guest ลงชื่อ)
+  🔴 ที่ยังไม่มี: `searchGangs()` (คนไม่ล็อกอินยิง trgm ได้ไม่จำกัด) · LINE login callback ·
+  guest claim · auth callback
+- **CI รันทุกอย่างในงานเดียว** (~4 นาที) — baseline อยาก PR เร็ว / main+nightly ช้า ⇒ แยกใน `WO-5.E`
 
 ### 🔴 กติกาของ Phase 4 ที่ Phase ถัดไปห้ามทำผิด
 
@@ -432,6 +498,11 @@ baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
 - **`service_role` มี BYPASSRLS แต่ BYPASSRLS ไม่ข้าม GRANT** — ต้อง grant ให้ด้วย
 - **helper ของ policy ต้องเป็น SECURITY DEFINER** ไม่งั้น policy ที่อ้างตารางตัวเองจะ recursion
   และ **ห้ามใช้ `FORCE ROW LEVEL SECURITY`** เพราะจะทำให้ owner ถูก policy ตรวจด้วย = วนกลับมาอีก
+- 🔴 **เทสต์ที่เรียก `claim_notifications()` / `dispatchNotifications()` ต้องวนจนเจอของตัวเอง**
+  ทั้งคู่หยิบงานของ **ทั้งฐานข้อมูล** ครั้งละไม่กี่แถวและเรียงตามเวลา ⇒ ของค้างจากเทสต์ก่อนหน้า
+  กินโควต้าของ batch จนแถวของเทสต์นั้นไม่ถูกหยิบ · **แดงเฉพาะบน CI** ที่ DB เริ่มจากศูนย์
+  (เจอตอน WO-4.F — เทสต์เก่าของ WO-2.5-G ล้มเพราะ Phase 4 ทำให้คิวมีแถวเยอะขึ้น)
+  ⇒ ก่อนเชื่อว่า "ผ่านแล้ว" ให้ `supabase db reset` แล้วรันทั้งชุดหนึ่งรอบ
 - 🔴 **เทสต์ที่ยิง `enqueue_notifications` ต้องใช้ `dedupe_key` ที่ไม่ซ้ำข้ามการรัน**
   (คีย์เป็น unique ทั้งตารางและเทสต์ไม่ล้างข้อมูล) — ถ้าใช้คีย์ตายตัว รอบสองจะ `do nothing`
   ทั้งหมดแล้วเทสต์แดงแบบหาสาเหตุยาก (เจอมาแล้วตอน WO-4.C)

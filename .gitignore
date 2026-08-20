@@ -45,3 +45,8 @@ supabase/.env
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Playwright — ผลรัน/วิดีโอ/screenshot ห้ามเข้า repo (WO-5.E)
+/.playwright/
+/playwright-report/
+/test-results/

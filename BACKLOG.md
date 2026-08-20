@@ -9,13 +9,19 @@
 
 ### 🔴 ความปลอดภัย — ต้องปิดก่อน production
 
-- [ ] **`npm audit`: 3 high severity ใน transitive deps ของ `next@15.5.23`**
+- [x] ~~**`npm audit`: 3 high severity ใน transitive deps ของ `next@15.5.23`**~~ — ✅ **WO-5.A / ADR-008**
+      (ตอนปิดจริงเป็น **4 high**: `nanoid` เพิ่มมาอีกตัว) · แก้ด้วยการ **ขึ้น `next@16.3.1`**
+      หลังวัดต้นทุนจริงใน worktree แยกก่อน (พังจุดเดียว: `<Link as={NextLink}>` บนหน้าแรก)
+      ⇒ `npm audit` = 0 vulnerabilities โดยไม่ต้องใช้ `overrides`
+
+  <details><summary>บริบทเดิม</summary>
   - `postcss <=8.5.22` — XSS ผ่าน unescaped `</style>`, path traversal ผ่าน `sourceMappingURL` (4 CVE)
   - `sharp <0.35.0` — libvips CVE-2026-33327 / 33328 / 35590 / 35591
   - `npm audit fix --force` จะดัน **next@16.3.0** = breaking + ขัด baseline ("Next.js 15") ⇒ **ต้องผ่าน ADR**
   - ⚠️ `sharp` คือตัวที่ `next/image` ใช้ประมวลผลรูป — โปรเจกต์นี้จะมี **avatar + สลิปโอนเงินที่ user อัปโหลด**
     ⇒ ประเมินความเสี่ยงจริงตอน Phase 3 (avatars) และ **บังคับปิดใน Phase 5 Security Checklist**
   - ทางเลือกที่ไม่ต้องขึ้น major: รอ Next 15.5.x patch, หรือ `overrides` ใน package.json บังคับ postcss/sharp เวอร์ชันใหม่
+  </details>
 
 ### CI / Tooling (baseline §Verification + §CI Gates — ยังไม่มี WO รองรับ)
 
@@ -388,8 +394,14 @@
 - [x] ~~**`gangs_select_public` (0010) เปิดทั้ง "แถว" ไม่ใช่แค่ metadata**~~ — ✅ **WO-3.G / ADR-007**
       เลือกทางเลือก (ข): ถอด policy + `revoke select from anon` (migration `0034`)
       คนนอกอ่านก๊วนผ่าน `search_public_gangs()` เท่านั้น · เทสต์ `tests/rls/public-gang-exposure.test.ts`
-      ⚠️ ทางเลือก (ค) **ย้าย `promptpay_id` ไปตาราง server-only ยังทำเพิ่มได้เป็น defense in depth**
-      (ตอนนี้คอลัมน์นี้ยังอ่านได้โดยสมาชิกทุกคนของก๊วน ซึ่งรับได้ แต่ไม่จำเป็นต้องเปิดถึงขนาดนั้น)
+      ✅ **ปิดแล้วด้วย ADR-009** (17 ส.ค. 2026): เลือก **ไม่ย้าย** — ผู้รับข้อมูลคือสมาชิกที่ต้อง
+      โอนเงินให้ก๊วนนั้นอยู่แล้ว · คนนอกถูกปิดไปแล้วโดย ADR-007
+      🔴 ต้องกลับมาทบทวนถ้าวันหนึ่งเปิดให้คนนอกก๊วนอ่าน `sessions`/`snapshot` ได้
+      <details><summary>ข้อมูลที่ใช้ตัดสิน</summary>
+      `sessions.snapshot.promptpay_id` เก็บค่าเดียวกันไว้อยู่แล้ว (723 นัดบน local) และสมาชิกอ่าน
+      snapshot ได้ ⇒ ย้ายคอลัมน์อย่างเดียวไม่ได้ทำให้สมาชิกมองไม่เห็นค่านี้
+      ถ้าจะทำจริงต้องแตะ snapshot ซึ่งแช่แข็งราคาไว้ (CLAUDE.md §2.4)
+      </details>
 
   <details><summary>บริบทเดิมของช่องโหว่</summary>
       RLS กรองได้แค่ระดับแถว ⇒ ใครก็ได้ที่มี anon key ยิง
@@ -410,13 +422,32 @@
       · **ควรปิดก่อนเปิด discovery ให้ผู้ใช้จริง**
   </details>
 
-- [ ] **`event_logs` ยังเป็นระดับก๊วน** — สมาชิกทั่วไปยิง PostgREST อ่าน `payload` ดิบได้
+- [x] ~~**`event_logs` ยังเป็นระดับก๊วน**~~ — ✅ **WO-5.D** (`0039`) รัดที่ RLS แล้ว
+      สมาชิกอ่าน event เรื่องเงิน (`payment.*` · `session.charges_committed` ·
+      `membership.fees_generated` · `audit.*`) จาก API ตรงไม่ได้ · มีเทสต์เทียบกติกา SQL
+      กับ `adminOnly` ของ `domain/reports/timeline.ts` ว่าตรงกันเป๊ะ
+
+  <details><summary>บริบทเดิม</summary> — สมาชิกทั่วไปยิง PostgREST อ่าน `payload` ดิบได้
       (ไทม์ไลน์กรอง `adminOnly` ที่ชั้น `domain/` เท่านั้น — ตัดสินไว้ตั้งแต่ WO-3.C)
       ⇒ ถ้าจะปิดจริงต้องรัด RLS ของ `event_logs` ตาม event type ซึ่งกระทบทุกหน้าที่อ่าน timeline
-- [ ] **`coupons_select` ให้สมาชิกทุกคนเห็นคูปองทั้งก๊วน** — ยังไม่มีฟีเจอร์คูปองจริง
-      แต่ถ้าคูปองผูกกับคนใดคนหนึ่ง ต้องรัด policy ก่อนใช้งาน
-- [ ] **`payment_adjustments_select` เปิดเฉพาะแอดมิน** — คนจ่ายเงินดูประวัติการคืนเงิน
-      ของตัวเองไม่ได้ (ตอนนี้เห็นผ่านยอดสุทธิเท่านั้น)
+  </details>
+- [x] ~~**`coupons_select` ให้สมาชิกทุกคนเห็นคูปองทั้งก๊วน**~~ — ✅ **WO-5.D**: ตรวจแล้ว
+      **ไม่ต้องแก้** เพราะคูปองเป็นของ **ก๊วน** ไม่ใช่รายคน (`gang_id` + `code` ไม่มีคอลัมน์เจ้าของ)
+      ⚠️ ถ้าวันหนึ่งมีคูปองรายคน **ต้องกลับมารัด policy ก่อนเปิดใช้**
+- [x] ~~**`payment_adjustments_select` เปิดเฉพาะแอดมิน**~~ — ✅ **WO-5.D** (`0039`)
+      เจ้าของหนี้เห็นรายการคืนเงินของตัวเองได้แล้ว · คนอื่นในก๊วนยังไม่เห็น
 - [ ] **walk-in ยังต้องให้แอดมินเปิดลิงก์เชิญเอง** — WO-3.E ใช้ลิงก์เชิญของ WO-2.5 ตามที่ scope กำหนด
       ยังไม่มีปุ่ม "รับ walk-in" ที่หน้างานที่ออกลิงก์/QR ให้ในคลิกเดียว
 
+---
+
+## จาก WO-5.E (Playwright + CI gates)
+
+- [ ] **หาง smoke ยังไม่ครอบ: ลงชื่อ → เช็คอิน → ปิดรอบ → เห็นยอด**
+      ปุ่ม "ลงชื่อเข้านัด" ในหน้ารายละเอียดนัดกดผ่าน Playwright แล้วปุ่ม "ยกเลิกการลงชื่อ"
+      ไม่โผล่ (ยังไม่ได้หาสาเหตุ — อาจเป็น server action ที่ต้องรอ refresh หรือเงื่อนไขของ
+      `RegistrationActions`) · เส้นนี้ครอบอยู่แล้วใน `tests/e2e/mvp0-full-path.test.ts`
+      ระดับ DB function + domain ⇒ ไม่ใช่ช่องโหว่ของระบบ แต่เป็นช่องว่างของ **การพิสูจน์ผ่าน UI**
+- [ ] **`lib/supabase/client.ts` โยน error แล้วพังทั้งหน้า** เมื่อ `NEXT_PUBLIC_*` ไม่ถูก inline
+      ตอน build — ควรทำให้ฟีเจอร์ realtime degrade เป็น polling (ซึ่งมีอยู่แล้วใน `lib/sync/fallback.ts`)
+      แทนที่จะทำให้ทั้งหน้าใช้ไม่ได้
