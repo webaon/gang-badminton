@@ -1,37 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
-    {
-      "path": "/api/cron/notification-dispatch",
-      "schedule": "*/2 * * * *"
-    },
-    {
-      "path": "/api/cron/waitlist-sweep",
-      "schedule": "2,17,32,47 * * * *"
-    },
-    {
-      "path": "/api/cron/notification-sweep",
-      "schedule": "7,22,37,52 * * * *"
-    },
-    {
-      "path": "/api/cron/rate-limits-purge",
-      "schedule": "20 4 * * *"
-    },
-    {
-      "path": "/api/cron/monthly-fees",
-      "schedule": "10 17 * * *"
-    },
-    {
-      "path": "/api/cron/session-generate",
-      "schedule": "30 18 * * *"
-    },
-    {
-      "path": "/api/cron/reminders",
-      "schedule": "5 * * * *"
-    },
-    {
-      "path": "/api/cron/rollup",
-      "schedule": "0 19 * * *"
-    }
+    { "path": "/api/cron/notification-dispatch", "schedule": "15 3 * * *" },
+    { "path": "/api/cron/waitlist-sweep", "schedule": "25 3 * * *" },
+    { "path": "/api/cron/notification-sweep", "schedule": "35 3 * * *" },
+    { "path": "/api/cron/rate-limits-purge", "schedule": "20 4 * * *" },
+    { "path": "/api/cron/monthly-fees", "schedule": "10 17 * * *" },
+    { "path": "/api/cron/session-generate", "schedule": "30 18 * * *" },
+    { "path": "/api/cron/reminders", "schedule": "5 19 * * *" },
+    { "path": "/api/cron/rollup", "schedule": "0 19 * * *" }
   ]
 }
