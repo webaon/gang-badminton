@@ -2,7 +2,8 @@
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
 > **อัปเดตล่าสุด: 16 ส.ค. 2026** · MVP-0 = `v0.1.0` · Phase 2.5 = `v0.2.0` ·
-> Phase 3 = `v0.3.0` (+ `v0.3.1` ปิดช่องโหว่ ADR-007) · **Phase 4 (LINE) เสร็จครบ 6 ใบ = `v0.4.0`**
+> Phase 3 = `v0.3.0` (+ `v0.3.1` ADR-007) · Phase 4 (LINE) = `v0.4.0` ·
+> 🎉 **Phase 5 (Hardening & Deploy) เสร็จครบ = `v1.0.0` — public release**
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -28,7 +29,8 @@
 ## 2. Git
 
 ```
-tag ล่าสุด: v0.4.0 (Phase 4 — LINE ครบ 6 ใบ · merge เข้า main ผ่าน PR #5 `5288042`, CI เขียว)
+tag ล่าสุด: v1.0.0 (Phase 5 — merge เข้า main ผ่าน PR #6 `637057f`, CI เขียว)
+           v0.4.0 (Phase 4 — LINE)
            v0.3.1 (ADR-007) · v0.3.0 (Phase 3) · v0.2.0 (Phase 2.5) · v0.1.0 (MVP-0)
 branch: claude/badminton-group-system-4pfs7o   (ทำงานอยู่บนนี้ — WO ทุกใบ commit ที่นี่)
         main                                    (ตามทันแล้วถึง v0.3.0)
@@ -87,7 +89,7 @@ npm run supabase -- start -x studio,logflare,vector,edge-runtime,mailpit
 | | |
 |---|---|
 | project / ref | **gang-badminton** · `emmzeriekkjryhucvctx` |
-| migrations ที่ apply แล้ว | **39 / 39** — `0039` (WO-5.D) ยังไม่ push cloud (Phase 5 ยังไม่ merge) |
+| migrations ที่ apply แล้ว | **39 / 39** ✅ (push ล่าสุด 20 ส.ค. 2026 — `0039` ของ WO-5.D) |
 | ข้อมูลใน DB | 0 แถวทุกตาราง (ไม่ได้ push seed ขึ้นไป — `seeds: []`) |
 | RLS | ✅ 29/29 ตาราง · 50 policies + 16 บน storage.objects |
 | storage | ✅ 4 buckets · cron ✅ 3 jobs active |
@@ -308,77 +310,41 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 | 4.E | LIFF — หน้าจอในแอป LINE | — |
 | 4.F | E2E checkpoint + `v0.4.0` | — |
 
-### ✅ Phase 5: `5.A` · `5.B` · `5.C` เสร็จ · `5.D`/`5.E` บางส่วน — **เหลือ `WO-5.F`** (README + `v1.0.0`)
+### 🎉 Phase 5 (Hardening & Deploy) เสร็จครบ 6 ใบ — merge เข้า `main` ผ่าน PR #6 · tag **`v1.0.0`**
 
-6 ใบ (`WO-5.A` … `WO-5.F`) อยู่ท้าย `AGENT-EXECUTION.md` พร้อมตารางข้อจำกัด 8 ข้อ
+| WO | งาน | migration |
+|---|---|---|
+| 5.A | อัป **Next 15 → 16.3.1** ปิด `npm audit` 4 high (**ADR-008**) | — |
+| 5.B | Security headers + CSP (nonce ต่อ request) | — |
+| 5.C | rate limit ครบทุกทางเข้าสาธารณะ + grep gate ของ secret/log | — |
+| 5.D | รัด RLS ที่ค้างจาก Phase 3 (`event_logs` · `payment_adjustments`) | `0039` |
+| 5.E | Playwright smoke + แยก CI gate เร็ว/ช้า | — |
+| 5.F | README ไทย + runbook + ปิด §Security Checklist | — |
 
-| WO | งาน |
-|---|---|
-| 5.A | ตัดสินเรื่อง dependency ที่มีช่องโหว่ — ✅ **เสร็จ**: ขึ้น `next@16.3.1` (ADR-008) |
-| 5.B | Security headers + CSP — ⚠️ **เสร็จบางส่วน** (เหลือตรวจ console ในเบราว์เซอร์ → ยกไป 5.E) |
-| 5.C | rate limit ให้ครบทุกทางเข้าสาธารณะ + grep gate — ✅ **เสร็จ** (`docs/rate-limits.md`) |
-| 5.D | ปิดของค้างด้าน RLS — ⚠️ **เสร็จ 3/4** (`0039`) · ข้อ `promptpay_id` เสนอให้ทบทวน |
-| 5.E | Playwright smoke + แยก CI gate — ⚠️ **เสร็จ (smoke ครอบบางส่วน)** |
-| 5.F | README ไทย + deploy runbook + ปิด §Security Checklist + tag `v1.0.0` |
+**§Security Checklist ครบ 7 ข้อ** พร้อมหลักฐานต่อข้อ → `docs/security-checklist.md`
+(รวมตารางของที่ "รู้อยู่ว่ายังไม่ปิด" พร้อมเงื่อนไขที่ต้องกลับมาทบทวน)
 
-✅ **`WO-5.A` เสร็จแล้ว** (16 ส.ค. 2026) — **`next@15.5.23` → `16.3.1`** ตาม **ADR-008**
-`npm audit` = **0 vulnerabilities** (ไม่ต้องใช้ `overrides`) · 673 เทสต์ผ่าน · หน้าแรกยัง ISR
+### งานถัดไป — ยังไม่มี Phase 6 ใน baseline
 
-🔴 **กติกาใหม่จาก 5.A**
-- ❌ **ห้ามส่ง `as={NextLink}` จาก server component** — Next 16 ห้ามส่ง component ข้ามขอบ RSC
-  ⇒ ลิงก์ Astryx ได้ `next/link` จาก `LinkProvider` ใน `app/providers.tsx` แล้ว (เผลอส่ง = build พัง)
-- entry point ของ Next คือ **`proxy.ts`** (เดิม `middleware.ts`) · `lib/supabase/middleware.ts` ชื่อเดิม
-- `tsconfig.json` ถูก Next แก้ให้เอง (`jsx: react-jsx`) — commit แล้ว อย่าย้อน
+baseline จบที่ Phase 5 ⇒ งานหลังจากนี้เป็นเรื่องของ **ใช้งานจริงแล้วเก็บ feedback**
+สิ่งที่ค้างอยู่และหยิบทำได้ทันที (รายละเอียดใน `BACKLOG.md`):
+- [ ] **ให้ก๊วนจริงลองใช้** แล้วเก็บ feedback ก่อนตัดสินลำดับงานถัดไป
+- [ ] smoke ในเบราว์เซอร์ยังไม่ครอบหางของเส้น (ลงชื่อ → ปิดรอบ → เห็นยอด)
+- [ ] `lib/supabase/client.ts` ควร degrade เป็น polling แทนพังทั้งหน้าเมื่อ env ขาด
+- [ ] deploy จริงบน Vercel + ตั้ง Vercel Cron + ตั้ง LINE ของก๊วนจริง (ทำตาม `README.md` §5-6)
 
-⚠️ **`WO-5.B` เสร็จบางส่วน** (17 ส.ค. 2026) — CSP ต่อ request (nonce) + static header ครบแล้ว
-ยืนยันกับ `next start` จริง: `/discover` มี nonce **16/16 script** ตรงกับ header
-🔴 **ที่ยังค้าง: ยังไม่ได้เปิดเบราว์เซอร์จริงดู console ว่าไม่มี CSP violation**
-   (สภาพแวดล้อมนี้ไม่มี browser tool) ⇒ **ยกไปปิดใน `WO-5.E` ด้วย Playwright**
-   ห้ามติ๊ก §Security Checklist ข้อ "Security headers + CSP" จนกว่าข้อนี้จะผ่าน
+### 🔴 กติกาที่เพิ่มมาใน Phase 5 (ห้ามทำผิด)
 
-⚠️ **`WO-5.E` เสร็จ (smoke ครอบบางส่วน)** (17 ส.ค. 2026)
-· `e2e-browser/` 8 เทสต์ผ่าน · **ปิด DoD ที่ค้างของ 5.B แล้ว** (ไม่มี CSP violation ในเบราว์เซอร์จริง)
-· แยก CI: `ci.yml` (PR เร็ว ~2-3 นาที) / `full.yml` (main + nightly: ทั้งชุด + Playwright)
-
-🔴 **บั๊กจริงสองตัวที่เจอเพราะมีเบราว์เซอร์**
-1. `/sign-up` พังสนิทเพราะเป็นหน้า prerender ที่ตกจาก `STATIC_ROUTES` (CSP บล็อกสคริปต์ทั้งหน้า
-   โดย server ตอบ 200) ⇒ แก้แล้ว + มีเทสต์อ่าน `.next/prerender-manifest.json` มาเทียบ
-2. 🔴 **`NEXT_PUBLIC_*` ต้องมีตั้งแต่ตอน `npm run build`** ไม่ใช่แค่ตอนรัน — ไม่งั้นหน้ารายละเอียดนัด
-   พังทั้งหน้า (client component ที่ต่อ realtime โยน error) ⇒ **ต้องเขียนย้ำใน runbook ของ 5.F**
-
-⚠️ smoke ครอบถึงแค่ "เปิดรับสมัคร" — หาง (ลงชื่อ → ปิดรอบ → เห็นยอด) ยังไม่ครอบใน UI
-   (ครอบใน `tests/e2e/mvp0-full-path.test.ts` แล้ว) · จดไว้ใน `BACKLOG.md`
-
-⚠️ **`WO-5.D` เสร็จ 3 จาก 4** (17 ส.ค. 2026) — migration `0039`
-· `event_logs` รัดที่ RLS แล้ว (สมาชิกอ่าน event เรื่องเงินจาก API ตรงไม่ได้ · มีเทสต์เทียบ
-  กติกา SQL กับ `adminOnly` ของ domain ว่าตรงกัน)
-· `payment_adjustments` เจ้าของหนี้เห็นของตัวเองได้แล้ว
-· `coupons` ตรวจแล้ว **ไม่ต้องแก้** (คูปองเป็นของก๊วน ไม่ใช่รายคน)
-🔴 **ค้าง: ย้าย `promptpay_id`** — ตรวจแล้วพบว่า `sessions.snapshot.promptpay_id` เก็บค่าเดียวกัน
-   อยู่แล้ว (723 นัดบน local) และสมาชิกอ่าน snapshot ได้ ⇒ ย้ายคอลัมน์อย่างเดียวแทบไม่ได้อะไร
-   ถ้าจะทำต้องแตะ snapshot ที่แช่แข็งราคาไว้ ⇒ **ต้องมี ADR + ใบแยก** (รอเจ้าของงานตัดสิน)
-
-✅ **`WO-5.C` เสร็จแล้ว** (17 ส.ค. 2026) — ทางเข้าสาธารณะมีเพดานครบทุกทาง
-ตารางเพดาน + เหตุผลอยู่ใน **`docs/rate-limits.md`** · ตัวนับเหลือ helper เดียว
-(`server/security/rate-limit.ts`) และมีเทสต์ยืนยันว่าไม่มีไฟล์อื่นเรียก `check_rate_limit` อีก
-
-🔴 **กติกาใหม่จาก 5.C**
-- เปิดทางเข้าใหม่ให้คนไม่ล็อกอินเมื่อไหร่ → **ต้องมีเพดาน + เติมใน `docs/rate-limits.md`**
-  (มีเทสต์ตรวจว่าเอกสารกับโค้ดตรงกัน)
-- ❌ ห้าม log ค่า token/secret และห้ามฝัง JWT/service key ในโค้ด — มี grep gate 4 ชั้นคุมแล้ว
-
-🔴 **กติกาใหม่จาก 5.B**
-- หน้าแรก (static) ได้ CSP คนละชุด (`'unsafe-inline'` แทน nonce) เพราะ Next ติด nonce ให้
-  หน้า prerender ไม่ได้ ⇒ **เพิ่มหน้า static ใหม่ต้องเติมใน `STATIC_ROUTES`** (`lib/security/csp.ts`)
-  ไม่งั้นหน้านั้นจะขาวโดยไม่มี error ฝั่ง server
-- ส่ง nonce ต่อด้วย `NextResponse.next({ request: { headers } })` เท่านั้น (ส่ง `{ request }` เฉยๆ
-  แล้ว header หาย → script ไม่มี nonce ทั้งหน้า) — มีเทสต์ล็อกไว้
-
-ของจริงที่ตรวจไว้แล้วตอนแตกใบ (อย่าเสียเวลาค้นซ้ำ):
-- **rate limit มีที่เดียว** (`enforceGuestRateLimit()` ของ guest ลงชื่อ)
-  🔴 ที่ยังไม่มี: `searchGangs()` (คนไม่ล็อกอินยิง trgm ได้ไม่จำกัด) · LINE login callback ·
-  guest claim · auth callback
-- **CI รันทุกอย่างในงานเดียว** (~4 นาที) — baseline อยาก PR เร็ว / main+nightly ช้า ⇒ แยกใน `WO-5.E`
+- ❌ **ห้ามส่ง `as={NextLink}` จาก server component** — ลิงก์ Astryx ได้ router จาก
+  `LinkProvider` ใน `app/providers.tsx` (Next 16 ห้ามส่ง component ข้ามขอบ RSC)
+- entry point ของ Next คือ **`proxy.ts`** (เดิม `middleware.ts`)
+- 🔴 **หน้าที่ prerender ใหม่ต้องเติมใน `STATIC_ROUTES`** (`lib/security/csp.ts`)
+  ไม่งั้น CSP บล็อกสคริปต์ทั้งหน้าโดย server ยังตอบ 200 (มีเทสต์อ่าน build manifest มาเทียบ)
+- 🔴 **`NEXT_PUBLIC_*` ต้องมีตั้งแต่ตอน `npm run build`** — inline เข้า bundle ไม่ใช่อ่านตอนรัน
+- เปิดทางเข้าใหม่ให้คนไม่ล็อกอิน = **ต้องมีเพดาน + เติมใน `docs/rate-limits.md`** (มีเทสต์ตรวจ)
+- ❌ ห้าม log ค่า token/secret · ❌ ห้ามฝัง JWT/service key ในโค้ด (grep gate 4 ชั้น)
+- event เรื่องเงิน/`audit.*` ปิดที่ RLS แล้ว — กติกาใน SQL ต้องตรงกับ `adminOnly` ของ
+  `domain/reports/timeline.ts` (มีเทสต์เทียบสองฝั่ง)
 
 ### 🔴 กติกาของ Phase 4 ที่ Phase ถัดไปห้ามทำผิด
 
