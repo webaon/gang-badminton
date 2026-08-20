@@ -1669,7 +1669,7 @@ snapshot ได้ทั้งก้อน ⇒ **ย้ายคอลัมน�
 
 ---
 
-## WO-5.F: README (ไทย) + deploy runbook + ปิด Security Checklist + `v1.0.0`
+## WO-5.F: README (ไทย) + deploy runbook + ปิด Security Checklist + `v1.0.0` ✅ **เสร็จ (20 ส.ค. 2026)**
 
 **Goal**: คนใหม่ (หรือเจ้าของงานเอง อีกหกเดือนข้างหน้า) ตั้งระบบขึ้นมาใหม่ได้จากศูนย์โดยไม่ต้องถามใคร
 
@@ -1692,3 +1692,21 @@ snapshot ได้ทั้งก้อน ⇒ **ย้ายคอลัมน�
 - ❌ ห้ามเขียน README ที่บรรยายสิ่งที่ยังไม่ได้ทำ (เอกสารมีค่าก็ต่อเมื่อยังตรงกับโค้ดจริง)
 
 **References**: baseline §Roadmap Phase 5 · §Security Checklist · §Release Versioning · §Verification
+
+**ผลลัพธ์** — `README.md` (ไทย) · `docs/security-checklist.md` · cloud **39/39** · tag `v1.0.0`
+
+DoD ทั้ง 5 ข้อผ่านจริง:
+- 🔴 **เดินตาม README แล้วขึ้นระบบใหม่ได้จริง** — `supabase start -x …` → `db reset` →
+  `npm test` (712 ผ่าน) → `build` (มี `NEXT_PUBLIC_*`) → `test:e2e` (8 ผ่าน) ตามลำดับใน README
+- env ทุกตัวมีตารางว่า **เอามาจากไหน** และ **ไม่ตั้งแล้วเป็นอะไร** (fail-closed ทุกตัว)
+- 🔴 **§Security Checklist ครบ 7 ข้อ** พร้อมหลักฐานที่รันซ้ำได้ต่อข้อ ใน `docs/security-checklist.md`
+  · ตรวจของจริงเพิ่ม: ไม่มีตารางใน `public` ที่ยังไม่เปิด RLS (ทั้ง local และ **cloud**) ·
+  4 buckets / 16 policies บน `storage.objects`
+  · **ของที่ยัง "รู้อยู่ว่ายังไม่ปิด" แยกตารางไว้ต่างหากพร้อมเหตุผลและเงื่อนไขที่ต้องกลับมาทบทวน**
+  (ห้ามติ๊กลอยๆ ตาม Forbidden ของใบนี้)
+- E2E ของทุก Phase ยังผ่าน · cloud push `0039` แล้วและตรวจของจริง (39/39 · `event_type_is_admin_only` มีอยู่)
+- tag **`v1.0.0`**
+
+**runbook ที่เขียนไว้ให้ (§7 ของ README)** — อาการ → ที่ตรวจก่อน: หน้าขาวทั้งที่ 200 (CSP/`STATIC_ROUTES`) ·
+หน้า realtime พัง (`NEXT_PUBLIC_*` ตอน build) · แจ้งเตือนไม่ถึง · LINE ไม่ส่ง (โควต้า/บล็อก/flag) ·
+webhook 401 · ยอดเงินไม่ตรง (อ่านจาก ledger เท่านั้น) · เทสต์แดงเฉพาะบน CI · push 403
