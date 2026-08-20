@@ -8,7 +8,9 @@
  *   · ไม่มีข้อมูลของก๊วนใดก๊วนหนึ่งบนหน้าแรก
  *   · อ่านฐานข้อมูลไม่ได้ (เช่นตอน build ที่ไม่มี env) ต้องไม่ทำให้หน้าแรกพัง
  *
- * ⚠️ ไฟล์นี้ **ห้ามตั้ง `process.env.SUPABASE_*`** — เคส fail-soft ด้านล่างพึ่งการที่ env ว่าง
+ * ⚠️ เคส fail-soft ด้านล่างต้องรันในสภาพที่ **ไม่มี env ของ Supabase**
+ *    ⇒ เทสต์ **ลบ env ของตัวเองชั่วคราวแล้วคืนค่า** ไม่ใช่ assert ว่ามันว่างอยู่แล้ว
+ *    (CI ตั้ง env ระดับ job ⇒ assert แบบเดิมเขียวบนเครื่องแต่แดงบน CI — เจอมาแล้ว)
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -118,7 +120,19 @@ describe('WO-3.F — สรุปตัวเลขแพลตฟอร์ม (
 
 describe('WO-3.F — อ่านฐานข้อมูลไม่ได้ต้องไม่ทำให้หน้าแรกพัง', () => {
   it('ไม่มี env ของ Supabase → คืน null (ไม่ throw) เพื่อให้ build ผ่าน', async () => {
-    expect(process.env.SUPABASE_SERVICE_ROLE_KEY).toBeUndefined();
-    await expect(platformHighlights()).resolves.toBeNull();
+    const saved = {
+      url: process.env.SUPABASE_URL,
+      key: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    };
+
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    try {
+      await expect(platformHighlights()).resolves.toBeNull();
+    } finally {
+      if (saved.url !== undefined) process.env.SUPABASE_URL = saved.url;
+      if (saved.key !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = saved.key;
+    }
   });
 });

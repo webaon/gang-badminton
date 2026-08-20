@@ -464,6 +464,9 @@ baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
 - **`service_role` มี BYPASSRLS แต่ BYPASSRLS ไม่ข้าม GRANT** — ต้อง grant ให้ด้วย
 - **helper ของ policy ต้องเป็น SECURITY DEFINER** ไม่งั้น policy ที่อ้างตารางตัวเองจะ recursion
   และ **ห้ามใช้ `FORCE ROW LEVEL SECURITY`** เพราะจะทำให้ owner ถูก policy ตรวจด้วย = วนกลับมาอีก
+- 🔴 **เทสต์ที่พึ่ง "env ต้องว่าง" ต้องลบ env ของตัวเองชั่วคราว ไม่ใช่ assert ว่ามันว่าง**
+  `full.yml` ตั้ง `SUPABASE_*` ระดับ job ⇒ assert แบบเดิมเขียวบนเครื่องแต่แดงบน CI
+  (เจอตอนปิด Phase 5 — `tests/landing/landing.test.ts`)
 - 🔴 **เทสต์ที่เรียก `claim_notifications()` / `dispatchNotifications()` ต้องวนจนเจอของตัวเอง**
   ทั้งคู่หยิบงานของ **ทั้งฐานข้อมูล** ครั้งละไม่กี่แถวและเรียงตามเวลา ⇒ ของค้างจากเทสต์ก่อนหน้า
   กินโควต้าของ batch จนแถวของเทสต์นั้นไม่ถูกหยิบ · **แดงเฉพาะบน CI** ที่ DB เริ่มจากศูนย์
