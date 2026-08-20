@@ -324,6 +324,25 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 **§Security Checklist ครบ 7 ข้อ** พร้อมหลักฐานต่อข้อ → `docs/security-checklist.md`
 (รวมตารางของที่ "รู้อยู่ว่ายังไม่ปิด" พร้อมเงื่อนไขที่ต้องกลับมาทบทวน)
 
+### 🚀 Production ขึ้นแล้ว (20 ส.ค. 2026)
+
+**https://gang-badminton.vercel.app** — Vercel team `triple-t` · project `gang-badminton`
+· ชี้ Supabase cloud `emmzeriekkjryhucvctx` (39/39 migrations)
+
+ตรวจของจริงหลัง deploy: ทุกหน้า 200 · CSP มี nonce ต่อ request + `strict-dynamic` ·
+`connect-src` ชี้โปรเจกต์ cloud · HSTS + `X-Frame-Options` มาครบ ·
+`/api/cron/*` ตอบ **401** ทั้งกรณีไม่มี secret และ secret ผิด
+
+🔴 **Vercel Hobby ให้ cron วันละครั้งต่อ job** ⇒ `vercel.json` เหลือรายวัน (เส้นสำรอง)
+และงานที่ต้องถี่จริงขับด้วย **GitHub Actions** (`.github/workflows/cron.yml`):
+`notification-dispatch` ทุก 5 นาที · `reminders` รายชั่วโมง — ยิงเข้า route handler ตัวเดิม
+ทดสอบ `workflow_dispatch` แล้วได้ 200 ทั้งสองงาน · ตารางเต็มอยู่ใน `docs/cron.md`
+⚠️ workflow ที่มี `schedule` เดินได้เฉพาะบน **default branch** ⇒ ต้อง merge เข้า `main` เสมอ
+
+env ที่ตั้งไว้บน Vercel (production): `NEXT_PUBLIC_SUPABASE_URL` · `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+· `SUPABASE_URL` · `SUPABASE_SERVICE_ROLE_KEY` · `CRON_SECRET` · `LINE_LINK_SECRET` · `APP_BASE_URL`
+(secret ของ GitHub repo: `APP_BASE_URL` · `CRON_SECRET`)
+
 ### งานถัดไป — ยังไม่มี Phase 6 ใน baseline
 
 baseline จบที่ Phase 5 ⇒ งานหลังจากนี้เป็นเรื่องของ **ใช้งานจริงแล้วเก็บ feedback**
@@ -331,7 +350,11 @@ baseline จบที่ Phase 5 ⇒ งานหลังจากนี้เ�
 - [ ] **ให้ก๊วนจริงลองใช้** แล้วเก็บ feedback ก่อนตัดสินลำดับงานถัดไป
 - [ ] smoke ในเบราว์เซอร์ยังไม่ครอบหางของเส้น (ลงชื่อ → ปิดรอบ → เห็นยอด)
 - [ ] `lib/supabase/client.ts` ควร degrade เป็น polling แทนพังทั้งหน้าเมื่อ env ขาด
-- [ ] deploy จริงบน Vercel + ตั้ง Vercel Cron + ตั้ง LINE ของก๊วนจริง (ทำตาม `README.md` §5-6)
+- [x] ~~deploy จริงบน Vercel~~ — ✅ ขึ้นแล้ว (ดูด้านบน)
+- [ ] **สร้างก๊วนจริงบน production** แล้วลองใช้ (ตอนนี้ DB cloud ยังว่างเปล่า)
+- [ ] ตั้งค่า LINE ของก๊วนจริง (README §6) — ต้องมี LINE OA + Login channel ของจริง
+- [ ] domain ของตัวเอง (ตอนนี้ใช้ `*.vercel.app`) + ทบทวนว่าจะอัป Vercel Pro ไหม
+      (อัปแล้วย้าย cron กลับมาที่ `vercel.json` ได้เลย ไม่ต้องแก้โค้ด)
 
 ### 🔴 กติกาที่เพิ่มมาใน Phase 5 (ห้ามทำผิด)
 

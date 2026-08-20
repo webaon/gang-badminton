@@ -122,6 +122,12 @@ npm run supabase -- db query --linked "select count(*) from supabase_migrations.
 
 ## 5. Deploy (Vercel)
 
+> ✅ **production ตอนนี้อยู่ที่ https://gang-badminton.vercel.app**
+> (Vercel team `triple-t` · ชี้ Supabase cloud `emmzeriekkjryhucvctx`)
+>
+> 🔴 **Hobby plan ให้ cron วันละครั้งต่อ job** ⇒ งานที่ต้องถี่ (ส่งข้อความ · reminder)
+> ขับด้วย **GitHub Actions** แทน — ดู `docs/cron.md`
+
 1. ตั้ง Environment Variables ให้ครบตามตารางข้อ 1
    🔴 **`NEXT_PUBLIC_*` ต้องมีตั้งแต่ตอน build** — Next inline ค่าพวกนี้เข้าไปใน bundle
    ตอน build **ไม่ได้อ่านตอน runtime** ⇒ ถ้าตั้งทีหลังหรือลืมตั้ง หน้าที่ต่อ realtime
@@ -131,6 +137,8 @@ npm run supabase -- db query --linked "select count(*) from supabase_migrations.
    (ถ้ากลายเป็น `ƒ` แปลว่ามีใครเผลอใส่ `cookies()`/`force-dynamic` เข้าไป)
 3. push migration ขึ้น cloud (ข้อ 4) **ก่อน** deploy โค้ดที่ใช้ของใหม่
 4. ตั้ง Vercel Cron ตาม `vercel.json` และใส่ `CRON_SECRET` ให้ตรงกัน
+   ⚠️ ถ้าอยู่บน **Hobby** ต้องตั้ง secret ของ GitHub repo ด้วย (`APP_BASE_URL`, `CRON_SECRET`)
+   ไม่งั้นการแจ้งเตือนจะส่งวันละครั้ง — ดู `docs/cron.md`
 5. ตั้งค่า LINE ต่อก๊วน (ถ้าใช้) — ดูข้อ 6
 
 รัน smoke บน production build ที่เครื่องตัวเองก่อน deploy:
