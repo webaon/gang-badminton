@@ -1,0 +1,41 @@
+name: Cron (งานที่ต้องรันถี่กว่าที่ Vercel Hobby ให้)
+
+# 🔴 Vercel **Hobby** ให้ cron ได้แค่วันละครั้งต่อ job (ดู `docs/cron.md`)
+#    งานที่ต้องถี่จริงคือ "ส่งข้อความ" ⇒ ขับจากที่นี่แทน โดยยิงเข้า route handler **ตัวเดิม**
+#    ที่ Vercel Cron ใช้ (ตรวจ `CRON_SECRET` แบบ timing-safe · fail-closed)
+#
+# ⚠️ GitHub Actions ไม่การันตีเวลาเป๊ะ — รับได้เพราะทุกงาน idempotent และ pg_cron
+#    ยังกวาดของค้างให้อีกชั้น (CLAUDE.md §2.1)
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # ส่งข้อความที่เข้าคิวไว้
+    - cron: '7 * * * *'     # เตือนนัด/ยอดค้าง (รายชั่วโมง)
+  workflow_dispatch:
+
+concurrency:
+  group: app-cron
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: ส่ง notification ที่เข้าคิวไว้
+        run: |
+          code=$(curl -s -o /tmp/out.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_BASE_URL }}/api/cron/notification-dispatch")
+          echo "HTTP $code"; cat /tmp/out.json; echo
+          # ❌ ห้ามปล่อยผ่านเงียบๆ — ถ้ายิงไม่ผ่านต้องเห็นใน Actions
+          [ "$code" = "200" ]
+
+      - name: เตือนนัด/ยอดค้าง (เฉพาะรอบรายชั่วโมง)
+        if: github.event.schedule == '7 * * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          code=$(curl -s -o /tmp/out.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_BASE_URL }}/api/cron/reminders")
+          echo "HTTP $code"; cat /tmp/out.json; echo
+          [ "$code" = "200" ]
