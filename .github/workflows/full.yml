@@ -67,3 +67,18 @@ jobs:
           name: playwright-results
           path: .playwright/results
           retention-days: 7
+
+  # 🔴 ประตูเดียวที่ปล่อยของขึ้น production — `needs: full` ทำให้เทสต์แดง = ไม่ deploy
+  #    (Vercel ปิด build ที่มาจาก push เองผ่าน Ignored Build Step — ดู scripts/vercel-ignore-build.sh)
+  #    schedule/workflow_dispatch ไม่ deploy: nightly ไม่ควรดัน production ขึ้นเองตอนตีสาม
+  deploy:
+    needs: full
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: สั่ง Vercel deploy production
+        run: |
+          curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}" \
+            -o /dev/null -w 'deploy hook → HTTP %{http_code}\n'

@@ -125,8 +125,19 @@ npm run supabase -- db query --linked "select count(*) from supabase_migrations.
 > ✅ **production ตอนนี้อยู่ที่ https://gang-badminton.vercel.app**
 > (Vercel team `webaons-projects` · ชี้ Supabase cloud `emmzeriekkjryhucvctx`)
 >
-> ✅ **auto-deploy เปิดแล้ว** — push เข้า `main` = ขึ้น production เอง · เปิด PR = ได้ preview URL
-> ⇒ ไม่ต้องรัน `vercel --prod` ด้วยมืออีก
+> ✅ **auto-deploy เปิดแล้ว และมี CI คั่นกลาง** — ไม่ต้องรัน `vercel --prod` ด้วยมืออีก
+>
+> ```
+> push main ─▶ Vercel เริ่ม build ─▶ scripts/vercel-ignore-build.sh เห็นว่า CI ยังไม่จบ ─▶ ข้าม
+>           └▶ full.yml (712 เทสต์ + build + Playwright)
+>                  เขียว ─▶ job `deploy` ยิง deploy hook ─▶ Vercel build อีกรอบ ─▶ ขึ้น production
+>                  แดง  ─▶ ไม่มีใครยิง hook ─▶ production คาของเดิมไว้
+> ```
+>
+> เปิด PR = ได้ **preview URL** ทันทีโดยไม่ต้องรอ CI (ตั้งใจให้เป็นแบบนั้น — เอาไว้เปิดดูว่าพังตรงไหน)
+>
+> 🔴 **`commandForIgnoringBuildStep` ตั้งไว้ที่ฝั่ง Vercel ไม่ได้อยู่ใน repo** ⇒ ย้าย/สร้าง project
+> ใหม่เมื่อไหร่ต้องตั้งใหม่ด้วย ไม่งั้น gate หายไปเงียบๆ · secret ที่ต้องมี: `VERCEL_DEPLOY_HOOK`
 >
 > 🔴 **Hobby plan ให้ cron วันละครั้งต่อ job** ⇒ งานที่ต้องถี่ (ส่งข้อความ · reminder)
 > ขับด้วย **GitHub Actions** แทน — ดู `docs/cron.md`
