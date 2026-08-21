@@ -59,7 +59,12 @@ export default async function SessionDetailPage({
 
   const { data: registrations } = await supabase
     .from('session_registrations')
-    .select('id, user_id, guest_name, status, ordering, profiles(display_name)')
+    // 🔴 ต้องระบุชื่อ FK — `session_registrations` ชี้ไป `profiles` ถึง 5 เส้น
+    //    (user_id, registered_by, updated_by, created_by, deleted_by) ⇒ เขียน `profiles(...)`
+    //    เฉยๆ จะได้ PGRST201 "ambiguous embed" แล้ว query ทั้งก้อนคืน error ⇒ รายชื่อหายทั้งหน้า
+    .select(
+      'id, user_id, guest_name, status, ordering, profiles!session_registrations_user_id_fkey(display_name)',
+    )
     .eq('session_id', sessionId)
     .is('deleted_at', null)
     .order('status')

@@ -132,7 +132,7 @@ export default async function PaymentsPage({ params }: { params: Promise<{ gangI
   // คนที่เป็นผู้จ่ายได้ต้องมีบัญชี (guest ไม่มี `user_id`)
   const { data: memberRows } = await admin
     .from('gang_members')
-    .select('user_id, profiles!inner(display_name)')
+    .select('user_id, profiles!gang_members_user_id_fkey!inner(display_name)')
     .eq('gang_id', gangId)
     .is('deleted_at', null);
 

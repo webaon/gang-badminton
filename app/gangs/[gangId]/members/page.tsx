@@ -30,7 +30,7 @@ export default async function GangMembersPage({
 
   const { data } = await supabase
     .from('gang_members')
-    .select('id, user_id, role, is_monthly_member, profiles!inner(display_name)')
+    .select('id, user_id, role, is_monthly_member, profiles!gang_members_user_id_fkey!inner(display_name)')
     .eq('gang_id', gangId)
     .is('deleted_at', null)
     .order('role');
