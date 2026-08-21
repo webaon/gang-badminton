@@ -138,7 +138,9 @@ async function loadBillingContext(sessionId: string) {
 async function displayNames(sessionId: string): Promise<Map<string, string>> {
   const { data } = await supabaseAdmin()
     .from('session_registrations')
-    .select('id, guest_name, profiles(display_name)')
+    // 🔴 ระบุ FK เสมอ — ดูเหตุผลใน `app/gangs/[gangId]/sessions/[sessionId]/page.tsx`
+    //    ถ้าพลาดตรงนี้ หน้าสรุปยอดจะขึ้น "ไม่ทราบชื่อ" ทุกคนโดยไม่มี error ให้เห็น
+    .select('id, guest_name, profiles!session_registrations_user_id_fkey(display_name)')
     .eq('session_id', sessionId)
     .is('deleted_at', null);
 

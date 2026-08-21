@@ -55,7 +55,7 @@ export default async function StatsPage({ params }: { params: Promise<{ gangId: 
   const { data: stats } = await supabase
     .from('member_statistics')
     .select(
-      'gang_member_id, attended_count, games_count, shuttles_used, total_paid, attendance_rate, computed_at, gang_members!inner(profiles!inner(display_name))',
+      'gang_member_id, attended_count, games_count, shuttles_used, total_paid, attendance_rate, computed_at, gang_members!inner(profiles!gang_members_user_id_fkey!inner(display_name))',
     )
     .eq('gang_id', gangId)
     .order('attended_count', { ascending: false });

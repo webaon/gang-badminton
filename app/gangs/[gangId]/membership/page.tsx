@@ -78,7 +78,7 @@ export default async function MembershipPage({
 
   const { data: members } = await admin
     .from('gang_members')
-    .select('id, monthly_member_since, profiles!inner(display_name)')
+    .select('id, monthly_member_since, profiles!gang_members_user_id_fkey!inner(display_name)')
     .eq('gang_id', gangId)
     .eq('is_monthly_member', true)
     .is('deleted_at', null);

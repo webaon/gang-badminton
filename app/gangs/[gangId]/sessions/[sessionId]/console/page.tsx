@@ -60,7 +60,8 @@ export default async function ConsolePage({
   // คนที่ได้ที่แล้วแต่ยังไม่เช็คอิน
   const { data: pending } = await supabase
     .from('session_registrations')
-    .select('id, guest_name, profiles(display_name)')
+    // 🔴 ระบุ FK เสมอ — ดูเหตุผลใน `app/gangs/[gangId]/sessions/[sessionId]/page.tsx`
+    .select('id, guest_name, profiles!session_registrations_user_id_fkey(display_name)')
     .eq('session_id', sessionId)
     .eq('status', 'confirmed')
     .is('deleted_at', null);
