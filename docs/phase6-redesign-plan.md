@@ -188,3 +188,22 @@ tap target ≥ 44px · mono ใช้เฉพาะรหัส ตัวเล
       ⇒ ต้องตรวจว่า build/test ยังทำงาน ถ้าไม่ได้ให้ใช้ `npm install-scripts approve <pkg>` (งานแรกของ 6.0)
 - [ ] Docker + `supabase start -x ...` สำหรับเทสต์ที่ต้องมี DB (Track A ใช้แค่ unit + build + Playwright)
 - [ ] ให้ทีมเข้าถึง `../design/` ได้ (อยู่นอก repo) — ★ แนะนำ copy `Hi-fi.html` + `hifi/` + tokens เข้า `docs/design/` แบบอ่านอย่างเดียว เพื่อให้ PR อ้างอิงได้
+
+---
+
+## 8. ข้อสรุปจากการเทียบ baseline กับ design (26 ต.ค. 2026)
+
+1. **design เป็นชั้น UI ที่ครอบ baseline ไม่ได้มาแทน** — ทุกเรื่องสำคัญยังตรงกัน: auth แบบ email/password + magic link · state machine เดิม · snapshot · billing ทำใน domain · ใช้ PromptPay ต่อคน · LINE เป็น optional ⇒ baseline + ADR-001…009 ยังเป็น source of truth
+2. **tag phase ใน Screen Inventory (MVP-0/2.5/3) ใช้ไม่ได้แล้ว** เพราะ phase เหล่านั้นจบไปแล้ว ⇒ เรียงงานใหม่ตาม Track A/B ของไฟล์นี้ · หน้าที่ design ติด tag "MVP-0" แต่ baseline ไม่เคยมี (PDPA, เครดิต, push, ออกจากก๊วน) = **scope ที่เพิ่มขึ้นใหม่**
+3. **ADR ใน design เทียบกับของจริง**:
+   | design | ของจริงในโค้ด | ข้อสรุป |
+   |---|---|---|
+   | 002 courts | `court_count` + `court_labels` + `games.court_no` | ทำแบบ additive ได้ (expand→contract) · ไม่ด่วน |
+   | 003 ranking | ไม่มีผลเกม · ADR-003 ของจริง = กติกาจับทีม | ต่อยอดได้ ต้องใช้ `teamsOf()` เพื่อรู้ว่าใครอยู่ฝั่งไหน |
+   | 004 หารค่าลูก | ADR-005: ค่าลูกรวม ÷ ผู้จ่าย = **`equal_all` อยู่แล้ว** | ค่า default ของ design ตรงกับพฤติกรรมปัจจุบัน ⇒ เพิ่มอีก 2 policy แบบ additive โดยนัดเก่าไม่เปลี่ยน |
+   | 005 credit_ledger | `payment_adjustments` (credit ระดับ charge) + กติกาไม่หักกลบ | ขัดกับกติกาเดิม ⇒ ต้องตัดสินว่าเปลี่ยนกติกาไหม |
+   | 006 waitlist offer | `promote_waitlist()` เป็นทางเดียว · ที่ว่าง = confirmed + checked_in (D-10) | แตะส่วนที่ baseline ถือเป็นหลักสูงสุด ⇒ ทำท้ายสุดหรือไม่ทำ |
+   | 007 game results | — | ทำคู่กับ 003 |
+   | 008 custom roles | baseline "ไม่รับ" · `can()` รวมศูนย์อยู่แล้ว | เลื่อนไว้ · สลับเป็นตารางได้ภายหลังโดยไม่ต้องแก้หน้าจอ |
+4. **ความเสี่ยงทางเทคนิคของ Track A อยู่ที่ WO-6.0 ใบเดียว** (theme / layer / font / dark) ⇒ ห้ามเริ่ม 6.1 จนกว่า 6.0 จะผ่าน QA และเจ้าของงานดู screenshot ทั้งสองโหมดแล้ว
+5. รีวิวงานระหว่างทำของ WO-6.0 เจอ 5 จุด (สะกดชื่อ layer ผิด · ใช้ `@next/font` ที่เลิกใช้แล้ว · import theme ตัว runtime · warning/text-muted ไม่ตรง v4 · font stack) — ส่งให้ @gb-frontend แก้แล้ว
