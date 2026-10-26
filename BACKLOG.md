@@ -479,3 +479,6 @@
 - [ ] **Playwright 1.62 หา `chromium_headless_shell-1234` ไม่เจอบนเครื่องนี้** (มีแค่ 1223) — ตอนนี้รันด้วย `channel: 'chrome'` · ควร `npx playwright install chromium` (ต้องอนุมัติ)
 - [ ] **(QA WO-6.1a · e)** org admin ที่ไม่ได้เป็นสมาชิกก๊วนไม่ได้ shell (layout ส่งแค่ role จาก `gang_members`) — `buildGangMenu` รองรับ `orgRole` แล้ว · ต้องตัดสินก่อนว่า org admin ควรใช้หน้าก๊วนได้ไหม
 - [ ] **(QA WO-6.1a · b)** tap target < 44px ที่เหลือ: ปุ่ม size sm (members/settings) · Selector role · checkbox/radio — แก้ในใบที่ reskin หน้านั้น
+- [ ] **(WO-6.1b)** `server/actions/auth.ts:72,96` ส่ง error ภาษาอังกฤษของ Supabase Auth ต่อเป็น `VALIDATION_ERROR` ⇒ หน้าจอตกไป fallback · ควรแปลเป็นไทยที่ server (@gb-backend)
+- [ ] **(WO-6.1b)** ทบทวน 4 จุดที่ต่อ `(err as Error).message` เข้า response (`sessions.ts:88/225` · `finance.ts:77` · `membership.ts:155`) — อาจพาข้อความภายในไปถึงผู้ใช้
+- [ ] **(WO-6.1b · ทางเลือก B)** เพิ่ม `fields` ใน API contract ให้ validation บอกรายช่องได้ — เปลี่ยน contract ต้องมี ADR
