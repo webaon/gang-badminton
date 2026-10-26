@@ -1710,3 +1710,28 @@ DoD ทั้ง 5 ข้อผ่านจริง:
 **runbook ที่เขียนไว้ให้ (§7 ของ README)** — อาการ → ที่ตรวจก่อน: หน้าขาวทั้งที่ 200 (CSP/`STATIC_ROUTES`) ·
 หน้า realtime พัง (`NEXT_PUBLIC_*` ตอน build) · แจ้งเตือนไม่ถึง · LINE ไม่ส่ง (โควต้า/บล็อก/flag) ·
 webhook 401 · ยอดเงินไม่ตรง (อ่านจาก ledger เท่านั้น) · เทสต์แดงเฉพาะบน CI · push 403
+
+---
+
+# Work Orders — Phase 6 (Redesign ตาม Hi-fi 87 หน้า + Tokens v4)
+
+> แตกเมื่อ **25 ต.ค. 2026** โดย @gb-planner · baseline ไม่มี Phase 6 ⇒ เป็นงานนอก baseline ที่เจ้าของงานอนุมัติแล้ว (Track A)
+> **แผนเต็ม + gap analysis 87 หน้า + จุดขัดกัน C1–C12 + WO-6.0 ฉบับเต็ม อยู่ที่ `docs/phase6-redesign-plan.md`**
+> ไฟล์ design อยู่นอก repo: `G:/TON-Workspace/Ton-App/BadGame/design/` (`Hi-fi.html`, `hifi/*.jsx`, `hifi/tokens.css`, `Design tokens.html`, `Screen inventory.html`)
+
+| WO | งาน | owner | สถานะ |
+|---|---|---|---|
+| 6.0 | Design foundation — theme `badgame` (tokens v4 + dark tokens) ผ่าน `astryx theme build` · ฟอนต์ self-host | @gb-frontend | 🔄 กำลังทำ |
+| 6.1 | App shell — tab bar มือถือ · sidebar แอดมิน · สลับก๊วน · global states · ErrorCode → ข้อความไทย | @gb-frontend | ⏳ |
+| 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) | @gb-frontend | ⏳ |
+| 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) | @gb-frontend | ⏳ |
+| 6.4 | วันเล่น (23–28 + states) | @gb-frontend | ⏳ |
+| 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ |
+| 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
+| 6.7 | Auth + onboarding | @gb-frontend | ⏳ |
+| 6.8 | Growth screens + หน้าแรก | @gb-frontend | ⏳ |
+| 6.9 | Playwright checkpoint + `v1.1.0` | @gb-qa | ⏳ |
+
+- **Forbidden ร่วมทุกใบใน Track A**: ห้ามมี migration · ห้ามแตะ DB function / state machine / `domain/billing` ·
+  ห้าม copy CSS ของ hi-fi (`.btn` `.chip` …) เข้า repo — ประกอบจาก Astryx + theme เท่านั้น ·
+  หน้าที่อยู่ใน Track B (ต้องมี ADR ก่อน) **ห้ามทำ UI ล่วงหน้า**
