@@ -477,3 +477,5 @@
 - [ ] **(QA WO-6.0 · B)** `extends: neutralTheme` พาสี ProgressBar ค่าเดี่ยว (ไม่ใช่ light-dark) มาด้วย — override ใน `theme/src` ก่อนใช้ ProgressBar ครั้งแรก
 - [ ] **(QA WO-6.0 · C)** หน้านัด: ช่อง "รับสูงสุด" ล้นการ์ด · datetime-local native ไม่เข้าชุด · primary 3 ปุ่มในจอเดียว → WO-6.6
 - [ ] **Playwright 1.62 หา `chromium_headless_shell-1234` ไม่เจอบนเครื่องนี้** (มีแค่ 1223) — ตอนนี้รันด้วย `channel: 'chrome'` · ควร `npx playwright install chromium` (ต้องอนุมัติ)
+- [ ] **(QA WO-6.1a · e)** org admin ที่ไม่ได้เป็นสมาชิกก๊วนไม่ได้ shell (layout ส่งแค่ role จาก `gang_members`) — `buildGangMenu` รองรับ `orgRole` แล้ว · ต้องตัดสินก่อนว่า org admin ควรใช้หน้าก๊วนได้ไหม
+- [ ] **(QA WO-6.1a · b)** tap target < 44px ที่เหลือ: ปุ่ม size sm (members/settings) · Selector role · checkbox/radio — แก้ในใบที่ reskin หน้านั้น

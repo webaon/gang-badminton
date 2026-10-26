@@ -269,5 +269,21 @@ tap target ≥ 44px · mono ใช้เฉพาะรหัส ตัวเล
 **Forbidden**: hardcode role · ซ่อนเมนูอย่างเดียวแล้วถือว่าเป็นการกันสิทธิ์ (หน้าเดิมต้องตรวจสิทธิ์ฝั่ง server เหมือนเดิม) · `force-dynamic`/`cookies()` ในหน้าแรก · query ใหม่ที่ข้าม RLS · migration · ทำหน้า #10 Dashboard
 **References**: CLAUDE.md §1, §1.3, §3 (`can()`) · hi-fi `H17`, `H10`, `HM59` ใน `../design/hifi/*.jsx` · `npm run astryx -- component AppShell` / `SideNav` / `TabList`
 
-### WO-6.1b (แตกละเอียดหลัง 6.1a ผ่าน): global states g1–g4 + `ErrorCode` → ข้อความไทยกลาง
-`app/error.tsx` · `global-error.tsx` · `not-found.tsx` · offline banner · session หมดอายุ · ลิงก์เชิญหมดอายุ · แทน `error.message` ทั้ง ~31 จุดด้วย map เดียวจาก `docs/errors.md` (มีเทสต์ว่าทุก code ในเอกสารมีข้อความ)
+### WO-6.1a ✅ ผ่าน QA (`f042a50` + `0e0588f`, 27 ต.ค. 2026)
+deviation ที่อนุมัติ: แท็บ "ยอดเงิน" ผูก `payment.verify` จนกว่า 6.3 · เมนูนอก hi-fi (ตารางประจำ/คำขอเข้าก๊วน/บิลรายเดือน/โปรไฟล์) ·
+ขนาด element ทั้งระบบ 32/44/52 ตาม v4 · QA ยืนยัน: คนนอกก๊วนเปิด 11 หน้าได้ 404 ทุกหน้า · ไม่มีแฟลชแล้ว · a11y ผ่าน
+
+### WO-6.1b: global states + ข้อความ error ไทยกลาง + เก็บกวาดจาก QA 6.1a
+**Goal**: ผู้ใช้ไม่เห็นข้อความ error ดิบ/ภาษาอังกฤษอีก และทุกสถานะผิดพลาดกลางมีหน้าตาตาม hi-fi K (g1–g4)
+**Scope**:
+- `shared/` (หรือ `lib/i18n/`) map เดียว `ErrorCode → ข้อความไทย` ครบทุก code ใน `docs/errors.md` · แทน `result.error.message` / `?? 'ทำรายการไม่สำเร็จ'` ทั้ง ~31 จุดใน `features/` ด้วย helper ตัวเดียว
+  ⚠️ ถ้ามี code ที่ข้อความต้องพึ่งรายละเอียดจาก server (เช่น validation รายช่อง) → **หยุดถามผม** อย่าตัดสินเอง
+- `app/error.tsx` · `app/global-error.tsx` · `app/not-found.tsx` (g4 server error + ปุ่มลองใหม่ · 404) · offline banner (g1, client) ·
+  session หมดอายุ (g2 → ไปหน้า sign-in พร้อม `next` ที่ผ่าน safe-next เดิม) · ลิงก์เชิญ/guest หมดอายุ (g3 ใช้กับ `/join/[token]` และ `/guest/*`)
+- `lib/i18n/astryx-th.ts`: แปลข้อความของ Astryx ที่ยังเป็นอังกฤษให้ครบ (เช่น "Required" / "Optional" ในฟอร์ม)
+- QA 6.1a ข้อ a: ใช้ไอคอน `calendar` / `wrench` ของ Astryx แทนที่วาดเอง (ถ้าไม่เข้าชุด stroke ให้เขียนเหตุผลในคอมเมนต์)
+- QA 6.1a ข้อ c (บั๊กเดิมบนมือถือ 390px): **หน้าสมาชิกชื่อสมาชิกหายเพราะถูกบีบจนกว้าง 0** (`MembersPanel` แถวเดียว flex + Selector `w-40`) · ช่อง "วันที่" ในรายงานล้นขอบ ⇒ แก้ให้ซ้อนบรรทัดบนจอแคบ
+**DoD**: typecheck/lint/test:unit/build · เทสต์ใหม่: ทุก code ใน `docs/errors.md` มีข้อความไทย และไม่มีข้อความไหนว่าง · grep gate: ไม่มี `error.message` ถูก render ใน `features/` อีก ·
+Playwright: 404 ของ route มั่ว · token เชิญหมดอายุ · 390px หน้าสมาชิกเห็นชื่อทุกแถว · screenshot g1–g4 × light/dark ที่ `docs/design/wo-6.1b/`
+**Forbidden**: แก้ `docs/errors.md`/เพิ่ม code ใหม่โดยไม่ถามก่อน · log ค่า token · เปลี่ยนการตรวจสิทธิ์ · migration
+**ข้อสังเกตจาก QA 6.1a ที่ไม่อยู่ในใบนี้**: b (tap target < 44 ของปุ่ม sm / checkbox) → แก้ในใบที่ reskin หน้านั้น (6.5/6.6) · e (org admin ไม่ได้ shell) → BACKLOG · f (query รายชื่อก๊วนทุกหน้า) → รับได้
