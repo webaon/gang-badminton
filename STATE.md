@@ -1,9 +1,10 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 16 ส.ค. 2026** · MVP-0 = `v0.1.0` · Phase 2.5 = `v0.2.0` ·
+> **อัปเดตล่าสุด: 26 ต.ค. 2026** · MVP-0 = `v0.1.0` · Phase 2.5 = `v0.2.0` ·
 > Phase 3 = `v0.3.0` (+ `v0.3.1` ADR-007) · Phase 4 (LINE) = `v0.4.0` ·
 > 🎉 **Phase 5 (Hardening & Deploy) เสร็จครบ = `v1.0.0` — public release**
+> 🎨 **Phase 6 (Redesign ตาม hi-fi 87 หน้า + tokens v4) กำลังทำ** — แผนที่ `docs/phase6-redesign-plan.md`
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -33,7 +34,7 @@ tag ล่าสุด: v1.0.0 (Phase 5 — merge เข้า main ผ่าน
            v0.4.0 (Phase 4 — LINE)
            v0.3.1 (ADR-007) · v0.3.0 (Phase 3) · v0.2.0 (Phase 2.5) · v0.1.0 (MVP-0)
 branch: claude/badminton-group-system-4pfs7o   (ทำงานอยู่บนนี้ — WO ทุกใบ commit ที่นี่)
-        main                                    (ตามทันแล้วถึง v0.3.0)
+        main                                    (merge ถึง PR #14 แล้ว — `b432ddc`)
 ```
 
 ✅ **PR #1 merge เข้า `main` แล้ว + tag `v0.1.0`** (13 ส.ค. 2026)
@@ -48,7 +49,7 @@ gh auth status                 # ดูว่าใคร active
 gh auth switch --user webaon   # สลับกลับถ้าไม่ใช่
 ```
 
-ยังไม่ได้เปิด PR — `claude/...` กับ `main` แยกกันอยู่
+PR #14 (`claude/...` → `main`) merge แล้ว (`b432ddc`) · push / เปิด PR ใช้ `gh` (login `webaon`) ที่ `C:/Program Files/GitHub CLI/gh.exe`
 
 ---
 
@@ -191,7 +192,7 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 
 ```bash
 npm test          # vitest run — 712 tests, 65 files (17 ส.ค. 2026)
-npm run test:unit # เทสต์ที่ไม่ต้องมี DB (273) — ใช้เป็น PR gate
+npm run test:unit # เทสต์ที่ไม่ต้องมี DB (397 passed / 1 skipped หลัง WO-6.0) — ใช้เป็น PR gate
 npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLIC_* ก่อน)
 ```
 
@@ -199,6 +200,7 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 
 | ไฟล์ | คุมอะไร |
 |---|---|
+| `tests/design/theme-tokens.test.ts` | **WO-6.0** — ค่า token เทียบ tokens v4 · contrast WCAG light/dark |
 | `tests/concurrency/register-no-overbook.test.ts` | **DoD 1** — 2 request ชน lock จริง + 8 request พร้อมกัน ไม่ overbook · guest/invite token |
 | `tests/concurrency/promote-waitlist.test.ts` | **DoD 2** — cancel พร้อมกัน 2 คน ไม่ซ้ำ ไม่ข้ามคิว · reliability tiebreak (D-8) |
 | `tests/concurrency/notification-worker.test.ts` | **DoD 3** — SKIP LOCKED, worker 2/4 ตัวไม่หยิบงานซ้ำ |
@@ -272,6 +274,33 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 ---
 
 ## 7. ทำอะไรต่อ — เริ่มพรุ่งนี้ที่นี่
+
+### 🎨 Phase 6 — Redesign ตาม hi-fi 87 หน้า + tokens v4 (กำลังทำ · 26 ต.ค. 2026)
+
+แผนเต็ม + gap analysis: `docs/phase6-redesign-plan.md` · WO ใน `AGENT-EXECUTION.md` (ส่วน Phase 6 ท้ายไฟล์)
+
+| WO | งาน | เจ้าของงาน | สถานะ |
+|---|---|---|---|
+| 6.0 | Design foundation — theme `badgame` (tokens v4 + dark tokens) ผ่าน `astryx theme build` · ฟอนต์ self-host | @gb-frontend | ✅ `315a507` QA ผ่าน |
+| 6.1a | App shell — tab bar มือถือ · sidebar แอดมิน · สลับก๊วน | @gb-frontend | 🔄 |
+| 6.1b | global states g1–g4 + ErrorCode → ข้อความไทยกลาง | @gb-frontend | ⏳ |
+| 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) | @gb-frontend | ⏳ |
+| 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) | @gb-frontend | ⏳ |
+| 6.4 | วันเล่น (23–28 + states) | @gb-frontend | ⏳ |
+| 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ |
+| 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
+| 6.7 | Auth + onboarding | @gb-frontend | ⏳ |
+| 6.8 | Growth screens + หน้าแรก | @gb-frontend | ⏳ |
+| 6.9 | Playwright checkpoint + `v1.1.0` | @gb-qa | ⏳ |
+
+**คำตัดสินเจ้าของงาน** (plan §3.1 และ §9):
+- C2: ใช้ tokens v4 เป็น source of truth · ชื่อในแอปยังเป็น "Gang Badminton"
+- C3: ยังเปลี่ยนตาม OS (`mode="system"`) ⇒ ต้องออกแบบ dark tokens เพิ่ม (v4 ไม่มี) — อยู่ใน WO-6.0
+- C12 / B1: ❌ ไม่ทำ SMTP — ใช้ LINE Login เป็นทางเข้าหลัก
+- B5 (ADR-010 ร่าง): เครดิตสมาชิก "เอา" · หักอัตโนมัติเมื่อมีหนี้ใหม่
+- B11 (ADR-011 ร่าง): สละสิทธิ์หลังถูกเลื่อนคิว — grace **3 ชม.** หลังถูกเลื่อนคิว (ไม่นับ late cancel · ไม่มีค่าปรับ) + แอดมินเลื่อน/เปลี่ยนคนเองได้ · "เปลี่ยนคน" = ยกเลิกคนเดิม
+- 8a ปุ่มสีส้ม: ตัวหนังสือเข้ม (`--color-on-warning`) · ห้ามตัวหนังสือขาว (contrast 2.70)
+- C6 / C9: เอา #64 #65 #54 กลับเข้าแผนเป็น B13–B15 (ต้องมี ADR ทุกข้อ เพราะกลับคำ baseline)
 
 🎉 **Phase 3 (Growth) เสร็จครบ 6 ใบ** — merge เข้า `main` ผ่าน PR #3 (`8bfa947`) · tag **`v0.3.0`** · CI เขียว
 571 เทสต์ / 55 ไฟล์ · cloud **33/33 migrations** (MVP-0 = `v0.1.0` · Phase 2.5 = `v0.2.0`)
@@ -349,7 +378,7 @@ env ที่ตั้งไว้บน Vercel (production): `NEXT_PUBLIC_SUPAB
 · `SUPABASE_URL` · `SUPABASE_SERVICE_ROLE_KEY` · `CRON_SECRET` · `LINE_LINK_SECRET` · `APP_BASE_URL`
 (secret ของ GitHub repo: `APP_BASE_URL` · `CRON_SECRET`)
 
-### งานถัดไป — ยังไม่มี Phase 6 ใน baseline
+### งานที่ค้างนอก baseline (Phase 6 ดูด้านบน)
 
 baseline จบที่ Phase 5 ⇒ งานหลังจากนี้เป็นเรื่องของ **ใช้งานจริงแล้วเก็บ feedback**
 สิ่งที่ค้างอยู่และหยิบทำได้ทันที (รายละเอียดใน `BACKLOG.md`):
@@ -362,10 +391,8 @@ baseline จบที่ Phase 5 ⇒ งานหลังจากนี้เ�
       · แผน `flat_rate` **189 บาท/คน** · นัดแรก **"พิชิตแมทเรทนี่"** สถานะ `open` ลงชื่อแล้ว 4
 
 **🔜 ค้างไว้ตรงนี้ (23 ส.ค. 2026) — หยิบต่อจากข้อนี้ได้เลย:**
-- [ ] **ลบ registration ทดสอบ** — นัดแรกมี guest ชื่อ `"Ford"` 3 แถว (แถวหนึ่งชื่อมีช่องว่างท้าย `"Ford "`)
-      น่าจะเกิดจากการกดทดสอบ · ถ้าไม่ลบ ปิดรอบแล้วจะคิด 189 × 4 = 756 บาท
-      ⚠️ ต้องถามเจ้าของก่อนลบ — อาจมีเพื่อนชื่อ Ford จริง
-- [ ] **ใส่ PromptPay ID** ให้ก๊วน (ตอนนี้ `promptpay_id` เป็น `null`) — ไม่มีแล้วปิดรอบไปก็ไม่รู้จะโอนไปไหน
+- [ ] **ลบ registration ทดสอบ (Ford 3 แถว)** — SQL พร้อมที่ `docs/ops/2026-10-26-cancel-test-guests.sql` รอเจ้าของงานรันใน Supabase Dashboard (ใช้ `cancel_registration()` ไม่ DELETE ตรง → มี event log + คิว waitlist เลื่อนเอง)
+- [ ] **PromptPay ID** — แอดมินก๊วนกรอกเองในหน้าตั้งค่า (ตอนนี้ `promptpay_id` เป็น `null`) — ไม่มีแล้วปิดรอบไปก็ไม่รู้จะโอนไปไหน
 - [ ] **ปิดรอบนัดแรกให้จบ** (ลงชื่อ → เช็คอิน → ปิดรอบ → เห็นยอด) — ยังไม่เคยเดินเส้นเงินบนของจริงเลย
 - [ ] **ชวนเพื่อนเข้าก๊วน** — ก๊วนเป็น private ⇒ เพื่อนสมัครเองที่ `/sign-up` แล้วแอดมินเพิ่มด้วยอีเมล
 - [ ] 🔴 **ตัวส่งอีเมลจริง** — ตอนนี้ปิดการยืนยันอีเมลไว้ (`mailer_autoconfirm = true`) เพราะยังไม่มี SMTP
@@ -480,7 +507,6 @@ baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
 ### ค้างจากก่อนหน้า (ยังไม่ทำ)
 
 - [ ] **Playwright** — E2E ผ่านเบราว์เซอร์จริง (ตอนนี้ E2E เดินผ่าน DB function + domain)
-- [ ] **ให้ก๊วนจริงลองใช้** แล้วเก็บ feedback ก่อนเริ่ม Phase 4
 - [ ] ของค้างอื่นดู `BACKLOG.md`
 
 ---
@@ -532,6 +558,9 @@ baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
   หน้าจอขึ้น "ยังไม่มีใครลงชื่อ" ทั้งที่ DB มีข้อมูลครบ (เจอบน production จริง 21 ส.ค. 2026 · พัง 7 จุด)
   ⇒ `tests/postgrest/embeds.test.ts` ยิงทุก `.select()` ในโค้ดเข้า PostgREST จริงกันไม่ให้กลับมา
   ⚠️ เทสต์ชุดอื่นจับไม่ได้เพราะเดินผ่าน `pg` driver / DB function **ไม่มีอะไรผ่าน PostgREST เลย**
+- 🔴 **npm รุ่นนี้บล็อก install scripts** — `npm ci` ข้าม esbuild / unrs-resolver / @astryxdesign/core แต่ build/test ยังผ่าน (WO-6.0)
+- 🔴 **Playwright 1.62 ไม่มี chromium ในเครื่อง** ⇒ ใช้ `channel: 'chrome'` (Chrome ที่ติดตั้งในเครื่อง)
+- 🔴 **theme ต้อง `npm run theme:build` หลังแก้ `theme/src`** แล้ว commit ไฟล์ built ด้วย
 - รายละเอียดที่เหลือทั้งหมดอยู่ใน **`BACKLOG.md`**
 
 ---
