@@ -1,5 +1,6 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useState, type FormEvent } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
@@ -47,7 +48,7 @@ export function GangSettingsForm({
     const result = await updateGangSettings(gangId, form);
 
     if (result.success) setSaved(true);
-    else setError(result.error.message);
+    else setError(actionError(result.error));
 
     setPending(false);
   }

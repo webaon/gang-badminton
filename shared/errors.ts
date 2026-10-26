@@ -104,6 +104,12 @@ export function toErrorCode(err: unknown): { code: ErrorCode; message: string; c
       ? String((err as { message: unknown }).message)
       : String(err);
 
+  // AppError (shared/action.ts) ถือ code ของตัวเองใน `.code` — ต้องหยิบก่อนเทียบ message
+  // ไม่งั้น `new AppError('VALIDATION_ERROR', 'ต้องระบุชื่อนัด')` (message ≠ code) ตกเป็น INTERNAL_ERROR ทุกครั้ง
+  if (typeof err === 'object' && err !== null && 'code' in err && isErrorCode((err as { code: unknown }).code)) {
+    return { code: (err as { code: ErrorCode }).code, message: raw, cause: err };
+  }
+
   if (isErrorCode(raw)) {
     return { code: raw, message: raw, cause: err };
   }

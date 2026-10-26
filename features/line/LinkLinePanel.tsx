@@ -1,5 +1,6 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Badge } from '@astryxdesign/core/Badge';
@@ -40,7 +41,7 @@ export function LinkLinePanel({ gangId, initial }: { gangId: string; initial: My
 
     const result = await fn();
     if (result.success) onOk?.(result.data as T);
-    else setError(result.error?.message ?? 'ทำรายการไม่สำเร็จ');
+    else setError(actionError(result.error));
 
     setPending(false);
   }

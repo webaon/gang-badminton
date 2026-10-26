@@ -1,5 +1,6 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
@@ -44,7 +45,7 @@ export function ConfirmCloseButton({
       router.replace(`/gangs/${gangId}/sessions/${sessionId}`);
       router.refresh();
     } else {
-      setError(result.error.message);
+      setError(actionError(result.error));
       setPending(false);
     }
   }

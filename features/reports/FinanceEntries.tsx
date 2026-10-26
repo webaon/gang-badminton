@@ -1,5 +1,6 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
@@ -52,7 +53,7 @@ export function FinanceEntries({
 
     const result = await fn();
     if (result.success) router.refresh();
-    else setError(result.error?.message ?? 'ทำรายการไม่สำเร็จ');
+    else setError(actionError(result.error));
 
     setPending(false);
     return result.success;

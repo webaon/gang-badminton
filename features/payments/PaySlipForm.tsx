@@ -1,5 +1,6 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
@@ -24,7 +25,7 @@ export function PaySlipForm({ paymentId, status }: { paymentId: string; status: 
 
     const prepared = await prepareSlipUpload(paymentId, file.name);
     if (!prepared.success) {
-      setError(prepared.error.message);
+      setError(actionError(prepared.error));
       setPending(false);
       return;
     }
@@ -34,14 +35,16 @@ export function PaySlipForm({ paymentId, status }: { paymentId: string; status: 
       .upload(prepared.data.path, file, { upsert: true });
 
     if (uploadError) {
-      setError(`อัปโหลดไม่สำเร็จ: ${uploadError.message}`);
+      // ❌ ไม่ render ข้อความของ Supabase Storage (อังกฤษ/รายละเอียดภายใน) — log ต้นฉบับไว้ไม่กลืนเงียบ
+      console.warn('[slip-upload] อัปโหลดขึ้น storage ไม่สำเร็จ', uploadError);
+      setError('อัปโหลดสลิปไม่สำเร็จ ตรวจขนาดและชนิดไฟล์ แล้วลองใหม่อีกครั้ง');
       setPending(false);
       return;
     }
 
     const submitted = await submitSlip(paymentId, prepared.data.path);
     if (submitted.success) router.refresh();
-    else setError(submitted.error.message);
+    else setError(actionError(submitted.error));
 
     setPending(false);
   }

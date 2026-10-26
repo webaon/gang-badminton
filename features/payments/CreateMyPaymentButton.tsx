@@ -1,5 +1,6 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
@@ -23,7 +24,7 @@ export function CreateMyPaymentButton({ sessionId }: { sessionId: string }) {
           setError(null);
           const result = await createMyPayment(sessionId);
           if (result.success) router.refresh();
-          else setError(result.error.message);
+          else setError(actionError(result.error));
           setPending(false);
         }}
       />

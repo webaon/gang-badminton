@@ -1,5 +1,6 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useState } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
@@ -26,7 +27,7 @@ export function CheckinQrButton({ registrationId }: { registrationId: string }) 
     const issued = await issueCheckinQr(registrationId);
 
     if (issued.success) setDataUrl(issued.data.dataUrl);
-    else setError(issued.error.message);
+    else setError(actionError(issued.error));
 
     setPending(false);
   }

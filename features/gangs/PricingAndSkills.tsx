@@ -1,5 +1,6 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
@@ -90,7 +91,7 @@ export function PricingAndSkills({
       setPlanSaved(true);
       router.refresh();
     } else {
-      setPlanError(result.error.message);
+      setPlanError(actionError(result.error));
     }
     setPlanPending(false);
   }
@@ -107,7 +108,7 @@ export function PricingAndSkills({
       setSkillLabel('');
       router.refresh();
     } else {
-      setSkillError(result.error.message);
+      setSkillError(actionError(result.error));
     }
     setSkillPending(false);
   }
@@ -118,7 +119,7 @@ export function PricingAndSkills({
 
     const result = await removeSkillLevel(gangId, id);
     if (result.success) router.refresh();
-    else setSkillError(result.error.message);
+    else setSkillError(actionError(result.error));
 
     setSkillPending(false);
   }

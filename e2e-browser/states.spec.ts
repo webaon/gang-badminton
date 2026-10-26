@@ -114,3 +114,41 @@ test.describe('มือถือ 390×844 (บั๊กเดิมจาก QA
     expect(overflow).toBeLessThanOrEqual(0);
   });
 });
+
+test.describe('ข้อความ error ภาษาไทยผ่าน errorText (ไม่มีอังกฤษของ Supabase หลุดออกจอ)', () => {
+  test('ล็อกอินรหัสผิด → "อีเมลหรือรหัสผ่านไม่ถูกต้อง" (ไม่ใช่ "เซสชันหมดอายุ") และไม่ถูกพาไป /session-expired', async ({ page }) => {
+    await page.goto('/sign-in');
+    await page.getByLabel('อีเมล').fill('nobody-here@example.com');
+    await page.getByLabel('รหัสผ่าน').fill('wrong-password-123');
+    await page.getByRole('button', { name: 'เข้าสู่ระบบ', exact: true }).click();
+
+    await expect(page.getByText('อีเมลหรือรหัสผ่านไม่ถูกต้อง')).toBeVisible();
+    expect(page.url()).toContain('/sign-in');
+    await expect(page.getByText('เซสชันหมดอายุ')).toBeHidden();
+  });
+
+  test('สมัครด้วยรหัสผ่านสั้นเกิน (Supabase ตอบอังกฤษ) → ข้อความไทยตายตัว ไม่เห็นอังกฤษ', async ({ page }) => {
+    await page.goto('/sign-up');
+    await page.getByLabel('ชื่อที่ใช้แสดง').fill('ทดสอบ');
+    await page.getByLabel('อีเมล').fill(`e2e-short-${Date.now()}@example.com`);
+    await page.getByLabel('รหัสผ่าน').fill('abc');
+    await page.getByRole('button', { name: 'สมัครสมาชิก' }).click();
+
+    await expect(page.getByText('ข้อมูลไม่ถูกต้อง กรุณาตรวจอีกครั้ง')).toBeVisible();
+    await expect(page.locator('body')).not.toContainText(/password should|at least|characters/i);
+  });
+
+  test('เพิ่มสมาชิกด้วยอีเมลที่ไม่มีในระบบ → ข้อความไทย ไม่โชว์ข้อความดิบจาก server', async ({ page }) => {
+    await signUp(page);
+    const { gangId } = await createGang(page);
+    await page.goto(`/gangs/${gangId}/members`);
+    await page.getByLabel('เพิ่มสมาชิกด้วยอีเมล').fill(`ghost-${Date.now()}@example.com`);
+    await page.getByRole('button', { name: 'เพิ่ม', exact: true }).click();
+
+    const banner = page.locator('[data-status="error"]').first();
+    await expect(banner).toBeVisible();
+    const text = (await banner.innerText()).trim();
+    expect(text).toMatch(/[\u0E00-\u0E7F]/);
+    expect(text).not.toMatch(/[A-Za-z]{4,}/); // ไม่มีคำอังกฤษยาวๆ หลุดมา
+  });
+});

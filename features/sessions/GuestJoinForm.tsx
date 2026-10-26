@@ -1,5 +1,6 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useState, type FormEvent } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
@@ -30,7 +31,7 @@ export function GuestJoinForm({ inviteToken }: { inviteToken: string }) {
         url: `${window.location.origin}/guest/${response.data.registrationId}?t=${response.data.guestToken}`,
       });
     } else {
-      setError(response.error.message);
+      setError(actionError(response.error));
     }
     setPending(false);
   }

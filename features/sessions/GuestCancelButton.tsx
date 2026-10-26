@@ -1,5 +1,6 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useState } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
@@ -22,7 +23,7 @@ export function GuestCancelButton({ registrationId }: { registrationId: string }
     const result = await cancelAsGuest(registrationId);
 
     if (result.success) setCancelled(true);
-    else setError(result.error.message);
+    else setError(actionError(result.error));
 
     setPending(false);
   }

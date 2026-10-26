@@ -1,5 +1,6 @@
 'use client';
 
+import { errorText } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
@@ -30,7 +31,7 @@ export function SignUpForm() {
     const result = await signUpWithPassword(email, password, displayName);
 
     if (!result.success) {
-      setError(result.error.message);
+      setError(errorText(result.error));
       setPending(false);
       return;
     }

@@ -1,5 +1,6 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
@@ -65,7 +66,7 @@ export function SessionActions({
     );
 
     if (result.success) router.refresh();
-    else setError(result.error.message);
+    else setError(actionError(result.error));
 
     setPending(false);
   }
@@ -85,7 +86,7 @@ export function SessionActions({
       setNotice(`สร้างยอดเรียกเก็บ ${result.data.chargeCount} รายการ รวม ${result.data.total} บาท`);
       router.refresh();
     } else {
-      setError(result.error.message);
+      setError(actionError(result.error));
     }
 
     setPending(false);

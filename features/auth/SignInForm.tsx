@@ -1,5 +1,6 @@
 'use client';
 
+import { errorText } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
@@ -14,9 +15,7 @@ import { signInWithMagicLink, signInWithPassword } from '@/server/actions/auth';
  *    ⇒ ใช้ `htmlName` ให้เบราว์เซอร์เดาเอาแทน ซึ่งอ่อนกว่า `autocomplete` จริง
  *    (password manager บางตัวจะไม่เติมรหัสให้อัตโนมัติ) — จดไว้ใน BACKLOG แล้ว
  *
- * ⚠️ ข้อความ error ที่โชว์มาจาก `message` ของ response contract
- *    ซึ่ง server เป็นคนตัดสินว่าจะบอกอะไร — หน้าจอไม่ตีความ `code` เอง
- *    (Phase 2 ค่อยทำ mapping code → ข้อความไทยรวมศูนย์ตาม CLAUDE.md §4)
+ * ⚠️ ข้อความ error ผ่าน `errorText()` (code → ไทย) [WO-6.1b] — ไม่อ่าน `message` ของ server ตรงๆ
  */
 export function SignInForm({ next }: { next?: string }) {
   const router = useRouter();
@@ -39,7 +38,13 @@ export function SignInForm({ next }: { next?: string }) {
       router.replace(next ?? '/profile');
       router.refresh();
     } else {
-      setError(result.error.message);
+      // `UNAUTHENTICATED` ที่นี่แปลว่า "อีเมลหรือรหัสผ่านไม่ถูกต้อง" (server/actions/auth.ts ใช้ code นี้กับการล็อกอินพลาด)
+      // ไม่ใช่เซสชันหมดอายุ ⇒ ใช้ `errorText` ล้วน (ไม่ redirect ไป /session-expired) และบอกตามบริบทของฟอร์ม
+      setError(
+        result.error.code === 'UNAUTHENTICATED'
+          ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
+          : errorText(result.error),
+      );
       setPending(false);
     }
   }
@@ -54,7 +59,7 @@ export function SignInForm({ next }: { next?: string }) {
     if (result.success) {
       setNotice('ส่งลิงก์เข้าสู่ระบบไปที่อีเมลแล้ว — เปิดลิงก์ในอีเมลเพื่อเข้าใช้งาน');
     } else {
-      setError(result.error.message);
+      setError(errorText(result.error));
     }
     setPending(false);
   }

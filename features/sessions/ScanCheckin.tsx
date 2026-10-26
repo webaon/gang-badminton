@@ -1,5 +1,6 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
@@ -50,7 +51,7 @@ export function ScanCheckin({
               displayName: response.data.displayName,
               already: response.data.already,
             }
-          : { kind: 'error', message: response.error.message },
+          : { kind: 'error', message: actionError(response.error) },
       );
 
       // ทิ้ง token ออกจาก URL ไม่ว่าผลจะเป็นอย่างไร

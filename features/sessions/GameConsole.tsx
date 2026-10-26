@@ -1,5 +1,6 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Badge } from '@astryxdesign/core/Badge';
@@ -85,7 +86,7 @@ export function GameConsole({
     setError(null);
     const result = await fn();
     if (result.success) router.refresh();
-    else setError(result.error?.message ?? 'ทำรายการไม่สำเร็จ');
+    else setError(actionError(result.error));
     setPending(false);
     return result.success;
   }

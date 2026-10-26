@@ -6,6 +6,7 @@ import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseServer } from '@/lib/supabase/server';
+import { errorText } from '@/lib/i18n/error-text';
 import { can } from '@/domain/permissions/can';
 import type { GangRole } from '@/domain/permissions/types';
 import { previewSessionCharges } from '@/server/actions/billing';
@@ -73,7 +74,7 @@ export default async function CloseSessionPage({
   if (!preview.success) {
     return (
       <section className="mx-auto max-w-2xl p-4">
-        <Banner status="error" title="สรุปยอดไม่สำเร็จ" description={preview.error.message} />
+        <Banner status="error" title="สรุปยอดไม่สำเร็จ" description={errorText(preview.error)} />
         <p className="mt-3">
           <Link href={`/gangs/${gangId}/sessions/${sessionId}`} className="underline">
             กลับไปหน้ารายละเอียดนัด
