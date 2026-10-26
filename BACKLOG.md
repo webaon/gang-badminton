@@ -482,3 +482,5 @@
 - [ ] **(WO-6.1b)** `server/actions/auth.ts:72,96` ส่ง error ภาษาอังกฤษของ Supabase Auth ต่อเป็น `VALIDATION_ERROR` ⇒ หน้าจอตกไป fallback · ควรแปลเป็นไทยที่ server (@gb-backend)
 - [ ] **(WO-6.1b)** ทบทวน 4 จุดที่ต่อ `(err as Error).message` เข้า response (`sessions.ts:88/225` · `finance.ts:77` · `membership.ts:155`) — อาจพาข้อความภายในไปถึงผู้ใช้
 - [ ] **(WO-6.1b · ทางเลือก B)** เพิ่ม `fields` ใน API contract ให้ validation บอกรายช่องได้ — เปลี่ยน contract ต้องมี ADR
+- [ ] **(WO-6.1b)** หน้า 404 ของ path ที่ไม่มีจริง (เช่น `/xyz`) เสิร์ฟ HTML ที่ prerender (`/_not-found`) แต่ proxy ใส่ CSP แบบ nonce เพราะ pathname ไม่ตรง `STATIC_ROUTES` ⇒ สคริปต์บนหน้า 404 ถูกบล็อก (ลิงก์ยังใช้ได้) · ทางแก้: ทำ not-found เป็น dynamic หรือให้ proxy รู้จัก 404 — ต้องแตะ `lib/security/csp.ts` (มีเทสต์คุม)
+- [x] ~~**open redirect ที่ `/sign-in?next=`**~~ — เดิมส่ง `next` ดิบเข้า `router.replace` · ปิดใน WO-6.1b ด้วย `safeNext()` (เจอโดย @gb-frontend 27 ต.ค. 2026) — 🔴 **มีอยู่บน production ตั้งแต่ v1.0.0** จนกว่าจะ merge
