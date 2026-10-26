@@ -66,11 +66,29 @@ reset → theme → base → astryx-base → astryx-theme → components → uti
 
 ➡️ styling ที่เขียนเอง ใช้ `className` (Tailwind) หรือ CSS Module ที่อ้าง Astryx token เท่านั้น
 
-### 1.3 Theme
+### 1.3 Theme — `badgame` (tokens v4 → Astryx · WO-6.0)
 
-- ใช้ `@astryxdesign/theme-neutral/built` + `theme.css` (**pre-built สำหรับ SSR**)
-- ❌ ห้ามใช้ runtime `defineTheme()` ในหน้า production — style จะ inject หลัง hydration
+- **source** = `theme/src/badgame.ts` (`defineTheme({extends: neutralTheme})`) → `npm run theme:build`
+  → commit ผลลัพธ์ `theme/badgame.{css,js,d.ts}` ทุกครั้งที่แก้ source
+- แอปใช้**ตัว built เท่านั้น**: `app/providers.tsx` import `@/theme/badgame.js` (`__built: true`) ·
+  `globals.css` ใช้ `@import "../theme/badgame.css"` **ไม่ห่อ `layer()`** (ไฟล์ประกาศ `@layer` ในตัวแล้ว)
+- ❌ ห้าม import `theme/src` หรือเรียก runtime `defineTheme()` ในหน้า production — style จะ inject หลัง hydration
+- `Theme mode="system"` — **ทุก token สีเป็นคู่ `[light, dark]`** · ชุด dark + ตาราง contrast อยู่ที่
+  `docs/design/tokens-dark.md` และคุมด้วย `tests/design/theme-tokens.test.ts`
+- ฟอนต์: Noto Sans Thai ผ่าน `next/font/google` (`lib/font.ts`) · stack `'Segoe UI', var(--font-noto-thai), system-ui`
+  ❌ ห้ามโหลดจาก `fonts.googleapis.com` ตอน runtime / ห้ามแก้ CSP เพื่อฟอนต์
+- ชื่อแอปยังเป็น **"Gang Badminton"** (เจ้าของงานตัดสิน 25 ต.ค. 2026)
 - Theme provider อยู่ที่ `app/providers.tsx` (client component)
+
+**กฎการใช้ tokens v4** (ที่มา: `../design/Design tokens.html` · แผน `docs/phase6-redesign-plan.md`)
+- primary สีเดียวใช้กับทุก interaction · **1 primary ต่อหน้าจอ** (การกระทำรองใช้ secondary/ghost) · `shadow-raised` ได้ใบเดียวต่อหน้า
+- orange ใช้**เฉพาะสถานะรอ/waitlist** (ยกเว้นปุ่มจ่ายเงิน #30 กับปุ่มปิดรอบบน live board) · navy ใช้เฉพาะ live board (#24)
+- 🔴 **ปุ่ม/พื้นสีส้มใช้ตัวหนังสือเข้ม `--color-on-warning`** ❌ ห้ามตัวหนังสือขาวบนส้ม (วัดได้ 2.70 ไม่ผ่าน — เจ้าของงานตัดสิน 26 ต.ค. 2026)
+- 🔴 **โหมดมืด**: ปุ่ม primary = พื้น `#3B8AD6` + ตัวหนังสือ navy-950 · ลิงก์/ไอคอน accent = `#80B2E3` ❌ ห้ามตัวหนังสือขาวบนปุ่ม primary โหมดมืด (3.63)
+- ข้อความรองใช้ `--color-text-secondary` (= v4 text-muted `#6B6B6B`) — ❌ ห้ามใช้ token `icon-*` เป็นสีตัวหนังสือ
+- `--color-success/warning/error` ใช้เป็นพื้น/จุดสี/ไอคอน · ข้อความสถานะใช้ `--color-text-{green,orange,red}`
+- tap target ≥ 44px · ฟอนต์ mono ใช้เฉพาะรหัส (รหัสเชิญ/อ้างอิง) — ตัวเลขเงินใช้ sans + `tabular-nums`
+- ❌ ห้าม copy `.btn` / `.chip` / `tokens.css` ของ hi-fi เข้า repo · ❌ ห้าม override `--color-*` ใน `:root`
 
 ### 1.4 CLI คือแหล่ง docs (เว็บถูก proxy บล็อก)
 
