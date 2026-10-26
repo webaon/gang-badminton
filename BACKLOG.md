@@ -474,3 +474,6 @@
 - [ ] B13 Custom roles (#65) · B14 ความชอบในการจับคู่ (#64) · B15 Web push (#54) — **เจ้าของงานให้กลับเข้าแผน** (26 ต.ค. 2026) · ต้องมี ADR กลับคำ baseline ทุกข้อ
 - [ ] ลาก-วางจริงใน #25 / #47 — คง D-19 (แตะเลือก-แตะสลับ) ไว้ก่อน
 - [ ] เปลี่ยนชื่อแบรนด์ในแอปเป็น "BadGame" — เจ้าของงานให้คง "Gang Badminton" ไว้ก่อน (25 ต.ค. 2026)
+- [ ] **(QA WO-6.0 · B)** `extends: neutralTheme` พาสี ProgressBar ค่าเดี่ยว (ไม่ใช่ light-dark) มาด้วย — override ใน `theme/src` ก่อนใช้ ProgressBar ครั้งแรก
+- [ ] **(QA WO-6.0 · C)** หน้านัด: ช่อง "รับสูงสุด" ล้นการ์ด · datetime-local native ไม่เข้าชุด · primary 3 ปุ่มในจอเดียว → WO-6.6
+- [ ] **Playwright 1.62 หา `chromium_headless_shell-1234` ไม่เจอบนเครื่องนี้** (มีแค่ 1223) — ตอนนี้รันด้วย `channel: 'chrome'` · ควร `npx playwright install chromium` (ต้องอนุมัติ)

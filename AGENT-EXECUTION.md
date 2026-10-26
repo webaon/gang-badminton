@@ -1721,8 +1721,9 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 
 | WO | งาน | owner | สถานะ |
 |---|---|---|---|
-| 6.0 | Design foundation — theme `badgame` (tokens v4 + dark tokens) ผ่าน `astryx theme build` · ฟอนต์ self-host | @gb-frontend | 🔄 กำลังทำ |
-| 6.1 | App shell — tab bar มือถือ · sidebar แอดมิน · สลับก๊วน · global states · ErrorCode → ข้อความไทย | @gb-frontend | ⏳ |
+| 6.0 | Design foundation — theme `badgame` (tokens v4 + dark tokens) ผ่าน `astryx theme build` · ฟอนต์ self-host | @gb-frontend | ✅ `315a507` QA ผ่าน |
+| 6.1a | App shell — tab bar มือถือ · sidebar แอดมิน · สลับก๊วน (plan §10) | @gb-frontend | 🔄 |
+| 6.1b | global states g1–g4 + ErrorCode → ข้อความไทยกลาง | @gb-frontend | ⏳ |
 | 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) | @gb-frontend | ⏳ |
 | 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) | @gb-frontend | ⏳ |
 | 6.4 | วันเล่น (23–28 + states) | @gb-frontend | ⏳ |

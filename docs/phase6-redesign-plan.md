@@ -237,3 +237,37 @@ tap target ≥ 44px · mono ใช้เฉพาะรหัส ตัวเล
 - ✅ "เปลี่ยนคน" = **ยกเลิก A ไปเลย** ใช้ transition เดิม (เจ้าของงานตัดสิน 26 ต.ค.) ⇒ state machine ไม่เปลี่ยน
 
 ### 8a ปุ่มสีส้ม — ✅ ก. ตัวหนังสือเข้ม (`--color-on-warning`) บนส้ม · ห้ามตัวหนังสือขาว (2.70)
+
+---
+
+## 10. WO-6.0 ✅ ผ่าน QA (`315a507`, 26 ต.ค. 2026) → แตก WO-6.1 เป็น 2 ใบ
+
+ของจริงที่ตรวจก่อนแตกใบ: repo **มี `app/layout.tsx` ไฟล์เดียว** — ไม่มี layout ซ้อน, `error.tsx`, `not-found.tsx`,
+`loading.tsx` เลย · `features/` แสดง `error.message` จาก server ตรงๆ ราว 31 จุด · `docs/errors.md` มี 32 code
+⇒ 6.1 เดิมใหญ่เกินหนึ่งใบ จึงแยกเป็น **6.1a (โครงแอป)** กับ **6.1b (states กลาง + ข้อความ error ไทย)** ทำต่อกันตามลำดับ
+
+ข้อสังเกตจาก QA ของ 6.0 ที่รับเข้าใบถัดไป: **A** (`data-astryx-theme` บน `<html>` กันแฟลช) → 6.1a ·
+**B** (สี ProgressBar ที่ติดมาจาก neutral) → ใบแรกที่ใช้ ProgressBar · **C** (ช่องล้นการ์ด / datetime-local / primary 3 ปุ่ม ในหน้านัด) → 6.6
+
+### WO-6.1a: App shell — โครงหน้าสมาชิก/แอดมิน + สลับก๊วน
+**Goal**: ทุกหน้าใต้ `/gangs/[gangId]/*` อยู่ในโครงเดียวกันตาม hi-fi — มือถือมี tab bar ล่าง, เดสก์ท็อปมี sidebar — และสลับก๊วนได้จาก header
+**Scope**:
+- `app/gangs/[gangId]/layout.tsx` (server) อ่าน membership + role ครั้งเดียว แล้วส่งให้ shell (client) — ตรวจสิทธิ์เมนูด้วย `can()` เท่านั้น
+- **มือถือ** (< `md`): header (ชื่อก๊วน = ปุ่มเปิด #59) + tab bar ล่าง 4 ช่อง ตาม hi-fi #17: **นัด** → `sessions` · **ยอดเงิน** → `payments` · **อันดับ** → `stats` (ซ่อนถ้า flag `statistics` ปิด) · **ฉัน** → `/profile`
+- **เดสก์ท็อป** (≥ `md`): Astryx `AppShell` + `SideNav` สำหรับแอดมิน (เมนูตาม hi-fi #10: แดชบอร์ด*, นัด, สมาชิก, เก็บเงิน, รายงาน, ประกาศ, ตั้งค่า, LINE) · สมาชิกทั่วไปเห็นเฉพาะเมนูที่ `can()` อนุญาต
+  *แดชบอร์ด = ลิงก์ไป `sessions` ไปก่อน (หน้า #10 เป็นงาน 6.5)
+- **#59 สลับก๊วน**: sheet/dialog จากชื่อก๊วน แสดงรายชื่อก๊วนของผู้ใช้ (query เดิมของ `/gangs`) — ยอดค้างต่อก๊วนไม่ต้องทำในใบนี้
+- เมนูที่ใช้งานอยู่ (active) อ่านจาก pathname · tap target ≥ 44px · มี `aria-current`
+- ข้อสังเกต A: ใส่ `data-astryx-theme` ให้ `<html>` ตั้งแต่ SSR (ตรวจชื่อ attribute/ค่าที่ Theme ตั้งจริงจาก `node_modules/@astryxdesign/core` ก่อน)
+- **ไม่แตะเนื้อหาของแต่ละหน้า** นอกจากถอด header/nav เดิมที่ซ้ำกับ shell
+**DoD**:
+1. typecheck · lint · test:unit · build ผ่าน · หน้า static (`/`, `/sign-up`) ยัง static · `STATIC_ROUTES` ไม่เปลี่ยน
+2. เทสต์ใหม่ (unit, pure): ฟังก์ชันสร้างรายการเมนูจาก role + features ⇒ member/admin/owner × flag `statistics` เปิด/ปิด ได้เมนูตรงตาม `can()` (ห้าม hardcode `role === 'admin'`)
+3. Playwright: (ก) viewport 390×844 เห็น tab bar 4 ช่อง กดแต่ละช่องไปถูก route · (ข) 1280×800 แอดมินเห็น sidebar · (ค) สลับก๊วนไปอีกก๊วนได้ · smoke เดิมผ่าน
+4. screenshot หน้า sessions ของก๊วน × มือถือ/เดสก์ท็อป × light/dark → `docs/design/wo-6.1a/`
+5. grep: ไม่มี hex ดิบ / `style={{` / `<div>` ทำ layout ที่เพิ่มขึ้น (ใช้ Astryx layout ก่อน Tailwind ตาม §1)
+**Forbidden**: hardcode role · ซ่อนเมนูอย่างเดียวแล้วถือว่าเป็นการกันสิทธิ์ (หน้าเดิมต้องตรวจสิทธิ์ฝั่ง server เหมือนเดิม) · `force-dynamic`/`cookies()` ในหน้าแรก · query ใหม่ที่ข้าม RLS · migration · ทำหน้า #10 Dashboard
+**References**: CLAUDE.md §1, §1.3, §3 (`can()`) · hi-fi `H17`, `H10`, `HM59` ใน `../design/hifi/*.jsx` · `npm run astryx -- component AppShell` / `SideNav` / `TabList`
+
+### WO-6.1b (แตกละเอียดหลัง 6.1a ผ่าน): global states g1–g4 + `ErrorCode` → ข้อความไทยกลาง
+`app/error.tsx` · `global-error.tsx` · `not-found.tsx` · offline banner · session หมดอายุ · ลิงก์เชิญหมดอายุ · แทน `error.message` ทั้ง ~31 จุดด้วย map เดียวจาก `docs/errors.md` (มีเทสต์ว่าทุก code ในเอกสารมีข้อความ)
