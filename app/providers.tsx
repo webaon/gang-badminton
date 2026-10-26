@@ -3,14 +3,16 @@
 import NextLink from 'next/link';
 import {LinkProvider} from '@astryxdesign/core/Link';
 import {Theme} from '@astryxdesign/core/theme';
-import {neutralTheme} from '@astryxdesign/theme-neutral/built';
+import {badgameTheme} from '@/theme/badgame.js';
 import type {ReactNode} from 'react';
 
 /**
  * Astryx theme provider.
  *
- * ใช้ `/built` + `theme.css` (import ใน globals.css) ตามคำแนะนำ Astryx สำหรับ SSR
- * — runtime injection จะ inject หลัง hydration ทำให้ first paint ไม่มี style
+ * 🔴 ใช้ theme ที่ **build แล้ว** (`theme/badgame.js` มี `__built: true` + `theme/badgame.css`
+ *    ที่ import ใน globals.css) — ห้ามชี้ไป `theme/src/badgame.ts` ซึ่งเป็น source ของ
+ *    `defineTheme()` (runtime injection จะ inject หลัง hydration ⇒ first paint ไม่มี style)
+ *    แก้ theme ที่ source แล้วรัน `npm run theme:build`
  *
  * mode="system" = ตาม OS preference (light/dark)
  *
@@ -21,7 +23,7 @@ import type {ReactNode} from 'react';
  */
 export function Providers({children}: {children: ReactNode}) {
   return (
-    <Theme theme={neutralTheme} mode="system">
+    <Theme theme={badgameTheme} mode="system">
       <LinkProvider component={NextLink}>{children}</LinkProvider>
     </Theme>
   );
