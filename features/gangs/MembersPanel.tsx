@@ -5,6 +5,7 @@ import { useState, type FormEvent } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
 import { CheckboxInput } from '@astryxdesign/core/CheckboxInput';
+import { HStack } from '@astryxdesign/core/Stack';
 import { Selector } from '@astryxdesign/core/Selector';
 import { TextInput } from '@astryxdesign/core/TextInput';
 
@@ -99,11 +100,16 @@ export function MembersPanel({
 
       <ul className="mt-4 divide-y">
         {members.map((m) => (
-          <li key={m.id} className="flex items-center justify-between gap-3 py-3">
-            <span className="min-w-0 flex-1 truncate">{m.displayName}</span>
+          // [WO-6.1b / QA 6.1a ข้อ c] มือถือ 390px: ชื่ออยู่บรรทัดบนเต็มความกว้าง, ตัวควบคุมซ้อนบรรทัดล่าง
+          // (เดิมแถวเดียว flex + Selector w-40 บีบชื่อจนกว้าง 0) · ≥ sm กลับเป็นแถวเดียว
+          <li
+            key={m.id}
+            className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+          >
+            <span className="min-w-0 break-words sm:flex-1 sm:truncate">{m.displayName}</span>
 
             {canManage ? (
-              <>
+              <HStack className="flex-wrap items-center gap-3">
                 {/*
                   [WO-2.5-C] ติ๊กแล้วมีผลสองอย่าง: ค่าสนามเป็น 0 ตอนปิดรอบ (ADR-005)
                   และถูกออกบิลรายเดือนตั้งแต่เดือนนี้ (เก็บเต็มเดือน)
@@ -132,7 +138,7 @@ export function MembersPanel({
                   isDisabled={pending}
                   onClick={() => run(() => removeMember(gangId, m.id))}
                 />
-              </>
+              </HStack>
             ) : (
               <span className="text-sm">
                 {ROLE_LABELS[m.role]}

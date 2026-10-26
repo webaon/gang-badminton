@@ -1,3 +1,4 @@
+import type { IconName } from '@astryxdesign/core/Icon';
 import type { ComponentType, ReactNode, SVGProps } from 'react';
 
 import type { NavIconKey } from '@/domain/navigation/gang-menu';
@@ -28,13 +29,14 @@ function base(children: ReactNode) {
   return Component;
 }
 
-export const NAV_ICONS: Record<NavIconKey, ComponentType<IconProps>> = {
-  calendar: base(
-    <>
-      <rect x="3" y="5" width="18" height="16" rx="3" />
-      <path d="M8 3v4M16 3v4M3 10h18" />
-    </>,
-  ),
+/**
+ * [WO-6.1b / QA 6.1a ข้อ a] ไอคอนที่ Astryx มีให้อยู่แล้ว (`calendar`, `wrench`) ใช้ชื่อ semantic ตรงๆ
+ * เพื่อให้ตามธีมได้ — ที่เหลือ (wallet/trophy/users/…) Astryx ไม่มี จึงวาดเอง
+ */
+export type NavIconSource = IconName | ComponentType<IconProps>;
+
+export const NAV_ICONS: Record<NavIconKey, NavIconSource> = {
+  calendar: 'calendar',
   wallet: base(
     <>
       <path d="M4 7a2 2 0 0 1 2-2h11v4" />
@@ -78,12 +80,7 @@ export const NAV_ICONS: Record<NavIconKey, ComponentType<IconProps>> = {
       <path d="M19 9a4 4 0 0 1 0 6" />
     </>,
   ),
-  settings: base(
-    <>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
-    </>,
-  ),
+  settings: 'wrench',
   chat: base(
     <>
       <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12Z" />

@@ -6,6 +6,7 @@ import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
 import { RadioList, RadioListItem } from '@astryxdesign/core/RadioList';
 import { TextInput } from '@astryxdesign/core/TextInput';
+import { VStack } from '@astryxdesign/core/VStack';
 
 import { addFinanceEntry, removeFinanceEntry } from '@/server/actions/finance';
 
@@ -87,8 +88,9 @@ export function FinanceEntries({
           <RadioListItem label="รายรับอื่น" value="income" description="สปอนเซอร์ ขายของ" />
         </RadioList>
 
-        <div className="flex gap-2">
-          <div className="flex-1">
+        {/* [WO-6.1b / QA 6.1a ข้อ c] มือถือ: ซ้อนบรรทัด (เดิมแถวเดียว w-32 + w-40 ล้นขอบการ์ด) · ≥ sm แถวเดียว */}
+        <VStack className="gap-2 sm:flex-row">
+          <VStack className="sm:flex-1">
             <TextInput
               label="หมวด"
               value={category}
@@ -96,14 +98,14 @@ export function FinanceEntries({
               placeholder={kind === 'expense' ? 'ค่าคอร์ท' : 'สปอนเซอร์'}
               isRequired
             />
-          </div>
-          <div className="w-32">
+          </VStack>
+          <VStack className="sm:w-32">
             <TextInput label="จำนวนเงิน" value={amount} onChange={setAmount} isRequired />
-          </div>
-          <div className="w-40">
+          </VStack>
+          <VStack className="sm:w-40">
             <TextInput label="วันที่" value={occurredOn} onChange={setOccurredOn} />
-          </div>
-        </div>
+          </VStack>
+        </VStack>
 
         <TextInput label="บันทึกช่วยจำ" value={note} onChange={setNote} />
 

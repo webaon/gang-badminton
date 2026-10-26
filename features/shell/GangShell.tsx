@@ -74,7 +74,7 @@ export function GangShell({ gangId, gangName, tabs, side, gangs, children }: Pro
               key={item.id}
               label={item.label}
               href={item.href}
-              icon={NAV_ICONS[item.icon]}
+              icon={<Icon icon={NAV_ICONS[item.icon]} />}
               isSelected={item.id === activeSide}
             />
           ))}

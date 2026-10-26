@@ -1,22 +1,12 @@
 /**
- * ข้อความภาษาไทยของ Astryx (เฉพาะ key ที่ shell ใช้) — **[WO-6.1a]**
+ * ข้อความภาษาไทยของ Astryx — **[WO-6.1a เริ่ม · WO-6.1b ครบทุก key]**
  *
- * Astryx 0.3.0 มีแค่ catalog อังกฤษ (`locales/en.json`) — ข้อความที่ผู้ใช้/screen reader เห็นอย่าง
- * "Open navigation" / "Skip to content" จึงเป็นอังกฤษในแอป Thai-first
- * ใช้ `overrides` (sparse) ของ `InternationalizationProvider` ทับเฉพาะ key เหล่านี้ — key อื่นยัง fallback เป็นอังกฤษ
- *
- * ⚠️ ยังไม่ครบทั้ง catalog (~100 key) — ส่วนที่เหลือเป็นงานต่อใน WO-6.1b (ข้อความกลาง/ข้อความ error ไทย)
+ * Astryx 0.3.0 มีแค่ catalog อังกฤษ (`locales/en.json`) ⇒ "Required" / "Optional" / "Open navigation"
+ * จะเป็นอังกฤษในแอป Thai-first — ใช้ `overrides` ของ `InternationalizationProvider` ทับทีละ key
+ * ตัวข้อความอยู่ใน `astryx-th-catalog.ts`; `tests/design/astryx-th.test.ts` เทียบกับ en.json ว่าครบ
  */
+import { ASTRYX_TH_CATALOG } from './astryx-th-catalog';
+
 export const ASTRYX_TH_LOCALE = 'th';
 
-export const ASTRYX_TH_OVERRIDES: Record<string, string> = {
-  '@astryx.appShell.skipToContent': 'ข้ามไปที่เนื้อหา',
-  '@astryx.appShell.mobileNavigation': 'เมนูบนมือถือ',
-  '@astryx.mobileNav.toggle.open': 'เปิดเมนู',
-  '@astryx.mobileNav.closeNavigation': 'ปิดเมนู',
-  '@astryx.mobileNav.navigation': 'เมนู',
-  '@astryx.sideNav.label': 'เมนูข้าง',
-  '@astryx.topNav.landmarkLabel': 'แถบด้านบน',
-  '@astryx.tabList.label': 'แท็บ',
-  '@astryx.dialog.close': 'ปิด',
-};
+export const ASTRYX_TH_OVERRIDES: Record<string, string> = ASTRYX_TH_CATALOG;

@@ -1,5 +1,6 @@
 import { Card } from '@astryxdesign/core/Card';
 
+import { StatePanel } from '@/components/ui/StatePanel';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { formatInTimeZone } from '@/domain/time/timezone';
 import { GuestJoinForm } from '@/features/sessions/GuestJoinForm';
@@ -33,14 +34,15 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   }> | null)?.[0];
 
   if (!session) {
-    // ลิงก์ผิด / หมดอายุ / ใช้ครบ — ข้อความเดียวกันหมด ไม่บอกว่าสาเหตุไหน
+    // ลิงก์ผิด / หมดอายุ / ใช้ครบ — ข้อความเดียวกันหมด ไม่บอกว่าสาเหตุไหน (กัน oracle ว่า token มีจริง)
+    // [WO-6.1b] hi-fi K g3
     return (
-      <main className="mx-auto max-w-md p-4">
-        <Card padding={6}>
-          <h1 className="mb-2 text-xl font-semibold">ลิงก์ใช้ไม่ได้</h1>
-          <p className="text-sm">ลิงก์เชิญไม่ถูกต้องหรือหมดอายุแล้ว — ขอลิงก์ใหม่จากคนที่ชวนคุณ</p>
-        </Card>
-      </main>
+      <StatePanel
+        tone="error"
+        title="ลิงก์นี้ใช้ไม่ได้แล้ว"
+        description="ลิงก์ไม่ถูกต้อง หมดอายุ หรือถูกใช้ครบจำนวนแล้ว — ขอลิงก์ใหม่จากคนที่ชวนคุณมา"
+        actions={[{ label: 'หาก๊วนอื่นแถวนี้', href: '/discover', variant: 'secondary' }]}
+      />
     );
   }
 

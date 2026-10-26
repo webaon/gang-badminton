@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Card } from '@astryxdesign/core/Card';
 
+import { StatePanel } from '@/components/ui/StatePanel';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { readGuestCookie } from '@/lib/guest/session';
 import { formatInTimeZone } from '@/domain/time/timezone';
@@ -44,13 +45,14 @@ export default async function GuestStatusPage({
 
   const guestToken = await readGuestCookie();
 
+  // [WO-6.1b] hi-fi K g3 — ข้อความเดียวกันทุกกรณี (ไม่ใช่ token / token ของนัดอื่น / ไม่มีแถว) กัน oracle
   const denied = (
-    <main className="mx-auto max-w-md p-4">
-      <Card padding={6}>
-        <h1 className="mb-2 text-xl font-semibold">เปิดดูไม่ได้</h1>
-        <p className="text-sm">ลิงก์ไม่ถูกต้อง — ใช้ลิงก์ที่ได้ตอนลงชื่อ</p>
-      </Card>
-    </main>
+    <StatePanel
+      tone="error"
+      title="ลิงก์นี้ใช้ไม่ได้แล้ว"
+      description="ลิงก์ไม่ถูกต้องหรือหมดอายุ — ใช้ลิงก์ที่ได้ตอนลงชื่อ หรือขอลิงก์ใหม่จากคนที่ชวนคุณมา"
+      actions={[{ label: 'หาก๊วนอื่นแถวนี้', href: '/discover', variant: 'secondary' }]}
+    />
   );
 
   if (!guestToken) return denied;

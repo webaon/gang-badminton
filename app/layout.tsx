@@ -1,6 +1,7 @@
 import type {Metadata, Viewport} from 'next';
 import './globals.css';
 import {Providers} from './providers';
+import {OfflineBanner} from '@/components/layout/OfflineBanner';
 import {notoSansThai} from '@/lib/font';
 import {badgameTheme} from '@/theme/badgame.js';
 
@@ -31,7 +32,10 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="tabular-nums">
-        <Providers>{children}</Providers>
+        <Providers>
+          <OfflineBanner />
+          {children}
+        </Providers>
       </body>
     </html>
   );
