@@ -69,7 +69,8 @@ type Def = {
 const TAB_DEFS: readonly Def[] = [
   { id: 'sessions', label: 'นัด', icon: 'calendar', action: 'session.view', path: 'sessions' },
   // ⚠️ ผูก `payment.verify` เพราะหน้า payments ของวันนี้เป็นหน้าแอดมิน (redirect ถ้าไม่ใช่)
-  //    สมาชิกจะได้แท็บนี้เมื่อ WO-6.3 มีหน้า "ยอดของฉัน" — เปลี่ยน action บรรทัดนี้บรรทัดเดียว
+  //    สมาชิกจึงเห็นแค่ 3 แท็บ (นัด/อันดับ/ฉัน)
+  //    WO-6.3 จะเปลี่ยนเป็นหน้ายอดของฉันสำหรับทุกคน — เปลี่ยน action บรรทัดนี้บรรทัดเดียว
   { id: 'payments', label: 'ยอดเงิน', icon: 'wallet', action: 'payment.verify', path: 'payments' },
   { id: 'stats', label: 'อันดับ', icon: 'trophy', action: 'statistics.view', path: 'stats' },
   { id: 'profile', label: 'ฉัน', icon: 'user', action: null, path: '/profile', absolute: true },

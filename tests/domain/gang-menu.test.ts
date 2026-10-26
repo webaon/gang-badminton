@@ -38,6 +38,24 @@ describe('buildGangMenu — member', () => {
   });
 });
 
+describe('buildGangMenu — แท็บ "ยอดเงิน" (ผูก payment.verify จนกว่า WO-6.3)', () => {
+  it('member ไม่เห็นยอดเงิน ทั้งแท็บและ sidebar (ไม่ว่า flag ใด)', () => {
+    for (const statistics of [false, true]) {
+      const m = buildGangMenu({ role: 'member', features: { ...ALL_OFF, statistics } }, G);
+      expect(ids(m.tabs)).not.toContain('payments');
+      expect(ids(m.side)).not.toContain('payments');
+    }
+  });
+
+  it('admin / owner เห็นยอดเงิน ทั้งแท็บ (ลำดับที่ 2) และ sidebar', () => {
+    for (const role of ['admin', 'owner'] as const) {
+      const m = buildGangMenu({ role, features: ALL_OFF }, G);
+      expect(ids(m.tabs)[1]).toBe('payments');
+      expect(ids(m.side)).toContain('payments');
+    }
+  });
+});
+
 describe('buildGangMenu — admin / owner', () => {
   for (const role of ['admin', 'owner'] as const) {
     it(`${role}: เห็นเมนูแอดมินครบ (discovery ปิด ⇒ ไม่มีคำขอเข้าก๊วน)`, () => {
