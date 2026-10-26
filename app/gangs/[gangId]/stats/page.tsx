@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Card } from '@astryxdesign/core/Card';
@@ -88,12 +87,9 @@ export default async function StatsPage({ params }: { params: Promise<{ gangId: 
   const computedAt = rows[0]?.computed_at ?? null;
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
+    <section className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">สถิติ · {gang.name}</h1>
-        <Link href={`/gangs/${gangId}/sessions`} className="underline">
-          นัด
-        </Link>
       </div>
 
       {rows.length === 0 ? (
@@ -129,6 +125,6 @@ export default async function StatsPage({ params }: { params: Promise<{ gangId: 
       <p className="mt-3 text-sm opacity-70">
         “จ่ายสะสม” คือเงินที่จ่ายจริงหลังหักเงินคืน · “มาเล่น” คิดจากนัดที่ได้ที่ ไม่ใช่นัดทั้งหมดของก๊วน
       </p>
-    </main>
+    </section>
   );
 }

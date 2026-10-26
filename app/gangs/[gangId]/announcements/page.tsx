@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
 import { requireUser } from '@/lib/supabase/auth';
@@ -71,12 +70,9 @@ export default async function AnnouncementsPage({
   }));
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
+    <section className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">ประกาศ · {gang.name}</h1>
-        <Link href={`/gangs/${gangId}/sessions`} className="underline">
-          นัด
-        </Link>
       </div>
 
       <AnnouncementsPanel
@@ -84,6 +80,6 @@ export default async function AnnouncementsPage({
         announcements={announcements}
         canManage={can({ role }, 'announcement.manage')}
       />
-    </main>
+    </section>
   );
 }

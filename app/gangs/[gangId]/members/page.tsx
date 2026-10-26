@@ -1,11 +1,10 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Card } from '@astryxdesign/core/Card';
 
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseServer } from '@/lib/supabase/server';
 import { can } from '@/domain/permissions/can';
-import type { GangFeatures, GangRole } from '@/domain/permissions/types';
+import type { GangRole } from '@/domain/permissions/types';
 import { MembersPanel, type MemberRow } from '@/features/gangs/MembersPanel';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +20,7 @@ export default async function GangMembersPage({
 
   const { data: gang } = await supabase
     .from('gangs')
-    .select('id, name, features')
+    .select('id, name')
     .eq('id', gangId)
     .is('deleted_at', null)
     .maybeSingle();
@@ -51,32 +50,11 @@ export default async function GangMembersPage({
   }));
 
   const myRole = (members.find((m) => m.userId === user.id)?.role ?? null) as GangRole | null;
-  const features = (gang.features ?? {}) as Partial<GangFeatures>;
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
+    <section className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">สมาชิก · {gang.name}</h1>
-        <span className="flex gap-3">
-          {/* [WO-3.E] ก๊วนที่ปิด discovery ไม่มีคำขอให้ดู — `can()` เป็นคนตัดสินที่เดียว */}
-          {can({ role: myRole, features }, 'gang.join_request.manage') ? (
-            <Link href={`/gangs/${gangId}/join-requests`} className="underline">
-              คำขอเข้าก๊วน
-            </Link>
-          ) : null}
-          {/* [WO-4.B] ผูกบัญชี LINE ของตัวเอง — เห็นเฉพาะก๊วนที่เปิด features.line */}
-          {can({ role: myRole, features }, 'line.link.self') ? (
-            <Link href={`/gangs/${gangId}/line`} className="underline">
-              เชื่อมต่อ LINE
-            </Link>
-          ) : null}
-          <Link href={`/gangs/${gangId}/membership`} className="underline">
-            บิลรายเดือน
-          </Link>
-          <Link href={`/gangs/${gangId}/settings`} className="underline">
-            ตั้งค่า
-          </Link>
-        </span>
       </div>
 
       <Card padding={6}>
@@ -86,6 +64,6 @@ export default async function GangMembersPage({
           canManage={can({ role: myRole }, 'gang.member.manage')}
         />
       </Card>
-    </main>
+    </section>
   );
 }

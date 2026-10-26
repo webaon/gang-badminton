@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { Card } from '@astryxdesign/core/Card';
 
@@ -165,12 +164,9 @@ export default async function ReportsPage({
   const actualCost = fromSatang(toSatang(report.charged) - toSatang(report.roundingSurplus));
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
+    <section className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">รายงาน · {gang.name}</h1>
-        <Link href={`/gangs/${gangId}/payments`} className="underline">
-          เก็บเงิน
-        </Link>
       </div>
 
       <Card padding={4} variant="muted">
@@ -227,7 +223,7 @@ export default async function ReportsPage({
           )}
         </Card>
       </div>
-    </main>
+    </section>
   );
 }
 

@@ -2,8 +2,10 @@
 
 import NextLink from 'next/link';
 import {LinkProvider} from '@astryxdesign/core/Link';
+import {InternationalizationProvider} from '@astryxdesign/core/i18n';
 import {Theme} from '@astryxdesign/core/theme';
 import {badgameTheme} from '@/theme/badgame.js';
+import {ASTRYX_TH_LOCALE, ASTRYX_TH_OVERRIDES} from '@/lib/i18n/astryx-th';
 import type {ReactNode} from 'react';
 
 /**
@@ -23,8 +25,10 @@ import type {ReactNode} from 'react';
  */
 export function Providers({children}: {children: ReactNode}) {
   return (
-    <Theme theme={badgameTheme} mode="system">
-      <LinkProvider component={NextLink}>{children}</LinkProvider>
-    </Theme>
+    <InternationalizationProvider locale={ASTRYX_TH_LOCALE} overrides={{[ASTRYX_TH_LOCALE]: ASTRYX_TH_OVERRIDES}}>
+      <Theme theme={badgameTheme} mode="system">
+        <LinkProvider component={NextLink}>{children}</LinkProvider>
+      </Theme>
+    </InternationalizationProvider>
   );
 }

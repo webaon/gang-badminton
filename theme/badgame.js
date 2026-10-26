@@ -186,7 +186,10 @@ export const badgameTheme = {
     "--shadow-inset-selected": "inset 0px 0px 0px 2px #0074e280",
     "--shadow-inset-success": "inset 0px 0px 0px 2px #1981004D",
     "--shadow-inset-warning": "inset 0px 0px 0px 2px #ffce2f4D",
-    "--shadow-inset-error": "inset 0px 0px 0px 2px #e33f4a4D"
+    "--shadow-inset-error": "inset 0px 0px 0px 2px #e33f4a4D",
+    "--size-element-sm": "32px",
+    "--size-element-md": "44px",
+    "--size-element-lg": "52px"
   },
 
 };

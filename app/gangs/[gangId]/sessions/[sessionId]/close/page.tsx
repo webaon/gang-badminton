@@ -72,14 +72,14 @@ export default async function CloseSessionPage({
 
   if (!preview.success) {
     return (
-      <main className="mx-auto max-w-2xl p-4">
+      <section className="mx-auto max-w-2xl p-4">
         <Banner status="error" title="สรุปยอดไม่สำเร็จ" description={preview.error.message} />
         <p className="mt-3">
           <Link href={`/gangs/${gangId}/sessions/${sessionId}`} className="underline">
             กลับไปหน้ารายละเอียดนัด
           </Link>
         </p>
-      </main>
+      </section>
     );
   }
 
@@ -108,7 +108,7 @@ export default async function CloseSessionPage({
   }));
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
+    <section className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">สรุปยอดก่อนปิดรอบ · {session.title}</h1>
         <Link href={`/gangs/${gangId}/sessions/${sessionId}`} className="underline">
@@ -159,6 +159,6 @@ export default async function CloseSessionPage({
       <p className="mt-3 text-sm opacity-70">
         ปิดรอบแล้วยอดจะถูกบันทึกทันทีและแก้ไม่ได้ — ถ้าตัวเลขยังไม่ถูก ให้กลับไปแก้ที่คอนโซลก่อน
       </p>
-    </main>
+    </section>
   );
 }

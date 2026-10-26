@@ -60,7 +60,7 @@ export default async function ScanPage({
   }
 
   return (
-    <main className="mx-auto max-w-md p-4">
+    <section className="mx-auto max-w-md p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">สแกนเช็คอิน · {session.title}</h1>
         <Link href={`/gangs/${gangId}/sessions/${sessionId}/console`} className="underline">
@@ -71,6 +71,6 @@ export default async function ScanPage({
       <Card padding={6}>
         <ScanCheckin sessionId={sessionId} gangId={gangId} token={token ?? null} />
       </Card>
-    </main>
+    </section>
   );
 }

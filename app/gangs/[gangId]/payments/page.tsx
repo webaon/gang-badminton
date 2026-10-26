@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Card } from '@astryxdesign/core/Card';
@@ -170,17 +169,9 @@ export default async function PaymentsPage({ params }: { params: Promise<{ gangI
   const nameOfCharge = new Map(rows.map((r) => [r.chargeId, r.displayName]));
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
+    <section className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">เก็บเงิน · {gang.name}</h1>
-        <span className="flex gap-3">
-          <Link href={`/gangs/${gangId}/reports`} className="underline">
-            รายงาน
-          </Link>
-          <Link href={`/gangs/${gangId}/sessions`} className="underline">
-            นัด
-          </Link>
-        </span>
       </div>
 
       <Card padding={4} variant="muted">
@@ -232,6 +223,6 @@ export default async function PaymentsPage({ params }: { params: Promise<{ gangI
           ))}
         </ul>
       )}
-    </main>
+    </section>
   );
 }

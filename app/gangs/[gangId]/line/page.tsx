@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { Card } from '@astryxdesign/core/Card';
 
@@ -51,12 +50,9 @@ export default async function LinkLinePage({
   if (!link.success) redirect(`/gangs/${gangId}/sessions`);
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
+    <section className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <p className="text-sm">{gang.name}</p>
-        <Link href={`/gangs/${gangId}/sessions`} className="underline">
-          นัด
-        </Link>
       </div>
 
       {linked === '1' ? (
@@ -80,6 +76,6 @@ export default async function LinkLinePage({
       <Card padding={6}>
         <LinkLinePanel gangId={gangId} initial={link.data} />
       </Card>
-    </main>
+    </section>
   );
 }

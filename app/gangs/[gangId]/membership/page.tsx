@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Card } from '@astryxdesign/core/Card';
@@ -108,12 +107,9 @@ export default async function MembershipPage({
   const monthLabel = billingMonth.slice(0, 7);
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
+    <section className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">บิลรายเดือน · {gang.name}</h1>
-        <Link href={`/gangs/${gangId}/members`} className="underline">
-          สมาชิก
-        </Link>
       </div>
 
       {!plan ? (
@@ -161,6 +157,6 @@ export default async function MembershipPage({
       <p className="mt-3 text-sm opacity-70">
         ระบบออกบิลให้อัตโนมัติ · กดออกบิลซ้ำได้ ไม่สร้างใบซ้ำ (หนึ่งใบต่อสมาชิกต่อเดือน)
       </p>
-    </main>
+    </section>
   );
 }

@@ -102,7 +102,7 @@ export default async function PayPage({
   }
 
   return (
-    <main className="mx-auto max-w-md p-4">
+    <section className="mx-auto max-w-md p-4">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">จ่ายเงิน</h1>
         <Link href={`/gangs/${gangId}/sessions/${sessionId}`} className="underline">
@@ -160,6 +160,6 @@ export default async function PayPage({
           </>
         )}
       </Card>
-    </main>
+    </section>
   );
 }

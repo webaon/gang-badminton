@@ -116,7 +116,7 @@ export default async function ConsolePage({
   }));
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
+    <section className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">คอนโซล · {session.title}</h1>
         <Link href={`/gangs/${gangId}/sessions/${sessionId}`} className="underline">
@@ -143,6 +143,6 @@ export default async function ConsolePage({
         finishedGames={finishedGames}
         canEditShuttles={['open', 'in_play'].includes(session.status)}
       />
-    </main>
+    </section>
   );
 }

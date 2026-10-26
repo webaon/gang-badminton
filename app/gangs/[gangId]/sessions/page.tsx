@@ -68,25 +68,9 @@ export default async function SessionsPage({ params }: { params: Promise<{ gangI
     .order('starts_at', { ascending: false });
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
+    <section className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">นัดของ {gang.name}</h1>
-        <span className="flex gap-3">
-          {canCreate ? (
-            <Link href={`/gangs/${gangId}/templates`} className="underline">
-              ตารางประจำ
-            </Link>
-          ) : null}
-          <Link href={`/gangs/${gangId}/announcements`} className="underline">
-            ประกาศ
-          </Link>
-          <Link href={`/gangs/${gangId}/stats`} className="underline">
-            สถิติ
-          </Link>
-          <Link href={`/gangs/${gangId}/settings`} className="underline">
-            ตั้งค่า
-          </Link>
-        </span>
       </div>
 
       {canCreate && !plan ? (
@@ -159,6 +143,6 @@ export default async function SessionsPage({ params }: { params: Promise<{ gangI
           <CreateSessionForm gangId={gangId} timezone={gang.timezone} />
         </Card>
       ) : null}
-    </main>
+    </section>
   );
 }

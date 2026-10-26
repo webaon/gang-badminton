@@ -114,6 +114,13 @@ export const badgameTheme = defineTheme({
     '--color-icon-gray': ['#6B6B6B', '#AFC0D6'],
     '--color-text-gray': ['#3D3D3D', '#C9D5E4'], // v4 text-label
 
+    // ── Control size — v4: tap target ≥ 44px (--size-touch-min) ───────────────
+    // sm = v4 button-sm 32 (ปุ่มรอง/แน่น) · md = touch-min 44 (ค่าเริ่มต้นของปุ่ม/input/แท็บ/เมนู) ·
+    // lg = v4 --size-button 52 (CTA หลัก) — Astryx default 28/32/36 ต่ำกว่า 44 ทุกขนาด
+    '--size-element-sm': '32px',
+    '--size-element-md': '44px',
+    '--size-element-lg': '52px',
+
     // ── Elevation — เงาเป็นเส้นขอบ (v4 shadow-stroke / control / raised) ───────
     '--shadow-low': '0 0 0 1px light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.08))',
     '--shadow-med': '0 0 0 1px light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.12))',

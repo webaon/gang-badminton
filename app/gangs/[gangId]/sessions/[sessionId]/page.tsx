@@ -115,7 +115,7 @@ export default async function SessionDetailPage({
   const timeline = buildTimeline(events, can({ role }, 'payment.verify'));
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
+    <section className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{session.title}</h1>
         <span className="flex gap-3">
@@ -200,6 +200,6 @@ export default async function SessionDetailPage({
           <SessionTimeline items={timeline} />
         </Card>
       </div>
-    </main>
+    </section>
   );
 }

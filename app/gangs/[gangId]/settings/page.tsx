@@ -57,7 +57,7 @@ export default async function GangSettingsPage({
 
   if (!can({ role }, 'gang.update')) {
     return (
-      <main className="mx-auto max-w-2xl p-4">
+      <section className="mx-auto max-w-2xl p-4">
         <Card padding={6}>
           <h1 className="mb-2 text-xl font-semibold">{gang.name}</h1>
           <p className="text-sm">เฉพาะแอดมินของก๊วนเท่านั้นที่แก้ตั้งค่าได้</p>
@@ -67,7 +67,7 @@ export default async function GangSettingsPage({
             </Link>
           </p>
         </Card>
-      </main>
+      </section>
     );
   }
 
@@ -108,17 +108,9 @@ export default async function GangSettingsPage({
     .order('rank');
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
+    <section className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">ตั้งค่าก๊วน</h1>
-        <span className="flex gap-3">
-          <Link href={`/gangs/${gangId}/sessions`} className="underline">
-            นัด
-          </Link>
-          <Link href={`/gangs/${gangId}/members`} className="underline">
-            สมาชิก
-          </Link>
-        </span>
       </div>
 
       <Card padding={6}>
@@ -196,6 +188,6 @@ export default async function GangSettingsPage({
           </Card>
         </div>
       ) : null}
-    </main>
+    </section>
   );
 }

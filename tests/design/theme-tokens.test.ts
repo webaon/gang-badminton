@@ -150,6 +150,12 @@ describe('badgame.css — ค่า token หลักตรง spec v4 (light)'
     expect(single('--shadow-low')).not.toMatch(/\d+px \d+px \d+px/);
   });
 
+  it('[WO-6.1a] tap target ≥ 44px: --size-element-md = 44px (v4 --size-touch-min) · lg = 52px · sm = 32px', () => {
+    expect(single('--size-element-sm')).toBe('32px');
+    expect(single('--size-element-md')).toBe('44px');
+    expect(single('--size-element-lg')).toBe('52px');
+  });
+
   it('font stack = Segoe UI → Noto Sans Thai (next/font) → system-ui', () => {
     for (const t of ['--font-family-body', '--font-family-heading']) {
       expect(single(t)).toBe("'Segoe UI', var(--font-noto-thai), system-ui, sans-serif");
@@ -270,6 +276,19 @@ describe('wiring — กติกา CLAUDE.md §1.1 / §1.3', () => {
 
   it('ชื่อแอปยังเป็น "Gang Badminton" (คำตัดสิน C2)', () => {
     expect(read('app/layout.tsx')).toMatch(/title:\s*'Gang Badminton'/);
+  });
+
+  it('[WO-6.1a] <html> มี data-astryx-theme ตั้งแต่ SSR (กัน theme แฟลชก่อน hydrate) และใช้ชื่อจาก theme ที่ build แล้ว', () => {
+    const layout = read('app/layout.tsx');
+    expect(layout).toMatch(/data-astryx-theme=\{badgameTheme\.name\}/);
+    expect(layout).toMatch(/from '@\/theme\/badgame(\.js)?'/);
+    // ชื่อ attribute ต้องตรงกับที่ <Theme> ของ Astryx ตั้งเอง (ตรวจจากซอร์สของ lib จริง)
+    const astryxTheme = readFileSync(
+      fileURLToPath(new URL('../../node_modules/@astryxdesign/core/src/theme/Theme.tsx', import.meta.url)),
+      'utf8',
+    );
+    expect(astryxTheme).toMatch(/dataAttr\('theme'\), themeName/);
+    expect(read('theme/badgame.js')).toMatch(/name:\s*'badgame'/);
   });
 });
 
