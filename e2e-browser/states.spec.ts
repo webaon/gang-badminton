@@ -152,3 +152,36 @@ test.describe('ข้อความ error ภาษาไทยผ่าน err
     expect(text).not.toMatch(/[A-Za-z]{4,}/); // ไม่มีคำอังกฤษยาวๆ หลุดมา
   });
 });
+
+test.describe('open redirect: /sign-in?next= ต้องไม่พาออกนอกโดเมน (safeNext)', () => {
+  for (const evil of ['https://evil.example/phish', '//evil.example', 'javascript:alert(1)']) {
+    test(`next=${evil} → ล็อกอินแล้วอยู่ในโดเมนเดิม ไปหน้า /profile`, async ({ page, browser, baseURL }) => {
+      // สมัครใน context แยก แล้วล็อกอินด้วยบัญชีนั้นจากหน้า sign-in ที่มี next อันตราย
+      const other = await browser.newContext();
+      const otherPage = await other.newPage();
+      const user = await signUp(otherPage);
+      await other.close();
+
+      await page.goto(`/sign-in?next=${encodeURIComponent(evil)}`);
+      await page.getByLabel('อีเมล').fill(user.email);
+      await page.getByLabel('รหัสผ่าน').fill('e2e-password-1234');
+      await page.getByRole('button', { name: 'เข้าสู่ระบบ', exact: true }).click();
+
+      await page.waitForURL(/\/profile/, { timeout: 20_000 });
+      expect(new URL(page.url()).origin).toBe(new URL(baseURL ?? page.url()).origin);
+    });
+  }
+
+  test('next ภายในที่ถูกต้องยังใช้ได้ (ไม่ over-block)', async ({ page, browser }) => {
+    const other = await browser.newContext();
+    const otherPage = await other.newPage();
+    const user = await signUp(otherPage);
+    await other.close();
+
+    await page.goto(`/sign-in?next=${encodeURIComponent('/gangs')}`);
+    await page.getByLabel('อีเมล').fill(user.email);
+    await page.getByLabel('รหัสผ่าน').fill('e2e-password-1234');
+    await page.getByRole('button', { name: 'เข้าสู่ระบบ', exact: true }).click();
+    await page.waitForURL(/\/gangs$/, { timeout: 20_000 });
+  });
+});
