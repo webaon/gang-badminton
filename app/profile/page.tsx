@@ -3,6 +3,7 @@ import { Card } from '@astryxdesign/core/Card';
 
 import { currentProfile } from '@/lib/supabase/auth';
 import { ProfileForm } from '@/features/profile/ProfileForm';
+import { LineAccountSection } from '@/features/profile/LineAccountSection';
 import { signOut } from '@/server/actions/auth';
 
 export const metadata = { title: 'โปรไฟล์ · Gang Badminton' };
@@ -42,6 +43,9 @@ export default async function ProfilePage() {
           initialPhone={profile?.phone ?? null}
           email={user.email ?? ''}
         />
+
+        {/* [WO-B1.c · ADR-013] ซ่อนเองเมื่อ LINE_PLATFORM_LOGIN_ENABLED ปิด */}
+        <LineAccountSection />
       </Card>
     </main>
   );
