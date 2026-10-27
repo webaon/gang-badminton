@@ -36,6 +36,8 @@ const MEMBER: readonly Action[] = [
   'statistics.view',
   // [WO-4.B] ผูก/เลิกผูกบัญชี LINE **ของตัวเอง** — ผูกกับ features.line
   'line.link.self',
+  // [WO-B2 · ADR-012] ออกจากก๊วนเอง — DB function `leave_gang()` ตรวจซ้ำ (owner คนสุดท้ายออกไม่ได้)
+  'gang.leave.self',
 ];
 
 const ADMIN: readonly Action[] = [
@@ -67,8 +69,9 @@ const ADMIN: readonly Action[] = [
   'gang.line.manage',
 ];
 
-// owner ต่างจาก admin แค่เชิงความเป็นเจ้าของ (ลบก๊วน/ย้ายเจ้าของ) ซึ่งยังไม่มีใน MVP-0
-const OWNER: readonly Action[] = [...ADMIN];
+// owner = admin + โอนความเป็นเจ้าของ (WO-B2 · ADR-012) — สิทธิ์เดียวที่ owner มีเหนือ admin
+// ยังไม่มี: ลบก๊วน
+const OWNER: readonly Action[] = [...ADMIN, 'gang.ownership.transfer'];
 
 const ROLE_ACTIONS = {
   member: new Set<Action>(MEMBER),

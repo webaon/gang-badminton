@@ -6,6 +6,7 @@ import { headers } from 'next/headers';
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
+import { moneyFromDb } from '@/lib/supabase/money';
 import { assertCan } from '@/domain/permissions/can';
 import { GANG_ROLES, type GangRole } from '@/domain/permissions/types';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
@@ -115,6 +116,94 @@ export async function changeMemberRole(
 
     revalidatePath(`/gangs/${gangId}/members`);
     return { id: row.id };
+  });
+}
+
+export type LeaveGangResult = {
+  memberId: string;
+  /** จำนวน registration ในนัดอนาคตที่ถูกยกเลิกให้ (ผ่าน `cancel_registration()`) */
+  cancelledRegistrations: number;
+  /** จำนวนรายการหนี้ที่ยังค้างอยู่ ณ ตอนออก — หนี้ไม่หายเมื่อออก (ADR-012) */
+  outstandingCharges: number;
+  /** ยอดค้างรวม (string — ห้ามเป็น number) */
+  outstandingAmount: string;
+};
+
+/**
+ * ออกจากก๊วนเอง [WO-B2 · ADR-012]
+ *
+ * 🔴 ตัดสินทั้งหมดใน `leave_gang()` (lock แถวสมาชิก → owner คนสุดท้ายออกไม่ได้ → ยกเลิก
+ *    registration อนาคตผ่าน `cancel_registration()` → soft delete) — TS เป็น shell เท่านั้น
+ * ⚠️ ผู้ออกอ่านรายการหนี้ของตัวเองไม่ได้อีกหลังออก (RLS) ⇒ ผลลัพธ์นี้คือการแจ้งยอดครั้งสุดท้าย
+ *    UI ต้องแสดงถ้า `outstandingCharges > 0`
+ */
+export async function leaveGang(gangId: string): Promise<ApiResponse<LeaveGangResult>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const user = await requireUser();
+    assertCan({ role: await roleInGang(gangId, user.id) }, 'gang.leave.self');
+
+    const { data, error } = await supabaseAdmin().rpc('leave_gang', {
+      p_gang_id: gangId,
+      p_actor_id: user.id,
+      p_correlation_id: correlationId,
+    });
+
+    if (error) throw error;
+
+    const result = data as {
+      member_id: string;
+      cancelled_registrations: number;
+      outstanding_charges: number;
+      outstanding_amount: string | number;
+    } | null;
+    if (!result) throw new AppError('INTERNAL_ERROR', 'leave_gang ไม่คืนผลลัพธ์');
+
+    revalidatePath('/gangs');
+    revalidatePath(`/gangs/${gangId}`, 'layout');
+
+    return {
+      memberId: result.member_id,
+      cancelledRegistrations: result.cancelled_registrations,
+      outstandingCharges: result.outstanding_charges,
+      outstandingAmount: moneyFromDb(result.outstanding_amount),
+    };
+  });
+}
+
+/**
+ * โอนความเป็นเจ้าของก๊วน [WO-B2 · ADR-012] — owner เท่านั้น
+ *
+ * owner เดิมกลายเป็น admin · ผู้รับต้องเป็นสมาชิก active ของก๊วนนี้
+ * 🔴 `can()` กันตั้งแต่ต้นทาง แต่ด่านจริงคือ `transfer_gang_ownership()` (lock + ตรวจ role ซ้ำ)
+ */
+export async function transferGangOwnership(
+  gangId: string,
+  toUserId: string,
+): Promise<ApiResponse<{ memberId: string }>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const user = await requireUser();
+    assertCan({ role: await roleInGang(gangId, user.id) }, 'gang.ownership.transfer');
+
+    if (!toUserId) throw new AppError('VALIDATION_ERROR', 'ต้องระบุผู้รับ');
+
+    const { data, error } = await supabaseAdmin().rpc('transfer_gang_ownership', {
+      p_gang_id: gangId,
+      p_actor_id: user.id,
+      p_to_user_id: toUserId,
+      p_correlation_id: correlationId,
+    });
+
+    if (error) throw error;
+
+    const member = data as { id: string } | null;
+    if (!member) throw new AppError('INTERNAL_ERROR', 'transfer_gang_ownership ไม่คืนสมาชิกผู้รับ');
+
+    revalidatePath(`/gangs/${gangId}`, 'layout');
+    return { memberId: member.id };
   });
 }
 

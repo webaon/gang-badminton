@@ -44,6 +44,9 @@ export const ACTIONS = [
   'gang.join_request.manage',
   'gang.line.manage',
   'line.link.self',
+  // [WO-B2 · ADR-012] ออกจากก๊วนเอง (ทุก role) / โอนความเป็นเจ้าของ (owner เท่านั้น)
+  'gang.leave.self',
+  'gang.ownership.transfer',
 
   // นัดเล่น
   'session.view',
