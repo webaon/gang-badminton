@@ -66,6 +66,13 @@ describe('safeNext — รับเฉพาะ path ภายใน', () => {
     }
   });
 
+  it('รูปที่ percent-encode ค้างเป็นตัวอักษร (%09 %0A %0D %5C %2F) เป็น path ภายใน ไม่ใช่ตัวคั่น — resolve แล้วอยู่ origin เดิม', () => {
+    for (const p of ['/%09/evil.example', '/%0A/evil.example', '/%0D/evil.example', '/%5Cevil.example', '/%2F/evil.example']) {
+      const out = safeNext(p);
+      expect(new URL(out, 'http://app.test').origin, p).toBe('http://app.test');
+    }
+  });
+
   it('เว้นวรรคหัวท้ายถูกตัดก่อนตรวจ (กันเลี่ยงด้วยช่องว่าง)', () => {
     expect(safeNext('  /profile  ')).toBe('/profile');
     expect(safeNext('  https://evil.example  ')).toBe(DEFAULT_NEXT);

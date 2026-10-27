@@ -14,6 +14,7 @@ const EVIL = [
   '/\t/evil.example', // %2F%09%2Fevil.example — URL parser ตัด \t ทิ้งจนกลายเป็น //
   '/\n/evil.example',
   '/\r/evil.example',
+  '/\\evil.example', // %5C — backslash ที่เบราว์เซอร์บางตัวตีความเป็น /
 ];
 
 test.describe('sign-in ?next= ไม่ทำให้ออกนอกโดเมน', () => {
