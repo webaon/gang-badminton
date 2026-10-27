@@ -21,6 +21,8 @@
 | `/auth/callback` · scope `auth:callback` | ❌ | IP | **30 / ชม.** | แลก code กับ Supabase ทุกครั้ง · ตั้งหลวมพอให้คนหลัง NAT เดียวกันยืนยันอีเมลพร้อมกันได้ |
 | `/api/line/login/callback` · scope `line:login-callback` | ❌ | IP | **20 / ชม.** | แลก code กับ LINE ทุกครั้ง · คนปกติกดผูกบัญชีไม่กี่ครั้งต่อวัน |
 | `startLineSignIn()` (ปุ่ม "เข้าสู่ระบบด้วย LINE" ที่ `/sign-in`) · scope `auth:line-start` | ❌ | IP | **20 / ชม.** | **[WO-B1.a · ADR-013 Q7]** แค่สร้าง URL + cookie PKCE (ไม่ยิง LINE) แต่เป็นประตูสมัครบัญชีใหม่ — กันถล่มสร้าง user · ปิดอยู่จนกว่า `LINE_PLATFORM_LOGIN_ENABLED=true` · ⚠️ ผู้เล่นที่สนามเดียวกันใช้ IP เดียว (CGNAT/Wi-Fi) ⇒ วัดหลังเปิดใช้จริงแล้วค่อยปรับ |
+| `startLineLink()` (ปุ่ม "ผูกบัญชี LINE" บน `/profile`) · scope `auth:line-link` | ✅ | ผู้ใช้ + IP | **10 / ชม.** | **[WO-B1.c · ADR-013]** ต้องล็อกอิน แต่จุดนี้พาผู้ใช้ออกไป OAuth ภายนอกและเขียน cookie PKCE ⇒ ใส่เพดานตามที่ planner สั่ง · คนปกติผูกครั้งเดียวต่อบัญชี · ปิดอยู่จนกว่า `LINE_PLATFORM_LOGIN_ENABLED=true` |
+| `unlinkLineAccount()` (ปุ่ม "ถอดบัญชี LINE") · scope `auth:line-unlink` | ✅ | ผู้ใช้ + IP | **10 / ชม.** | **[WO-B1.c]** เรียก Supabase Auth ทุกครั้ง · กันกดรัว/สคริปต์วน ผูก-ถอด |
 
 ## ทางเข้าที่ **จงใจไม่มี** เพดาน (และเหตุผล)
 

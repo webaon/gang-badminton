@@ -275,6 +275,24 @@ channel นี้ **ไม่ใช่** `gang_line_configs.login_channel_id` �
 | **S5** | ในเบราว์เซอร์ in-app ของ LINE (เปิดผ่าน LIFF) flow OAuth ไป-กลับ `access.line.me` → `supabase.co` → แอปเรา **เก็บ cookie PKCE ครบ** ไหม | LIFF เป็นเหตุผลหลักที่คนจะกดปุ่มนี้ | ทดสอบบนมือถือจริงในโหมด Developing |
 | **S6** | `form-action` ครอบ redirect จริงไหมในเบราว์เซอร์ที่ใช้ (ถ้าใครทำปุ่มเป็นฟอร์ม) | §6.1 | เทสต์ e2e-browser เดินปุ่มจริง ตรวจ console violation |
 
+### 10.1 ข้อสมมติที่โค้ด WO-B1.c พึ่งอยู่ (เขียนไว้ตรงๆ — ยังไม่พิสูจน์บน cloud)
+
+WO-B1.c (`server/actions/line-identity.ts`, `lib/line/identity.ts`, `features/profile/LineAccount*.tsx`) เขียนและเทสต์ด้วย **mock ฝั่ง Supabase**
+(`tests/auth/line-identity.test.ts`) — เทสต์พิสูจน์ว่า *เรา* เรียก SDK ถูก (รวมเทสต์ที่ใช้ `supabase-js` จริงกับ fetch ที่ stub: ยิง `GET /auth/v1/user/identities/authorize?provider=custom:line` พร้อม JWT ผู้ใช้ + PKCE S256)
+แต่ **ไม่ได้พิสูจน์พฤติกรรมของ Supabase cloud** — ถ้าข้อใดผิด แก้ที่ระบุในคอลัมน์ขวา
+
+| # | ข้อสมมติ | พึ่งที่ไหน | ถ้าผิด จะเห็นอะไร / แก้ที่ไหน |
+|---|---|---|---|
+| A1 | identity ของ Custom OIDC มี `provider === 'custom:line'` | `findLineIdentity()` (`lib/line/identity.ts`) | UI ขึ้น "ยังไม่ผูก" ทั้งที่ผูกแล้ว และถอดไม่ได้ (fail-safe) · แก้ค่าคงที่ที่เดียว |
+| A2 | `linkIdentity` กับ `custom:` ใช้ได้ เมื่อเปิด Manual Linking | `startLineLink()` | `linkIdentity` คืน error → INTERNAL_ERROR + log code/status · ถ้าใช้ไม่ได้จริง ADR ต้องกลับมาตัดสินใหม่ (ดู S2) |
+| A3 | LINE ที่ผูกกับบัญชีอื่นแล้ว → Supabase redirect กลับพร้อม `error_code=identity_already_exists` | `app/auth/callback/route.ts` (→ `/profile?line=in_use`) | ตกเป็น `failed` (ข้อความกลางๆ) ไม่เปิดเผยว่าเป็นบัญชีของใคร — ปลอดภัย แต่ข้อความไม่เจาะจง |
+| A4 | ผูกสำเร็จ → Supabase redirect ไป `redirectTo` พร้อม `code` และ `exchangeCodeForSession` ได้ session ของ **ผู้ใช้เดิม** | callback | ผู้ใช้เห็น `?line=linked` แต่ panel ยังขึ้น "ยังไม่ผูก" (แบนเนอร์ "ผูกแล้ว" ซ่อนเมื่อสถานะจริงไม่ตรง) |
+| A5 | `unlinkIdentity` ถูกกันที่ Supabase เมื่อเหลือ identity เดียว (ตามเอกสาร SDK) | R5 | เรามีด่านของเราเองก่อนยิง (`canUnlinkLine`) จึงไม่พึ่งข้อนี้เป็นด่านเดียว |
+
+**การตีความ R5:** "มี identity อื่นเหลือ" ≠ "เข้าได้จริง" (เช่น identity อีเมลที่ไม่เคยตั้งรหัสผ่าน + ไม่มี SMTP) — ฟอร์มสมัครของเราบังคับรหัสผ่านอยู่แล้ว จึงยอมรับ · ถ้าวันหนึ่งเปิดทางสมัคร LINE-only แล้วให้ "เพิ่มอีเมล+รหัสผ่านทีหลัง" ต้องมีหน้านั้นก่อนถึงจะถอด LINE ได้
+
+**ภัย login CSRF / ผูก LINE ของคนร้ายเข้าบัญชีเหยื่อ (T2):** เริ่ม flow ได้เฉพาะ server action ที่ใช้ session เหยื่อ (Next ตรวจ origin ของ server action) และ PKCE verifier อยู่ใน cookie ของเบราว์เซอร์เหยื่อ ⇒ code ที่คนร้ายป้อนมาให้ callback แลกไม่ได้ — *พึ่ง PKCE ของ Supabase (A4) ซึ่งต้อง spike ยืนยัน*
+
 ---
 
 ## 11. Consequences (ถ้าอนุมัติแนวทาง ★)
