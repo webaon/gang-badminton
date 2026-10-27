@@ -1733,10 +1733,10 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | 6.8 | Growth screens + หน้าแรก | @gb-frontend | ⏳ |
 | 6.9 | Playwright checkpoint + `v1.1.0` | @gb-qa | ⏳ |
 | B2 | ออกจากก๊วน + โอน owner — ADR-012 (plan §11) | @gb-backend | ✅ `71c308b` QA ผ่าน (ยังไม่ db push) |
-| B2.1 | ปิด race ลงชื่อนัดพร้อมกับออกจากก๊วน (`register_to_session` ตรวจสมาชิกใน DB) (plan §11) | @gb-backend | ⏳ หลัง B11 |
-| B11 | สละสิทธิ์หลังถูกเลื่อน 3 ชม. + แอดมินเลื่อนเอง — ADR-011 (plan §11) | @gb-backend | ⏳ หลัง B2 |
+| B2.1 | ปิด race ลงชื่อนัดพร้อมกับออกจากก๊วน (`register_to_session` ตรวจสมาชิกใน DB) (plan §11) | @gb-backend | 🔄 รอ QA `f12408f` |
+| B11 | สละสิทธิ์หลังถูกเลื่อน 3 ชม. + แอดมินเลื่อนเอง — ADR-011 (plan §11) | @gb-backend | 🔄 รอ QA `f6977ed` |
 | B1-ADR | ร่าง ADR-013 LINE Login เป็นทางเข้าหลัก (plan §11) | @gb-integrations | 🔄 |
-| hotfix | open redirect `/sign-in?next=` (`1edf989`) → PR เล็กเข้า main หลัง QA (เจ้าของงานเลือก ก.) | @gb-planner | ⏳ รอ QA |
+| hotfix | open redirect `/sign-in?next=` → `7e90739` QA ผ่าน → PR #15 เข้า main | @gb-planner | ⏳ รอเจ้าของงาน OK merge |
 
 - **Forbidden ร่วมทุกใบใน Track A**: ห้ามมี migration · ห้ามแตะ DB function / state machine / `domain/billing` ·
   ห้าม copy CSS ของ hi-fi (`.btn` `.chip` …) เข้า repo — ประกอบจาก Astryx + theme เท่านั้น ·
