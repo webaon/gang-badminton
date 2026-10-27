@@ -492,3 +492,4 @@
 - [ ] **(WO-B1.a)** `startLineSignIn` ใช้ `resolveAppOrigin()` แล้ว แต่ magic link (`server/actions/auth.ts`) กับ `line.ts:515` ยังสร้าง origin คนละแบบ — รวมให้ใช้ตัวเดียว
 - [ ] **(WO-B1.c)** หน้าโปรไฟล์: ผูก/ถอด LINE ระดับบัญชีด้วย `linkIdentity`/`unlinkIdentity` (spike S2) — รอเจ้าของงานตั้งค่า LINE Login ตาม `docs/ops/line-login-setup.md`
 - [ ] **(QA B2)** `tests/seed/idempotency.test.ts` flaky เมื่อหลายบอทเขียน Supabase local ตัวเดียวกัน (นับแถวทั้งฐาน) — นับเฉพาะแถวของ seed หรือแยก DB ต่อเทสต์ · ทางแก้ rate-limit test บน Windows: `found.push(rel.split(sep).join('/'))` ใน `sourceFiles()`
+- [ ] **(WO-6.2 · ทางเลือก ข)** server action `registerGuestByMember` — ให้สมาชิกลงชื่อ guest จากหน้านัดได้เอง (ตอนนี้ guest เกิดทางเดียวผ่านลิงก์ `/join/[token]`) + เตือนชื่อซ้ำฝั่ง server · ต้องตัดสินก่อนว่าสมาชิกทุกคนพา guest ได้ไหม / นับโควตาอย่างไร (แตะ registration state machine → @gb-backend)
