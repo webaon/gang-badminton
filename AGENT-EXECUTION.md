@@ -1723,7 +1723,7 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 |---|---|---|---|
 | 6.0 | Design foundation — theme `badgame` (tokens v4 + dark tokens) ผ่าน `astryx theme build` · ฟอนต์ self-host | @gb-frontend | ✅ `315a507` QA ผ่าน |
 | 6.1a | App shell — tab bar มือถือ · sidebar แอดมิน · สลับก๊วน (plan §10) | @gb-frontend | ✅ `f042a50`+`0e0588f` QA ผ่าน |
-| 6.1b | global states g1–g4 + ErrorCode → ข้อความไทยกลาง + บั๊ก 390px (plan §10) | @gb-frontend | 🔄 |
+| 6.1b | global states g1–g4 + ErrorCode → ข้อความไทยกลาง + บั๊ก 390px (plan §10) | @gb-frontend | 🔄 รอ QA (`6f7790e` `fee5e90` `1edf989`) |
 | 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) | @gb-frontend | ⏳ |
 | 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) | @gb-frontend | ⏳ |
 | 6.4 | วันเล่น (23–28 + states) | @gb-frontend | ⏳ |
@@ -1732,6 +1732,10 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | 6.7 | Auth + onboarding | @gb-frontend | ⏳ |
 | 6.8 | Growth screens + หน้าแรก | @gb-frontend | ⏳ |
 | 6.9 | Playwright checkpoint + `v1.1.0` | @gb-qa | ⏳ |
+| B2 | ออกจากก๊วน + โอน owner — ADR-012 (plan §11) | @gb-backend | 🔄 |
+| B11 | สละสิทธิ์หลังถูกเลื่อน 3 ชม. + แอดมินเลื่อนเอง — ADR-011 (plan §11) | @gb-backend | ⏳ หลัง B2 |
+| B1-ADR | ร่าง ADR-013 LINE Login เป็นทางเข้าหลัก (plan §11) | @gb-integrations | 🔄 |
+| hotfix | open redirect `/sign-in?next=` (`1edf989`) → PR เล็กเข้า main หลัง QA (เจ้าของงานเลือก ก.) | @gb-planner | ⏳ รอ QA |
 
 - **Forbidden ร่วมทุกใบใน Track A**: ห้ามมี migration · ห้ามแตะ DB function / state machine / `domain/billing` ·
   ห้าม copy CSS ของ hi-fi (`.btn` `.chip` …) เข้า repo — ประกอบจาก Astryx + theme เท่านั้น ·

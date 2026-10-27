@@ -287,3 +287,26 @@ deviation ที่อนุมัติ: แท็บ "ยอดเงิน" �
 Playwright: 404 ของ route มั่ว · token เชิญหมดอายุ · 390px หน้าสมาชิกเห็นชื่อทุกแถว · screenshot g1–g4 × light/dark ที่ `docs/design/wo-6.1b/`
 **Forbidden**: แก้ `docs/errors.md`/เพิ่ม code ใหม่โดยไม่ถามก่อน · log ค่า token · เปลี่ยนการตรวจสิทธิ์ · migration
 **ข้อสังเกตจาก QA 6.1a ที่ไม่อยู่ในใบนี้**: b (tap target < 44 ของปุ่ม sm / checkbox) → แก้ในใบที่ reskin หน้านั้น (6.5/6.6) · e (org admin ไม่ได้ shell) → BACKLOG · f (query รายชื่อก๊วนทุกหน้า) → รับได้
+
+## 11. Track B เริ่มคู่ขนาน (27 ต.ค. 2026 — เจ้าของงานสั่ง "ทำเลย")
+กติกาที่ใช้กับทุกใบใน Track B: 1 ใบ = 1 ADR (เลข ADR-010+ ต่อท้าย baseline ก่อนเขียนโค้ด) · migration ใหม่ต่อจาก `…000039` · ทุก DB function ที่เปลี่ยน state ต้อง `FOR UPDATE` + ตรวจสิทธิ์ผ่าน `can()`/RLS + GRANT ครบ ·
+**ห้าม `supabase db push` ขึ้น cloud** จนกว่า planner ถามเจ้าของงาน · ไม่แตะไฟล์ UI ที่ @gb-frontend กำลังทำ (server action + DB + เทสต์เท่านั้น · หน้าจอทำใน Track A)
+
+### WO-B2 (@gb-backend): ออกจากก๊วน + โอน owner — ADR-012
+**ปัญหา**: สมาชิกออกจากก๊วนเองไม่ได้ · owner ส่งต่อก๊วนไม่ได้ (ตอนนี้มีแค่แอดมินเอาคนออก และกันไม่ให้เอา owner คนสุดท้ายออก)
+**Scope**: DB function `leave_gang(p_gang_id)` + `transfer_gang_ownership(p_gang_id, p_to_user)` (FOR UPDATE แถว `gang_members` ของก๊วนนั้น) · server action คู่กัน · permission action ใหม่ใน `can()` ถ้าจำเป็น
+**ต้องตัดสินใน ADR (ถ้าเกินนี้ให้หยุดถาม planner)**:
+- owner คนสุดท้ายออกไม่ได้ ต้องโอนก่อน · โอนให้ได้เฉพาะสมาชิก active ของก๊วนนั้น · owner เดิมกลายเป็น admin
+- คนที่มี **ยอดค้างจ่าย** ออกได้ไหม → ★ เสนอ: ออกได้ แต่ ledger/ยอดค้างยังอยู่และแอดมินยังเห็น (ไม่ลบประวัติเงิน) — ถ้าขัดกับ baseline เรื่องเงินให้หยุดถาม
+- registration ที่ยัง confirmed/waitlist ในนัดอนาคต → ยกเลิกผ่าน `cancel_registration()` เดิม (ไม่เขียน state ตรง) · นัดที่ปิดรอบแล้วไม่แตะ
+- ออกแล้วกลับเข้าใหม่ = ใช้ join request เดิม
+**DoD**: typecheck/lint/test:unit · test:db ใหม่: (1) owner คนสุดท้าย leave ไม่ได้ (2) โอนให้คนนอกก๊วนไม่ได้ (3) member ธรรมดาโอนไม่ได้ (4) concurrency: โอน 2 ทางพร้อมกันได้ owner 1 คนเสมอ (5) leave แล้ว registration อนาคตถูกยกเลิกและ waitlist ถูกเลื่อน (6) RLS: ออกแล้วอ่านข้อมูลก๊วนไม่ได้ · `supabase db reset` local ผ่าน
+
+### WO-B11 (@gb-backend · เริ่มหลัง B2 commit): สละสิทธิ์หลังถูกเลื่อนคิว + แอดมินเลื่อนเอง — ADR-011 (ร่างอยู่ §9 แล้ว)
+**Scope**: ตาม §9 ทุกข้อ — `cancellation_policy.promoted_grace_hours` (default 3, additive ใน snapshot, นัดเก่า = 0) · `cancel_registration()` ตัดสิน grace แล้วลง event · `promote_waitlist(p_registration_id default null)` ตรวจ `registration.promote.other` · แอดมินยกเลิกแทนพร้อม "ไม่คิดค่าปรับ" + เหตุผล
+**ห้าม**: state ใหม่ · transition `confirmed → waitlist` · ทางเลื่อนคิวทางที่สอง
+**DoD**: test:db: ยกเลิกภายใน 3 ชม. ไม่มีค่าปรับและไม่กระทบ reliability · เกิน 3 ชม. คิดตามเดิม · grace ไม่เกินเวลาเริ่มนัด · นัดเก่าไม่มีคีย์ = พฤติกรรมเดิม · แอดมินเลื่อนข้ามคิวได้ / member ทำไม่ได้ · concurrency: เลื่อนพร้อมกับมีคนยกเลิกไม่เกิน capacity · billing ของนัดที่มีคนสละสิทธิ์ถูกต้อง
+
+### WO-B1-ADR (@gb-integrations · เอกสารเท่านั้น ยังไม่เขียนโค้ด): LINE Login เป็นทางเข้าหลัก — ADR-013 (ร่าง)
+**ต้องตอบในร่าง**: channel ระดับแพลตฟอร์ม (ไม่ใช่ channel ต่อก๊วนของ WO-4.D) · ทางเข้า Supabase Auth: OIDC provider ที่ Supabase รองรับ vs custom flow ออก session เอง — เทียบความเสี่ยง · บัญชีอีเมลเดิมผูก LINE เพื่อกู้บัญชี (กันการยึดบัญชีจากการผูกซ้ำ) · ผลกับ LIFF/LINE Login ต่อก๊วนที่มีอยู่ · CSP/redirect URI ที่ต้องเพิ่ม · env/secret ใหม่ · ของที่เจ้าของงานต้องสร้างใน LINE Developers Console (รายการทีละขั้น)
+**DoD**: ไฟล์ `docs/adr/ADR-013-line-login-primary.md` (ร่าง) + คำถามที่ต้องให้เจ้าของงานตัดสินในรูป `แผนบอก X / ของจริงคือ Y / ทางเลือกคือ Z` ★ · อ้างของจริงในโค้ด (path:line) ไม่เดา
