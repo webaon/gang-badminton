@@ -666,3 +666,171 @@ describe('WO-B2 — LINE link ถูกลบ · กลับเข้าก๊�
     expect(rows).toHaveLength(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// WO-B2.1 — register_to_session ตรวจสมาชิกใน DB (กัน race กับ leave_gang)
+// ---------------------------------------------------------------------------
+
+describe('WO-B2.1 — ลงชื่อแข่งกับออกจากก๊วน', () => {
+  const ROUNDS = 40;
+
+  /** ใบลงชื่อที่ยัง active (confirmed/waitlist/checked_in) ของ user ทุกนัด */
+  async function activeRegs(userId: string): Promise<number> {
+    const { rows } = await pool.query<{ n: string }>(
+      `select count(*)::text n from public.session_registrations
+        where user_id = $1 and deleted_at is null
+          and status in ('confirmed', 'waitlist', 'checked_in')`,
+      [userId],
+    );
+    return Number(rows[0].n);
+  }
+
+  async function isActiveMember(gangId: string, userId: string): Promise<boolean> {
+    const { rows } = await pool.query(
+      `select 1 from public.gang_members where gang_id = $1 and user_id = $2 and deleted_at is null`,
+      [gangId, userId],
+    );
+    return rows.length > 0;
+  }
+
+  it('🔴 register แข่ง leave 40 รอบ → ถ้าออกแล้วต้องไม่มีใบเหลือ · ไม่ deadlock', async () => {
+    let registerWon = 0;
+    let registerRejected = 0;
+
+    for (let i = 0; i < ROUNDS; i++) {
+      const owner = await newUser();
+      const gang = await createGang(owner);
+      const target = await createSession(gang.id, owner, { maxPlayers: 1 });
+      // ผู้ออกมีใบอนาคตอยู่ก่อน ⇒ leave_gang ทำงานนานพอให้ register แทรกได้จริง
+      const leaver = await addMember(gang.id);
+      for (let k = 0; k < 3; k++) {
+        await register(await createSession(gang.id, owner), leaver);
+      }
+      // ใบแรกของนัดเป้าหมายให้ที่เต็ม ⇒ leaver ลงเข้า waitlist (ทดสอบคิวด้วย)
+      if (i % 2 === 0) await register(target, owner);
+
+      const results = await runConcurrently(2, (client, idx) =>
+        idx === 0
+          ? client.query(`select public.leave_gang($1, $2)`, [gang.id, leaver])
+          : client.query(`select public.register_to_session($1, $2)`, [target, leaver]),
+      );
+
+      const [leaveRes, regRes] = results;
+      expect(leaveRes.status, `round ${i} leave`).toBe('fulfilled');
+      if (regRes.status === 'fulfilled') registerWon++;
+      else {
+        registerRejected++;
+        expect(regRes.reason.message, `round ${i}`).toMatch(/NOT_GANG_MEMBER/);
+        expect(regRes.reason.code, `round ${i}`).not.toBe('40P01'); // deadlock
+      }
+
+      expect(await isActiveMember(gang.id, leaver), `round ${i}`).toBe(false);
+      // ไม่ว่าใครชนะ ออกแล้วต้องไม่ถือที่ค้าง
+      expect(await activeRegs(leaver), `round ${i} leftover registrations`).toBe(0);
+      expect(await regStatus(target, leaver), `round ${i}`).not.toBeOneOf(['confirmed', 'waitlist']);
+    }
+
+    // ทั้งสองทางต้องเกิดจริงอย่างน้อยหนึ่งทาง (ไม่ได้ผ่านเพราะ register ถูกปฏิเสธทุกรอบโดยบังเอิญ)
+    expect(registerWon + registerRejected).toBe(ROUNDS);
+  }, 120_000);
+
+  it('🔴 ลงชื่อแทนโดยแอดมิน (p_registered_by) แข่งกับสมาชิกออก → ไม่เหลือใบ', async () => {
+    for (let i = 0; i < ROUNDS; i++) {
+      const owner = await newUser();
+      const gang = await createGang(owner);
+      const session = await createSession(gang.id, owner, { maxPlayers: 5 });
+      const leaver = await addMember(gang.id);
+      await register(await createSession(gang.id, owner), leaver);
+
+      await runConcurrently(2, (client, idx) =>
+        idx === 0
+          ? client.query(`select public.leave_gang($1, $2)`, [gang.id, leaver])
+          : client.query(`select public.register_to_session($1, $2, null, null, null, $3)`, [
+              session,
+              leaver,
+              owner,
+            ]),
+      );
+
+      expect(await activeRegs(leaver), `round ${i}`).toBe(0);
+    }
+  }, 120_000);
+
+  it('ผสม: หลายคนลงชื่อ + มีคนออก + มีคนยกเลิกพร้อมกัน → ไม่ deadlock · ไม่ overbook', async () => {
+    for (let i = 0; i < 10; i++) {
+      const owner = await newUser();
+      const gang = await createGang(owner);
+      const session = await createSession(gang.id, owner, { maxPlayers: 3 });
+      const members: string[] = [];
+      for (let k = 0; k < 4; k++) members.push(await addMember(gang.id));
+      const leaver = members[0];
+      const canceller = members[1];
+      await register(session, leaver);
+      await register(session, canceller);
+      const cancellerReg = (
+        await pool.query<{ id: string }>(
+          `select id from public.session_registrations where session_id = $1 and user_id = $2`,
+          [session, canceller],
+        )
+      ).rows[0].id;
+
+      const results = await runConcurrently(5, (client, idx) => {
+        if (idx === 0) return client.query(`select public.leave_gang($1, $2)`, [gang.id, leaver]);
+        if (idx === 1) return client.query(`select public.cancel_registration($1, $2)`, [cancellerReg, canceller]);
+        return client.query(`select public.register_to_session($1, $2)`, [session, members[idx - 1]]);
+      });
+
+      for (const r of results) {
+        if (r.status === 'rejected') {
+          expect(r.reason.code, `round ${i}: ${r.reason.message}`).not.toBe('40P01');
+          expect(r.reason.code, `round ${i}: ${r.reason.message}`).not.toBe('40001');
+        }
+      }
+      const { rows } = await pool.query<{ n: string }>(
+        `select count(*)::text n from public.session_registrations
+          where session_id = $1 and status in ('confirmed', 'checked_in') and deleted_at is null`,
+        [session],
+      );
+      expect(Number(rows[0].n), `round ${i}`).toBeLessThanOrEqual(3);
+      expect(await activeRegs(leaver), `round ${i}`).toBe(0);
+    }
+  }, 120_000);
+
+  it('คนนอกก๊วน / คนที่ออกไปแล้ว ลงชื่อ → NOT_GANG_MEMBER (ทั้งลงเองและแอดมินลงให้)', async () => {
+    const owner = await newUser();
+    const gang = await createGang(owner);
+    const session = await createSession(gang.id, owner);
+    const outsider = await newUser();
+    const leaver = await addMember(gang.id);
+    await leave(gang.id, leaver);
+
+    for (const u of [outsider, leaver]) {
+      await expect(
+        pool.query(`select public.register_to_session($1, $2)`, [session, u]),
+      ).rejects.toThrow(/NOT_GANG_MEMBER/);
+      await expect(
+        pool.query(`select public.register_to_session($1, $2, null, null, null, $3)`, [session, u, owner]),
+      ).rejects.toThrow(/NOT_GANG_MEMBER/);
+      expect(await regStatus(session, u)).toBeUndefined();
+    }
+  });
+
+  it('session ไม่มีอยู่ → ยังเป็น NOT_FOUND ตามเดิม · กลับเข้าก๊วนแล้วลงชื่อได้', async () => {
+    const owner = await newUser();
+    const gang = await createGang(owner);
+    const session = await createSession(gang.id, owner);
+    const m = await addMember(gang.id);
+
+    await expect(
+      pool.query(`select public.register_to_session($1, $2)`, [crypto.randomUUID(), m]),
+    ).rejects.toThrow(/NOT_FOUND/);
+
+    await leave(gang.id, m);
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'member')`, [
+      gang.id,
+      m,
+    ]);
+    await register(session, m);
+    expect(await regStatus(session, m)).toBe('confirmed');
+  });
+});
