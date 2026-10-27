@@ -322,3 +322,19 @@ Playwright: 404 ของ route มั่ว · token เชิญหมดอ�
 **Scope**: `register_to_session` (และทางลงชื่อแทน) lock แถว `gang_members` ของผู้ลงชื่อด้วย `FOR SHARE` **ก่อน** lock แถว session (ลำดับ members → session เดียวกับ `leave_gang` → `cancel_registration` กัน deadlock) แล้วตรวจว่ายัง active · migration ใหม่ (CREATE OR REPLACE) ไม่แก้ไฟล์เก่า · guest flow ไม่กระทบ
 **DoD**: เทสต์ concurrency ใน `tests/gangs/leave-transfer-gang.test.ts`: register แข่ง leave 40 รอบ ⇒ ถ้าสมาชิกถูก soft-delete ต้องไม่มีใบ confirmed/waitlist เหลือ · ไม่มี deadlock · ต้อง**ล้มบนโค้ดเดิม**อย่างน้อยบางรอบ (พิสูจน์ว่าเทสต์จับได้) · เทสต์ register/waitlist เดิมผ่านทั้งหมด
 **อื่นๆ จาก QA B2**: UI ปุ่มออกจากก๊วนต้องแสดงเหตุผลเมื่อออกไม่ได้เพราะเลย cutoff (`detail.reason`) + ยอดค้างที่ `leaveGang()` คืน → ใส่ใน WO หน้าจอ (6.5/6.6) · `db push` ขึ้น cloud รวบทีเดียวหลัง B11 + B2.1 ผ่าน QA (โฟลเดอร์ migrations มีไฟล์ 0041 ที่ยังไม่ commit — ห้าม push จากโฟลเดอร์หลักระหว่างมี WIP)
+
+### 11.3 WO-6.1b ✅ ผ่าน QA (`6f7790e` `fee5e90` `c7c45ae` `56832e9` `098fae4` `2c82b89`, 27 ต.ค. 2026)
+deviation ที่อนุมัติ: errorText() ทางเลือก A (ข้อยกเว้นคงที่ VALIDATION_ERROR/CONFIRMATION_REQUIRED + ด่านอักษรไทย + ตัด 200) · @gb-frontend แก้ `shared/action.ts` (runAction แปลง redirect ไป /sign-in เป็น UNAUTHENTICATED, redirect/notFound/forbidden/unauthorized อื่น rethrow) ·
+hotfix open redirect แยกเป็น `7e90739` → PR #15 เข้า main (QA บนฐาน main ผ่าน · probe 19 แบบ) · QA: unit 518 · Playwright 43/43 · session หมดกลางคัน → /session-expired?next=… ไม่วน
+
+### WO-6.2 (@gb-frontend): เส้นหลักของสมาชิก — ลิสต์นัด · รายละเอียด + ลงชื่อ · รายชื่อ/waitlist · guest
+**Goal**: สมาชิกเปิดแอปแล้วเห็นนัดถัดไป ลงชื่อ/ยกเลิกได้ใน 1–2 แตะ และแยก "ลงชื่อตัวเอง" กับ "ลงชื่อ guest" ชัดจนไม่มีใครกดผิด (ต้นเหตุ guest "Ford" 3 แถวบน prod)
+**หน้า (hi-fi)**: 17, 19, 20, 21, 22 + states K17, K19a–c · route: `app/gangs/[gangId]/sessions/page.tsx` · `sessions/[sessionId]/page.tsx` · `app/guest/*` · features: `RegistrationActions` · `GuestJoinForm` · `GuestCancelButton` · `RosterSync`
+**Scope**:
+- ลิสต์นัด: การ์ดนัดถัดไปเด่น (วัน/เวลา/สนาม/จำนวนที่เหลือ/สถานะของฉัน) · นัดที่ผ่านมาย่อ · empty state
+- รายละเอียดนัด: ปุ่มหลักเดียวตามสถานะของฉัน (ลงชื่อ / อยู่ waitlist ลำดับที่ N / ยกเลิก) · **guest เป็นปุ่มรองแยกส่วน** ต้องกรอกชื่อ + ยืนยันว่าเป็นคนอื่น · เตือนถ้าชื่อ guest ซ้ำกับคนที่ลงแล้วในนัดเดียวกัน (UI เท่านั้น ไม่บล็อก)
+- ก่อนยกเลิกบอกผลให้ชัด: ก่อน/หลัง cutoff · ค่าปรับตาม policy (อ่านค่าที่ server คำนวณอยู่แล้ว ห้ามคิดเงินใน UI) · ถ้าเป็นคนที่ถูกเลื่อนจาก waitlist และยังอยู่ใน grace 3 ชม. ให้บอกว่า "ยกเลิกได้ไม่เสียค่าปรับถึง HH:MM" (ข้อมูลจาก B11: `promoted_at` + `promoted_grace_hours` ใน snapshot — ถ้า query ยังไม่ส่งค่านี้ ให้หยุดถามผม อย่าเพิ่ม query เอง)
+- รายชื่อ: confirmed / waitlist (ลำดับ) / guest (บอกว่าใครพามา) · realtime เดิม (`RosterSync`) ต้องยังทำงาน
+- หน้า guest (`/guest/*`): reskin + state ลิงก์หมดอายุใช้ StatePanel ของ 6.1b
+**DoD**: typecheck/lint/test:unit/build · Playwright: สมาชิกลงชื่อ → ยกเลิก · ลง guest ต้องผ่านขั้นยืนยัน · นัดเต็มได้ waitlist ลำดับถูก · 390px ไม่มี horizontal scroll · screenshot 17/19/20/21/22 × light/dark ที่ `docs/design/wo-6.2/` · ไม่มี role === / ไม่มีการคิดเงินใน UI (grep gate)
+**Forbidden**: migration · แก้ DB function / state machine / `domain/billing` · เปลี่ยนการตรวจสิทธิ์ · query ใหม่ที่ไม่ผ่าน server action/RLS เดิม · ปุ่มแอดมินเลื่อนคิว/เปลี่ยนคน (ของ B11 อยู่ใน 6.6)
