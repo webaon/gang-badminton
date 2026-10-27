@@ -310,3 +310,9 @@ Playwright: 404 ของ route มั่ว · token เชิญหมดอ�
 ### WO-B1-ADR (@gb-integrations · เอกสารเท่านั้น ยังไม่เขียนโค้ด): LINE Login เป็นทางเข้าหลัก — ADR-013 (ร่าง)
 **ต้องตอบในร่าง**: channel ระดับแพลตฟอร์ม (ไม่ใช่ channel ต่อก๊วนของ WO-4.D) · ทางเข้า Supabase Auth: OIDC provider ที่ Supabase รองรับ vs custom flow ออก session เอง — เทียบความเสี่ยง · บัญชีอีเมลเดิมผูก LINE เพื่อกู้บัญชี (กันการยึดบัญชีจากการผูกซ้ำ) · ผลกับ LIFF/LINE Login ต่อก๊วนที่มีอยู่ · CSP/redirect URI ที่ต้องเพิ่ม · env/secret ใหม่ · ของที่เจ้าของงานต้องสร้างใน LINE Developers Console (รายการทีละขั้น)
 **DoD**: ไฟล์ `docs/adr/ADR-013-line-login-primary.md` (ร่าง) + คำถามที่ต้องให้เจ้าของงานตัดสินในรูป `แผนบอก X / ของจริงคือ Y / ทางเลือกคือ Z` ★ · อ้างของจริงในโค้ด (path:line) ไม่เดา
+
+### 11.1 คำตัดสินเจ้าของงาน 27 ต.ค. 2026 — "ยังไม่มีผู้ใช้จริง ทำต่อได้เลยจนขึ้น UAT"
+- **ADR-013 (B1 LINE Login)**: รับตาม ★ ทั้งหมด — Q1 Custom OIDC ของ Supabase · Q2 provider/channel แพลตฟอร์มแยก (ผูก OA ต่อก๊วนคงเดิม) · Q3 ไม่ขอ email scope + `email_optional` + ผูกด้วย `linkIdentity` ตอนล็อกอินอยู่เท่านั้น · Q5 อีเมล+รหัสผ่านเป็นทางสำรอง · Q9 ทางเชิญเข้าก๊วนสำหรับคนไม่มีอีเมล = WO แยก
+  · Q4 ง่ายลง: ยังไม่มีผู้ใช้จริง ⇒ ไม่ต้องทำ cutover/แบนเนอร์ (เจ้าของงานผูก LINE กับบัญชีตัวเองตอน UAT) · Q6: ทดลองบนโปรเจกต์ cloud เดิม (`emmzeriekkjryhucvctx`) ได้ เพราะยังไม่ใช้งานจริง · Q7/Q8 planner ตัดสินตาม ★
+- **ขอบเขตอำนาจจนถึง UAT**: planner รับ/ตัดสินแทนเจ้าของงานได้ ทั้งคำตัดสินตาม ★ และ `supabase db push` ขึ้น cloud หลัง QA ผ่าน · **ยังต้องถามเจ้าของงาน**: merge เข้า `main` / deploy production · ของที่ต้องใช้บัญชีเจ้าของงาน (LINE Developers Console, Supabase Dashboard) · การตัดสินที่แตะเงินซึ่งไม่มี ★ ชัด
+- ข้อมูลทดสอบบน prod (guest "Ford") ⇒ ไม่เร่ง · ล้างพร้อมกันตอนเตรียม UAT
