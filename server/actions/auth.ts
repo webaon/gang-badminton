@@ -134,6 +134,7 @@ export async function startLineSignIn(next?: string): Promise<ApiResponse<{ url:
 
     const origin = resolveAppOrigin(requestHeaders);
     if (!origin) {
+      console.error('[auth] หาโดเมนของแอปไม่ได้ — ต้องตั้ง env APP_BASE_URL (production ไม่เชื่อ header)', { correlationId: cid });
       throw new AppError('INTERNAL_ERROR', 'หาโดเมนของแอปไม่ได้ — ตั้ง APP_BASE_URL');
     }
 

@@ -96,7 +96,10 @@ export async function startLineLink(): Promise<ApiResponse<{ url: string }>> {
     }
 
     const origin = resolveAppOrigin(requestHeaders);
-    if (!origin) throw new AppError('INTERNAL_ERROR', 'หาโดเมนของแอปไม่ได้ — ตั้ง APP_BASE_URL');
+    if (!origin) {
+      console.error('[auth] หาโดเมนของแอปไม่ได้ — ต้องตั้ง env APP_BASE_URL (production ไม่เชื่อ header)', { correlationId: cid });
+      throw new AppError('INTERNAL_ERROR', 'หาโดเมนของแอปไม่ได้ — ตั้ง APP_BASE_URL');
+    }
 
     const { data, error } = await supabase.auth.linkIdentity({
       provider: LINE_PLATFORM_PROVIDER,

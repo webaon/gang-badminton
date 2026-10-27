@@ -8,7 +8,7 @@
  *   · 🔴 `/sign-in?error=` ไม่ echo ค่าที่ส่งมา
  *   · ❗ ไม่ยิง LINE จริง — ฝั่ง Supabase ใช้ local (สร้าง URL ฝั่ง SDK ไม่ต้องมี provider)
  */
-import { describe, it, expect, afterAll, beforeEach, vi } from 'vitest';
+import { describe, it, expect, afterAll, afterEach, beforeEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { pool, API_URL, SERVICE_ROLE_KEY } from '../helpers/db';
 
@@ -175,6 +175,90 @@ describe('resolveAppOrigin', () => {
     expect(resolveAppOrigin(h({}), { APP_BASE_URL: 'javascript:alert(1)' })).toBeNull();
     expect(resolveAppOrigin(h({ origin: 'ftp://x.example' }), {})).toBeNull();
     expect(resolveAppOrigin(h({}), {})).toBeNull();
+  });
+
+  // ── QA ข้อ 3: production ห้ามเชื่อ header ที่ปลอมได้ ───────────────────────────────────────
+  const spoofed = {
+    origin: 'https://evil.example',
+    'x-forwarded-host': 'evil.example',
+    host: 'evil.example',
+  };
+
+  it.each([
+    ['NODE_ENV=production', { NODE_ENV: 'production' }],
+    ['VERCEL_ENV=production', { VERCEL_ENV: 'production' }],
+    ['VERCEL_ENV=preview', { VERCEL_ENV: 'preview' }],
+  ])('🔴 %s + ไม่ตั้ง APP_BASE_URL + header ปลอม → null (fail-closed ไม่ถอยไปเชื่อ header)', (_name, env) => {
+    expect(resolveAppOrigin(h(spoofed), env)).toBeNull();
+    expect(resolveAppOrigin(h({ origin: 'https://evil.example' }), env)).toBeNull();
+    expect(resolveAppOrigin(h({ 'x-forwarded-host': 'evil.example' }), env)).toBeNull();
+    expect(resolveAppOrigin(h({ host: 'evil.example' }), env)).toBeNull();
+  });
+
+  it('🔴 production + APP_BASE_URL พัง (ไม่ใช่ http/https) → null ไม่ถอยไป header', () => {
+    expect(resolveAppOrigin(h(spoofed), { NODE_ENV: 'production', APP_BASE_URL: 'javascript:alert(1)' })).toBeNull();
+  });
+
+  it('production + ตั้ง APP_BASE_URL → ใช้ค่านั้น header ถูกเมิน', () => {
+    expect(resolveAppOrigin(h(spoofed), { NODE_ENV: 'production', APP_BASE_URL: 'https://main.example' })).toBe(
+      'https://main.example',
+    );
+  });
+
+  it('dev/test (ไม่ใช่ production) ยังใช้ header ได้เพื่อรัน localhost', () => {
+    expect(resolveAppOrigin(h({ host: 'localhost:3000', 'x-forwarded-proto': 'http' }), { NODE_ENV: 'development' })).toBe(
+      'http://localhost:3000',
+    );
+  });
+});
+
+describe('🔴 startLineSignIn — production ไม่ตั้ง APP_BASE_URL (QA ข้อ 3)', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('header ปลอมทั้ง 3 แบบ → INTERNAL_ERROR · ไม่มี evil ใน redirect_to · ไม่เขียน cookie PKCE', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    delete process.env.APP_BASE_URL;
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    for (const spoof of [
+      { origin: 'https://evil.example' },
+      { 'x-forwarded-host': 'evil.example' },
+      { host: 'evil.example' },
+    ] as Array<Record<string, string>>) {
+      state.jar.clear();
+      state.headers = new Headers({ 'x-forwarded-for': uniqueIp(), ...spoof });
+
+      const result = await startLineSignIn('/gangs');
+
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error.code).toBe('INTERNAL_ERROR');
+      expect(JSON.stringify(result)).not.toContain('evil');
+      expect(state.jar.size).toBe(0);
+    }
+
+    // log ต้องบอกชื่อ env ที่ขาด และไม่มีค่า secret
+    expect(errorLog.mock.calls.some((c) => String(c[0]).includes('APP_BASE_URL'))).toBe(true);
+    errorLog.mockRestore();
+  });
+
+  it('ตั้ง APP_BASE_URL แล้ว header ปลอมถูกเมิน → redirect_to เป็นโดเมนที่ตั้ง', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    process.env.APP_BASE_URL = APP;
+    state.headers = new Headers({
+      'x-forwarded-for': uniqueIp(),
+      origin: 'https://evil.example',
+      'x-forwarded-host': 'evil.example',
+      host: 'evil.example',
+    });
+
+    const result = await startLineSignIn('/gangs');
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const redirectTo = new URL(result.data.url).searchParams.get('redirect_to');
+      expect(redirectTo?.startsWith(`${APP}/auth/callback`)).toBe(true);
+      expect(result.data.url).not.toContain('evil');
+    }
   });
 });
 

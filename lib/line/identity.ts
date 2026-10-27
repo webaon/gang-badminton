@@ -1,4 +1,4 @@
-import { LINE_PLATFORM_PROVIDER } from './platform-login';
+import { LINE_PLATFORM_PROVIDER, type LineProfileStatus } from './platform-login';
 
 /**
  * ตรรกะล้วนของ "ผูก/ถอด LINE ระดับบัญชี" — **[WO-B1.c · ADR-013 R2/R3/R5]**
@@ -78,4 +78,24 @@ export function summarizeLineAccount(identities: readonly IdentityLike[]): LineA
     linkedAt: line?.created_at ?? null,
     lineName: line ? safeName(line.identity_data) : null,
   };
+}
+
+/**
+ * เลือกแบนเนอร์สถานะที่จะโชว์บน `/profile` — **[WO-B1.c · QA ข้อเล็ก]**
+ *
+ * 🔴 `?line=` พิมพ์เองใน URL ได้ ⇒ แบนเนอร์ที่ "ยืนยันผล" ต้องตรงกับสถานะจริงที่ `myLineAccount()` รายงาน
+ *    · `linked`   โชว์เมื่อผูกอยู่จริงเท่านั้น
+ *    · `unlinked` โชว์เมื่อไม่ได้ผูกอยู่จริงเท่านั้น
+ *    · `denied` / `in_use` / `failed` ไม่ยืนยันสถานะบัญชี จึงโชว์ได้ (ข้อความตายตัวจาก whitelist)
+ * สถานะที่เกิดจากการกดในหน้า (`local`) เชื่อได้ — มาจากผลของ action จริง
+ */
+export function pickProfileBanner(
+  local: LineProfileStatus | null,
+  fromUrl: LineProfileStatus | null,
+  linkedNow: boolean,
+): LineProfileStatus | null {
+  if (local) return local;
+  if (fromUrl === 'linked') return linkedNow ? 'linked' : null;
+  if (fromUrl === 'unlinked') return linkedNow ? null : 'unlinked';
+  return fromUrl;
 }

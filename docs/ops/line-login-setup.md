@@ -131,8 +131,30 @@
 5. เมนูซ้าย **Authentication → URL Configuration**
 6. ดูที่ **Redirect URLs** — ต้องมีบรรทัดนี้ (ถ้ายังไม่มีให้กด **Add URL** แล้วเพิ่ม):
    - `https://gang-badminton.vercel.app/auth/callback`
-7. 🔴 **ห้ามแก้ Site URL** และห้ามลบ URL ที่มีอยู่เดิม
-8. กด **Save**
+7. 🔴 **ห้ามมี wildcard กว้างในรายการนี้** — ตรวจทีละบรรทัด ถ้าเจอแบบด้านล่างให้ **ลบ** (หรือถามผมก่อนถ้าไม่แน่ใจว่าอะไรใช้อยู่):
+
+   | ❌ ห้ามมี | ทำไม |
+   |---|---|
+   | `https://*.vercel.app/**` | ใครก็สร้างโปรเจกต์ `xxx.vercel.app` ของตัวเองแล้วรับ code/session ของผู้ใช้เราได้ |
+   | `https://**` หรือ `*` เดี่ยวๆ | เปิดทุกโดเมน |
+   | `http://localhost:*` บน production | ยอมรับได้เฉพาะโปรเจกต์ทดลอง/dev — production จริงควรเอาออก |
+
+   ✅ ใช้ได้: URL เต็มตรงตัวของโดเมนเรา เช่น `https://gang-badminton.vercel.app/auth/callback`
+   (ถ้าต้องการ preview deployment ให้เพิ่มทีละ URL ที่ใช้จริง ไม่ใช้ wildcard กว้าง)
+8. 🔴 **ห้ามแก้ Site URL** และห้ามลบ URL ที่ถูกต้องอยู่เดิม
+9. กด **Save**
+
+### D4. 🔴 ตั้ง `APP_BASE_URL` บน Vercel — **ขั้นบังคับ ก่อนเปิด flag** (QA ข้อ 3)
+10. Vercel → Project **gang-badminton** → **Settings → Environment Variables → Add**
+    - Name: `APP_BASE_URL` · Value: `https://gang-badminton.vercel.app` (**ไม่มี `/` ต่อท้าย**, ต้องขึ้นต้น `https://`)
+    - Environment: ติ๊ก **Production** (และ Preview ถ้าจะทดสอบบน preview — ใส่โดเมน preview นั้นเอง)
+11. **Redeploy** หลังตั้ง (env ใหม่ไม่มีผลกับ deployment เก่า)
+
+> **ทำไมบังคับ:** บน production โค้ดจะ **ไม่เชื่อ** header `host` / `x-forwarded-host` / `origin` (ผู้โจมตีปลอมได้) — ถ้าไม่ตั้ง `APP_BASE_URL`
+> ปุ่ม "เข้าสู่ระบบด้วย LINE" และ "ผูกบัญชี LINE" จะ **ล้มทันที** (ขึ้นข้อความผิดพลาดทั่วไป และ log ฝั่งเซิร์ฟเวอร์ว่า `ต้องตั้ง env APP_BASE_URL`) ซึ่งเป็นพฤติกรรมที่ตั้งใจ (fail-closed)
+> ตั้งผิดโดเมนก็ล้มเช่นกัน เพราะ Supabase จะปฏิเสธ `redirectTo` ที่ไม่อยู่ใน Redirect URLs (D3)
+
+> ✅ **เช็คก่อนเปิด flag `LINE_PLATFORM_LOGIN_ENABLED=true`:** (1) D3 ไม่มี wildcard กว้าง (2) D4 ตั้ง `APP_BASE_URL` และ redeploy แล้ว (3) Manual Linking เปิดแล้ว (D2)
 
 > 📤 **ส่งอะไรกลับมาได้ (ส่วน D):** ภาพหน้าจอรายการ Custom Providers (ไม่มี secret แสดงอยู่) · ภาพหน้า URL Configuration · บอกว่าเปิด Manual Linking ได้หรือไม่
 
@@ -171,7 +193,7 @@
 
 - **เปลี่ยน channel เป็น Published** (ปุ่มสถานะบนสุดของหน้า channel ใน LINE Console) — ทำเมื่อพร้อมให้เพื่อนในก๊วนลองจริง (UAT) ไม่งั้นคนอื่นที่ไม่ใช่ Admin/Tester เข้าไม่ได้ · ก่อน Publish ควรใส่ Privacy policy URL
 - **ผูก LINE กับบัญชีอีเมลเดิมของคุณ** — ทำผ่านปุ่มในแอปตอนที่ผมทำ WO-B1 เสร็จ (ตอนนี้ยังไม่มี)
-- **ตั้ง `APP_BASE_URL` บน Vercel** ให้ตรงโดเมนจริง (`https://gang-badminton.vercel.app`) — เดี๋ยวผมแจ้งตอนถึงขั้นนั้น (Vercel → Project → Settings → Environment Variables)
+- **ตั้ง `APP_BASE_URL` บน Vercel** — ย้ายเป็นขั้นบังคับแล้ว ดู **D4** (ต้องทำก่อนเปิด flag)
 
 ---
 

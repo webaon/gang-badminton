@@ -209,7 +209,7 @@ channel นี้ **ไม่ใช่** `gang_line_configs.login_channel_id` �
 |---|---|---|
 | LINE Channel ID + Channel secret ของแพลตฟอร์ม | **Supabase Dashboard → Auth → Custom Providers** (Supabase เก็บเอง) | token endpoint ถูกเรียกจาก Supabase server ไม่ใช่ Next ⇒ แอปเราไม่ต้องเห็น secret เลย (ดีกว่าแบบที่ต้องมีใน env) |
 | provider id `custom:line` | ค่าคงที่ในโค้ด (ไม่ลับ) | |
-| โดเมนแอป | `APP_BASE_URL` (**มีอยู่แล้ว** — `.env.example:53`) | ต้อง **ตั้งจริง** บน production เพื่อให้ `redirectTo` นิ่ง (§6.2) |
+| โดเมนแอป | `APP_BASE_URL` (**มีอยู่แล้ว** — `.env.example:53`) | 🔴 **บังคับบน production** (`NODE_ENV=production` หรือมี `VERCEL_ENV`): `resolveAppOrigin()` (`lib/url/app-origin.ts`) ใช้ค่านี้ **เท่านั้น** — ไม่ตั้ง ⇒ `startLineSignIn`/`startLineLink` ล้มแบบ fail-closed (`INTERNAL_ERROR` + log) ไม่เชื่อ header `host`/`x-forwarded-host`/`origin` (ปลอมได้ — QA ข้อ 3) · header ใช้ได้เฉพาะ dev/test (§6.2) |
 | `LINE_LINK_SECRET` | **ไม่เกี่ยว** — ใช้เซ็น state ของ WO-4.B/4.D (`lib/line/login-state.ts:26`) | Option A ไม่ใช้ |
 
 - ❌ **ห้ามใส่ Channel secret ของแพลตฟอร์มลง repo, `.env.example`, Vault ต่อก๊วน, แชต หรือ log** · ไม่ต้องบอกบอท — เจ้าของงานกรอกเองใน dashboard (กติกาห้ามพิมพ์/รับ secret ในแชต)

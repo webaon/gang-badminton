@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
 
-import type { LineAccountState } from '@/lib/line/identity';
+import { pickProfileBanner, type LineAccountState } from '@/lib/line/identity';
 import { parseLineProfileStatus, type LineProfileStatus } from '@/lib/line/platform-login';
 import { startLineLink, unlinkLineAccount } from '@/server/actions/line-identity';
 
@@ -37,7 +37,7 @@ export function LineAccountPanel({ initial }: { initial: LineAccountState }) {
   const [pending, setPending] = useState(false);
 
   const fromUrl = parseLineProfileStatus(params.get('line'));
-  const shown = localStatus ?? (fromUrl === 'linked' && !state.linked ? null : fromUrl);
+  const shown = pickProfileBanner(localStatus, fromUrl, state.linked);
   const banner = shown ? STATUS_BANNERS[shown] : null;
 
   async function onLink() {

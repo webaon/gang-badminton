@@ -143,6 +143,17 @@ describe('lib/line/identity — ตรรกะล้วน', () => {
     }
   });
 
+  it('🔴 pickProfileBanner: ?line=linked พิมพ์เองตอนยังไม่ผูก → ไม่ขึ้น "ผูกแล้ว" · ?line=unlinked ตอนยังผูกอยู่ → ไม่ขึ้น', () => {
+    expect(identity.pickProfileBanner(null, 'linked', false)).toBeNull();
+    expect(identity.pickProfileBanner(null, 'linked', true)).toBe('linked');
+    expect(identity.pickProfileBanner(null, 'unlinked', true)).toBeNull();
+    expect(identity.pickProfileBanner(null, 'unlinked', false)).toBe('unlinked');
+    // สถานะที่ไม่ยืนยันบัญชีโชว์ได้ · ไม่มีค่า = ไม่โชว์ · local (ผลของ action จริง) มาก่อน
+    for (const s of ['denied', 'in_use', 'failed'] as const) expect(identity.pickProfileBanner(null, s, false)).toBe(s);
+    expect(identity.pickProfileBanner(null, null, true)).toBeNull();
+    expect(identity.pickProfileBanner('unlinked', 'linked', false)).toBe('unlinked');
+  });
+
   it('parseLineProfileStatus: whitelist เท่านั้น (ไม่หลุด prototype)', () => {
     for (const ok of ['linked', 'unlinked', 'denied', 'in_use', 'failed']) expect(parseLineProfileStatus(ok)).toBe(ok);
     for (const bad of [null, undefined, '', 'x', '<script>', '__proto__', 'constructor', 'toString']) {
@@ -272,6 +283,46 @@ describe('startLineLink', () => {
 
     expect(result.success).toBe(false);
     expect(h.linkIdentity).not.toHaveBeenCalled();
+  });
+
+  it('🔴 QA ข้อ 3: production ไม่ตั้ง APP_BASE_URL + header ปลอม 3 แบบ → ไม่ยิง linkIdentity (ไม่เขียน PKCE cookie) และ log ชื่อ env', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    delete process.env.APP_BASE_URL;
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    for (const spoof of [
+      { origin: 'https://evil.example' },
+      { 'x-forwarded-host': 'evil.example' },
+      { host: 'evil.example' },
+    ] as Array<Record<string, string>>) {
+      h.headers = new Headers({ 'x-forwarded-for': `203.0.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`, ...spoof });
+      const result = await startLineLink();
+
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error.code).toBe('INTERNAL_ERROR');
+      expect(JSON.stringify(result)).not.toContain('evil');
+    }
+
+    expect(h.linkIdentity).not.toHaveBeenCalled();
+    expect(errorLog.mock.calls.some((c) => String(c[0]).includes('APP_BASE_URL'))).toBe(true);
+    errorLog.mockRestore();
+    vi.unstubAllEnvs();
+  });
+
+  it('production + ตั้ง APP_BASE_URL → header ปลอมถูกเมิน redirectTo เป็นโดเมนที่ตั้ง', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    h.headers = new Headers({
+      'x-forwarded-for': `203.0.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+      origin: 'https://evil.example',
+      host: 'evil.example',
+    });
+    const result = await startLineLink();
+    vi.unstubAllEnvs();
+
+    expect(result.success).toBe(true);
+    expect(h.linkIdentity.mock.calls[0][0].options.redirectTo).toBe(
+      `${APP}/auth/callback?next=${encodeURIComponent(LINE_LINK_NEXT)}`,
+    );
   });
 });
 
