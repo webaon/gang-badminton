@@ -7,7 +7,7 @@
  *
  * ใช้ `redirect()` ตัวจริงของ Next สร้าง error เพื่อให้เทสต์ผูกกับ format digest ของเวอร์ชันที่ติดตั้ง
  */
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AppError, parseRedirectError, runAction } from '@/shared/action';
@@ -55,6 +55,15 @@ describe('runAction — redirect อื่นต้อง rethrow (ห้าม�
       });
     });
   }
+  it('notFound() ถูกโยนต่อ ไม่ถูกกลืนเป็น INTERNAL_ERROR', async () => {
+    const log = silence();
+    await expect(
+      runAction('cid-nf', async () => {
+        notFound();
+      }),
+    ).rejects.toMatchObject({ digest: expect.stringContaining('NEXT_HTTP_ERROR_FALLBACK') });
+    expect(log.error).not.toHaveBeenCalled();
+  });
 });
 
 describe('runAction — พฤติกรรมเดิมไม่เปลี่ยน', () => {

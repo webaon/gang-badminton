@@ -41,6 +41,13 @@ export function parseRedirectError(err: unknown): { destination: string } | null
   return { destination: parts.slice(2, -2).join(';') };
 }
 
+/** notFound()/forbidden()/unauthorized() → digest `NEXT_HTTP_ERROR_FALLBACK;<status>` (และ `NEXT_NOT_FOUND` ในเวอร์ชันเก่า) */
+function isNextControlFlowError(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null || !('digest' in err)) return false;
+  const digest = (err as { digest: unknown }).digest;
+  return typeof digest === 'string' && (digest.startsWith('NEXT_HTTP_ERROR_FALLBACK;') || digest === 'NEXT_NOT_FOUND');
+}
+
 /** ปลายทางคือหน้า /sign-in เท่านั้น (อาจมี ?next=… ต่อท้าย) — `/sign-in-x` หรือ URL ภายนอกไม่ใช่ */
 function isSignInPath(destination: string): boolean {
   return /^\/sign-in(?:[?#]|$)/.test(destination);
@@ -71,6 +78,8 @@ export async function runAction<T>(
       }
       throw err;
     }
+    // notFound() / forbidden() / unauthorized() ของ Next ก็เป็น control-flow exception เหมือนกัน — rethrow ไม่กลืน
+    if (isNextControlFlowError(err)) throw err;
 
     const { code, message, cause } = toErrorCode(err);
 
