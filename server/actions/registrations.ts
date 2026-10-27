@@ -175,6 +175,68 @@ export async function cancelRegistration(
 }
 
 /**
+ * ดูผลก่อนยกเลิก (read-only) — หน้าจอ 6.2 ใช้บอกผู้ใช้ว่า "ยกเลิกฟรีถึงเมื่อไหร่ / จะโดนปรับ / ยกเลิกไม่ได้"
+ *
+ * 🔴 ไม่คำนวณ cutoff/grace ใน TS — `fromJson()` ให้ default grace 3 ชม. กับนัดเก่าที่ DB ถือเป็น 0
+ *    ตัดสินใน `preview_cancel_registration()` ซึ่งเรียกตัวตัดสินเดียวกับ `cancel_registration()`
+ * ไม่คืนจำนวนเงิน — แสดงเฉพาะประเภท/เวลา (เงินคิดตอนปิดรอบ ADR-001)
+ */
+export type CancelPreview = {
+  outcome: 'free_in_grace' | 'free_before_cutoff' | 'penalty' | 'blocked';
+  /** ยกเลิกฟรีได้ถึงเมื่อไหร่ (ISO) — null = ไม่มีเส้นตาย/ไม่ฟรี */
+  freeUntil: string | null;
+  penaltyType: string | null;
+  reason: 'waitlist' | 'before_cutoff' | 'promoted_grace' | 'late_cancel' | 'cutoff_passed';
+};
+
+export async function cancelPreview(registrationId: string): Promise<ApiResponse<CancelPreview>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const user = await requireUser();
+    const supabase = await supabaseServer();
+
+    const { data: reg } = await supabase
+      .from('session_registrations')
+      .select('id, user_id, sessions!inner(gang_id)')
+      .eq('id', registrationId)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    if (!reg) throw new AppError('REGISTRATION_NOT_FOUND', 'ไม่พบการลงชื่อนี้');
+
+    const gangId = (reg as unknown as { sessions: { gang_id: string } }).sessions.gang_id;
+
+    const { data: membership } = await supabase
+      .from('gang_members')
+      .select('role')
+      .eq('gang_id', gangId)
+      .eq('user_id', user.id)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    const role = (membership?.role as GangRole | undefined) ?? null;
+    // สิทธิ์เดียวกับการยกเลิกจริง
+    assertCan({ role }, reg.user_id === user.id ? 'registration.cancel.self' : 'registration.cancel.other');
+
+    const { data, error } = await supabaseAdmin().rpc('preview_cancel_registration', {
+      p_registration_id: registrationId,
+      p_actor_id: user.id,
+    });
+
+    if (error) throw error;
+
+    const p = data as {
+      outcome: CancelPreview['outcome'];
+      free_until: string | null;
+      penalty_type: string | null;
+      reason: CancelPreview['reason'];
+    };
+    return { outcome: p.outcome, freeUntil: p.free_until, penaltyType: p.penalty_type, reason: p.reason };
+  });
+}
+
+/**
  * แอดมินเลือกเลื่อนคนจาก waitlist เอง (ข้ามลำดับคิว) **[WO-B11 · ADR-011]**
  *
  * 🔴 ยังเป็นทางเลื่อนคิวทางเดียว — เรียก `promote_waitlist(p_registration_id)` ตัวเดิม
