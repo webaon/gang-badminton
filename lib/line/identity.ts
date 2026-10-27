@@ -1,4 +1,4 @@
-import { LINE_PLATFORM_PROVIDER, type LineProfileStatus } from './platform-login';
+import { LINE_PLATFORM_PROVIDER, type LineProfileStatus } from './platform-constants';
 
 /**
  * ตรรกะล้วนของ "ผูก/ถอด LINE ระดับบัญชี" — **[WO-B1.c · ADR-013 R2/R3/R5]**

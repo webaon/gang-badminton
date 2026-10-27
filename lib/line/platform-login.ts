@@ -12,25 +12,18 @@ import 'server-only';
  *    · เป็น env ฝั่ง server (ไม่ใช่ `NEXT_PUBLIC_*`) ⇒ เปลี่ยนค่าแล้ว redeploy พอ ไม่ต้อง rebuild bundle
  */
 
-/** id ของ Custom OIDC provider ใน Supabase (ต้องตรงกับที่เจ้าของงานตั้ง — `docs/ops/line-login-setup.md` ส่วน B) */
-export const LINE_PLATFORM_PROVIDER = 'custom:line' as const;
-
 /**
- * `next` ของ flow ผูก LINE กับบัญชีที่ล็อกอินอยู่ — **[WO-B1.c]**
- * ค่าเดียวที่ `/auth/callback` ยอมให้ส่งผู้ใช้กลับ `/profile` พร้อมสถานะ (ทั้งสำเร็จและล้มเหลว)
- * ⇒ เทียบแบบตรงตัวเท่านั้น ห้ามใช้ `startsWith`
+ * ค่าคงที่ล้วน (provider id, LINE_LINK_NEXT, สถานะ `/profile?line=`) ย้ายไป `platform-constants.ts`
+ * เพราะ client component (`LineAccountPanel`) ต้อง import — ไฟล์นี้มี `server-only` import จาก client ไม่ได้
+ * re-export ไว้ให้ฝั่ง server import จากที่เดิมได้
  */
-export const LINE_LINK_NEXT = '/profile?line=linked';
-
-/** สถานะที่ `/profile?line=` ยอมรับ — อย่างอื่นไม่แสดงอะไร (ไม่ echo) */
-export const LINE_PROFILE_STATUSES = ['linked', 'unlinked', 'denied', 'in_use', 'failed'] as const;
-export type LineProfileStatus = (typeof LINE_PROFILE_STATUSES)[number];
-
-export function parseLineProfileStatus(value: string | null | undefined): LineProfileStatus | null {
-  return (LINE_PROFILE_STATUSES as readonly string[]).includes(value ?? '')
-    ? (value as LineProfileStatus)
-    : null;
-}
+export {
+  LINE_PLATFORM_PROVIDER,
+  LINE_LINK_NEXT,
+  LINE_PROFILE_STATUSES,
+  parseLineProfileStatus,
+  type LineProfileStatus,
+} from './platform-constants';
 
 export function isLinePlatformLoginEnabled(env: Record<string, string | undefined> = process.env): boolean {
   return env.LINE_PLATFORM_LOGIN_ENABLED === 'true';

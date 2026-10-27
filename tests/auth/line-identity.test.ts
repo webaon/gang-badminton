@@ -420,6 +420,21 @@ describe('🔴 R6 — ไม่เขียน auth.* ตรง / ไม่ใ�
     expect(source).not.toMatch(/<form/);
     expect(source).toContain('window.location.href');
   });
+
+  it("🔴 client component ห้ามดึง 'server-only' เข้ามา (next build ล้ม) — ไฟล์ที่ panel import ต้องไม่มี server-only", () => {
+    const panel = readFileSync(join(root, 'features/profile/LineAccountPanel.tsx'), 'utf8');
+    expect(panel.startsWith("'use client'")).toBe(true);
+
+    // ไล่ import แบบ relative/alias ในโปรเจกต์ที่ panel ใช้เป็น *ค่า* (ไม่นับ type-only และ server action ที่ Next ทำ proxy ให้)
+    const clientImportable = ['lib/line/platform-constants.ts', 'lib/line/identity.ts'];
+    for (const file of clientImportable) {
+      const source = readFileSync(join(root, file), 'utf8');
+      expect(source, file).not.toMatch(/^import\s+['"]server-only['"]/m);
+      expect(source, file).not.toMatch(/from ['"](?:@\/lib\/line\/platform-login|\.\/platform-login)['"]/);
+    }
+
+    expect(panel).not.toMatch(/lib\/line\/platform-login/);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────

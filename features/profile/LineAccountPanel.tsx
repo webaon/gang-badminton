@@ -7,7 +7,7 @@ import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
 
 import { pickProfileBanner, type LineAccountState } from '@/lib/line/identity';
-import { parseLineProfileStatus, type LineProfileStatus } from '@/lib/line/platform-login';
+import { parseLineProfileStatus, type LineProfileStatus } from '@/lib/line/platform-constants';
 import { startLineLink, unlinkLineAccount } from '@/server/actions/line-identity';
 
 /**
