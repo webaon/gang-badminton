@@ -27,6 +27,26 @@ export class AppError extends Error {
 }
 
 /**
+ * อ่าน redirect error ของ Next จาก `digest` (รูปแบบ `NEXT_REDIRECT;<type>;<url>;<status>;`)
+ * — ไม่ import จาก `next/dist/...` เพื่อให้ `shared/` ไม่ผูกกับ internals ของ framework
+ * (logic เดียวกับ `isRedirectError`/`getURLFromRedirectError` ของ Next: url อาจมี `;` จึงรวมส่วนกลางกลับ)
+ */
+export function parseRedirectError(err: unknown): { destination: string } | null {
+  if (typeof err !== 'object' || err === null || !('digest' in err)) return null;
+  const digest = (err as { digest: unknown }).digest;
+  if (typeof digest !== 'string' || !digest.startsWith('NEXT_REDIRECT;')) return null;
+
+  const parts = digest.split(';');
+  if (parts.length < 5 || (parts[1] !== 'replace' && parts[1] !== 'push')) return null;
+  return { destination: parts.slice(2, -2).join(';') };
+}
+
+/** ปลายทางคือหน้า /sign-in เท่านั้น (อาจมี ?next=… ต่อท้าย) — `/sign-in-x` หรือ URL ภายนอกไม่ใช่ */
+function isSignInPath(destination: string): boolean {
+  return /^\/sign-in(?:[?#]|$)/.test(destination);
+}
+
+/**
  * ห่อ server action ให้ตอบตาม contract เสมอ + log error ที่ไม่รู้จัก
  *
  * ต่างจาก `respond()` ตรงที่คืน object ธรรมดา ไม่ใช่ `Response`
@@ -39,6 +59,19 @@ export async function runAction<T>(
   try {
     return ok(await run());
   } catch (err) {
+    // 🔴 redirect() ของ Next เป็น exception ชนิดพิเศษ — ห้ามกลืนเป็น INTERNAL_ERROR [WO-6.1b]
+    //    `requireUser()` เรียก redirect('/sign-in') เมื่อเซสชันหมดอายุกลางคัน:
+    //      · ไป /sign-in  → ตอบ UNAUTHENTICATED ตาม contract ให้ client พาไป /session-expired
+    //      · redirect อื่น → rethrow ตามเดิม (Next ต้องเห็นเพื่อทำ redirect จริง)
+    const redirect = parseRedirectError(err);
+    if (redirect) {
+      if (isSignInPath(redirect.destination)) {
+        console.warn('[action] handled error', { correlationId, code: 'UNAUTHENTICATED', message: 'session หมดอายุ' });
+        return fail('UNAUTHENTICATED', 'UNAUTHENTICATED');
+      }
+      throw err;
+    }
+
     const { code, message, cause } = toErrorCode(err);
 
     if (code === 'INTERNAL_ERROR') {
