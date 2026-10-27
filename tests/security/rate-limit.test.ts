@@ -142,6 +142,7 @@ describe('WO-5.C DoD — ทางเข้าสาธารณะทุกท�
     { file: 'app/guest/[registrationId]/claim/route.ts', scope: 'guest:claim' },
     { file: 'app/auth/callback/route.ts', scope: 'auth:callback' },
     { file: 'app/api/line/login/callback/route.ts', scope: 'line:login-callback' },
+    { file: 'server/actions/auth.ts', scope: 'auth:line-start' },
     { file: 'server/guest/rate-limit.ts', scope: 'guest:' },
   ];
 

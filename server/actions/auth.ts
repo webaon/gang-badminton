@@ -3,7 +3,12 @@
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 
+import { isLinePlatformLoginEnabled, LINE_PLATFORM_PROVIDER } from '@/lib/line/platform-login';
+import { publicSupabaseEnv } from '@/lib/supabase/env';
 import { supabaseServer } from '@/lib/supabase/server';
+import { resolveAppOrigin } from '@/lib/url/app-origin';
+import { safeNext } from '@/lib/url/safe-next';
+import { enforceRateLimit } from '@/server/security/rate-limit';
 import { correlationIdFrom } from '@/shared/api';
 import { AppError, runAction } from '@/shared/action';
 import type { ApiResponse } from '@/shared/api';
@@ -96,6 +101,60 @@ export async function signInWithMagicLink(
     if (error) throw new AppError('VALIDATION_ERROR', error.message, { cause: error });
 
     return { sent: true as const };
+  });
+}
+
+/**
+ * เริ่มเข้าสู่ระบบด้วย LINE (ระดับแพลตฟอร์ม) — คืน URL ให้หน้าจอพาไป **[WO-B1.a · ADR-013]**
+ *
+ * 🔴 เปิดสาธารณะ (คนยังไม่ล็อกอินเรียกได้ และเป็นประตูสมัครบัญชีใหม่) ⇒ เพดาน `auth:line-start`
+ *    20/ชม./IP — ต้องตรงกับ `docs/rate-limits.md`
+ * 🔴 ปิดอยู่จนกว่า `LINE_PLATFORM_LOGIN_ENABLED=true` (fail-closed → `FEATURE_DISABLED`)
+ * 🔴 state / nonce / PKCE จัดการโดย Supabase Auth (code verifier ถูกเขียนลง cookie ผ่าน
+ *    `supabaseServer()`) ⇒ ❌ ไม่เขียน state เอง ❌ ไม่แตะ `auth.*`
+ * 🔴 `next` ผ่าน `safeNext()` ก่อนฝังใน `redirectTo` (กัน open redirect หลังล็อกอิน)
+ * 🔴 URL ที่คืนต้องเป็น origin ของ Supabase ของเราเท่านั้น — กันกรณี SDK/ค่า config เพี้ยนแล้วพาผู้ใช้ออกนอกโดเมน
+ */
+export async function startLineSignIn(next?: string): Promise<ApiResponse<{ url: string }>> {
+  const cid = await correlationId();
+
+  return runAction(cid, async () => {
+    if (!isLinePlatformLoginEnabled()) {
+      throw new AppError('FEATURE_DISABLED', 'LINE Login ระดับแพลตฟอร์มยังไม่เปิดใช้');
+    }
+
+    const requestHeaders = await headers();
+
+    await enforceRateLimit({
+      scope: 'auth:line-start',
+      headers: requestHeaders,
+      limit: 20,
+      window: '1 hour',
+    });
+
+    const origin = resolveAppOrigin(requestHeaders);
+    if (!origin) {
+      throw new AppError('INTERNAL_ERROR', 'หาโดเมนของแอปไม่ได้ — ตั้ง APP_BASE_URL');
+    }
+
+    const target = next ? safeNext(next) : null;
+    const redirectTo = `${origin}/auth/callback${target ? `?next=${encodeURIComponent(target)}` : ''}`;
+
+    const supabase = await supabaseServer();
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: LINE_PLATFORM_PROVIDER,
+      options: { redirectTo, skipBrowserRedirect: true },
+    });
+
+    if (error || !data?.url) {
+      throw new AppError('INTERNAL_ERROR', 'เริ่ม LINE Login ไม่สำเร็จ', { cause: error });
+    }
+
+    if (new URL(data.url).origin !== new URL(publicSupabaseEnv().url).origin) {
+      throw new AppError('INTERNAL_ERROR', 'URL ของ LINE Login ไม่ใช่ของ Supabase ที่ตั้งไว้');
+    }
+
+    return { url: data.url };
   });
 }
 
