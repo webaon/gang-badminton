@@ -316,3 +316,9 @@ Playwright: 404 ของ route มั่ว · token เชิญหมดอ�
   · Q4 ง่ายลง: ยังไม่มีผู้ใช้จริง ⇒ ไม่ต้องทำ cutover/แบนเนอร์ (เจ้าของงานผูก LINE กับบัญชีตัวเองตอน UAT) · Q6: ทดลองบนโปรเจกต์ cloud เดิม (`emmzeriekkjryhucvctx`) ได้ เพราะยังไม่ใช้งานจริง · Q7/Q8 planner ตัดสินตาม ★
 - **ขอบเขตอำนาจจนถึง UAT**: planner รับ/ตัดสินแทนเจ้าของงานได้ ทั้งคำตัดสินตาม ★ และ `supabase db push` ขึ้น cloud หลัง QA ผ่าน · **ยังต้องถามเจ้าของงาน**: merge เข้า `main` / deploy production · ของที่ต้องใช้บัญชีเจ้าของงาน (LINE Developers Console, Supabase Dashboard) · การตัดสินที่แตะเงินซึ่งไม่มี ★ ชัด
 - ข้อมูลทดสอบบน prod (guest "Ford") ⇒ ไม่เร่ง · ล้างพร้อมกันตอนเตรียม UAT
+
+### 11.2 WO-B2 ✅ ผ่าน QA (`71c308b`) → WO-B2.1 (race ที่ QA เจอจากการอ่านโค้ด)
+**ปัญหา**: `register_to_session()` ไม่ตรวจว่ายังเป็นสมาชิกใน DB (ตรวจแค่ role ใน TS ก่อน RPC) และ lock แค่แถว session ⇒ TS ตรวจผ่าน → `leave_gang` commit ก่อน → RPC insert ⇒ คนที่ออกแล้วยังถือที่ confirmed/waitlist (และมองไม่เห็นใบนั้นอีก) · เหมือนกันกับแอดมินลงชื่อให้ (`registration.create.other`)
+**Scope**: `register_to_session` (และทางลงชื่อแทน) lock แถว `gang_members` ของผู้ลงชื่อด้วย `FOR SHARE` **ก่อน** lock แถว session (ลำดับ members → session เดียวกับ `leave_gang` → `cancel_registration` กัน deadlock) แล้วตรวจว่ายัง active · migration ใหม่ (CREATE OR REPLACE) ไม่แก้ไฟล์เก่า · guest flow ไม่กระทบ
+**DoD**: เทสต์ concurrency ใน `tests/gangs/leave-transfer-gang.test.ts`: register แข่ง leave 40 รอบ ⇒ ถ้าสมาชิกถูก soft-delete ต้องไม่มีใบ confirmed/waitlist เหลือ · ไม่มี deadlock · ต้อง**ล้มบนโค้ดเดิม**อย่างน้อยบางรอบ (พิสูจน์ว่าเทสต์จับได้) · เทสต์ register/waitlist เดิมผ่านทั้งหมด
+**อื่นๆ จาก QA B2**: UI ปุ่มออกจากก๊วนต้องแสดงเหตุผลเมื่อออกไม่ได้เพราะเลย cutoff (`detail.reason`) + ยอดค้างที่ `leaveGang()` คืน → ใส่ใน WO หน้าจอ (6.5/6.6) · `db push` ขึ้น cloud รวบทีเดียวหลัง B11 + B2.1 ผ่าน QA (โฟลเดอร์ migrations มีไฟล์ 0041 ที่ยังไม่ commit — ห้าม push จากโฟลเดอร์หลักระหว่างมี WIP)

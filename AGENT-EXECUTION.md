@@ -1732,7 +1732,8 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | 6.7 | Auth + onboarding | @gb-frontend | ⏳ |
 | 6.8 | Growth screens + หน้าแรก | @gb-frontend | ⏳ |
 | 6.9 | Playwright checkpoint + `v1.1.0` | @gb-qa | ⏳ |
-| B2 | ออกจากก๊วน + โอน owner — ADR-012 (plan §11) | @gb-backend | 🔄 |
+| B2 | ออกจากก๊วน + โอน owner — ADR-012 (plan §11) | @gb-backend | ✅ `71c308b` QA ผ่าน (ยังไม่ db push) |
+| B2.1 | ปิด race ลงชื่อนัดพร้อมกับออกจากก๊วน (`register_to_session` ตรวจสมาชิกใน DB) (plan §11) | @gb-backend | ⏳ หลัง B11 |
 | B11 | สละสิทธิ์หลังถูกเลื่อน 3 ชม. + แอดมินเลื่อนเอง — ADR-011 (plan §11) | @gb-backend | ⏳ หลัง B2 |
 | B1-ADR | ร่าง ADR-013 LINE Login เป็นทางเข้าหลัก (plan §11) | @gb-integrations | 🔄 |
 | hotfix | open redirect `/sign-in?next=` (`1edf989`) → PR เล็กเข้า main หลัง QA (เจ้าของงานเลือก ก.) | @gb-planner | ⏳ รอ QA |

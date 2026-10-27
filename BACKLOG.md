@@ -491,3 +491,4 @@
 - [ ] **(พบระหว่าง WO-B2/B1.a)** `tests/security/rate-limit.test.ts:163` ล้มบน Windows — เทียบ path `server/security/rate-limit.ts` กับ `server\security\rate-limit.ts` (path separator) · ใช้ `path.posix`/normalize ในเทสต์
 - [ ] **(WO-B1.a)** `startLineSignIn` ใช้ `resolveAppOrigin()` แล้ว แต่ magic link (`server/actions/auth.ts`) กับ `line.ts:515` ยังสร้าง origin คนละแบบ — รวมให้ใช้ตัวเดียว
 - [ ] **(WO-B1.c)** หน้าโปรไฟล์: ผูก/ถอด LINE ระดับบัญชีด้วย `linkIdentity`/`unlinkIdentity` (spike S2) — รอเจ้าของงานตั้งค่า LINE Login ตาม `docs/ops/line-login-setup.md`
+- [ ] **(QA B2)** `tests/seed/idempotency.test.ts` flaky เมื่อหลายบอทเขียน Supabase local ตัวเดียวกัน (นับแถวทั้งฐาน) — นับเฉพาะแถวของ seed หรือแยก DB ต่อเทสต์ · ทางแก้ rate-limit test บน Windows: `found.push(rel.split(sep).join('/'))` ใน `sourceFiles()`
