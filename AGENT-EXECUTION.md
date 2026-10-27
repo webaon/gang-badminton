@@ -1736,7 +1736,8 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | B2.1 | ปิด race ลงชื่อนัดพร้อมกับออกจากก๊วน (`register_to_session` ตรวจสมาชิกใน DB) (plan §11) | @gb-backend | ✅ `f12408f` QA ผ่าน (ยังไม่ db push) |
 | B11.1 | `cancelPreview` read-only ใช้ตรรกะเดียวกับ cancel_registration (ให้ 6.2 แสดง "ยกเลิกฟรีถึง") | @gb-backend | 🔄 รอ QA `45cfa5b` |
 | B11 | สละสิทธิ์หลังถูกเลื่อน 3 ชม. + แอดมินเลื่อนเอง — ADR-011 (plan §11) | @gb-backend | ✅ `f6977ed` QA ผ่าน (ยังไม่ db push) |
-| B1-ADR | ร่าง ADR-013 LINE Login เป็นทางเข้าหลัก (plan §11) | @gb-integrations | 🔄 |
+| B1-ADR | ร่าง ADR-013 LINE Login เป็นทางเข้าหลัก (plan §11) | @gb-integrations | ✅ `927afee` → Accepted `4b61d1c` |
+| B1.a+c | ปุ่ม LINE Login + ผูก/ถอด LINE ในโปรไฟล์ (หลัง flag `LINE_PLATFORM_LOGIN_ENABLED`) | @gb-integrations | ✅ `217ad60` QA ผ่าน · ⚠️ `b48bd1a..1967be2` build ไม่ผ่าน ห้าม cherry-pick แยก · รอเจ้าของงานตั้งค่า LINE (`docs/ops/line-login-setup.md`) แล้วค่อย spike S1–S5 |
 | hotfix | open redirect `/sign-in?next=` → `7e90739` QA ผ่าน → PR #15 เข้า main | @gb-planner | ⏳ รอเจ้าของงาน OK merge |
 
 - **Forbidden ร่วมทุกใบใน Track A**: ห้ามมี migration · ห้ามแตะ DB function / state machine / `domain/billing` ·
