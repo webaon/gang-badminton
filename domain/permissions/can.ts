@@ -55,6 +55,8 @@ const ADMIN: readonly Action[] = [
   'registration.create.other',
   'registration.create.guest',
   'registration.cancel.other',
+  // [WO-B11 · ADR-011] เลือกเลื่อนคนจาก waitlist เอง — ใช้ผ่าน promote_waitlist(p_registration_id)
+  'registration.promote.other',
   'registration.checkin',
   'registration.no_show',
   'game.manage',

@@ -38,8 +38,33 @@ describe('cancellation policy — ADR-002', () => {
       penaltyType: 'fixed',
       penaltyValue: '100.00',
       midwayCancelRatio: 0.25,
+      promotedGraceHours: 5,
     };
     expect(fromJson(toJson(policy))).toEqual(policy);
+  });
+
+  it('🔴 [ADR-011] promoted_grace_hours: ค่าเริ่มต้น 3 · เขียนลง json เสมอ · ค่านอกช่วงตกไป default', () => {
+    expect(DEFAULT_CANCELLATION_POLICY.promotedGraceHours).toBe(3);
+    expect(toJson(DEFAULT_CANCELLATION_POLICY).promoted_grace_hours).toBe(3);
+
+    // คีย์ไม่มี (ก๊วน/นัดเก่า) → ตอบ default สำหรับ "นัดใหม่" · ส่วน grace ของนัดเก่า = 0 ตัดสินใน DB
+    expect(fromJson({ cutoff_hours: 12 }).promotedGraceHours).toBe(3);
+    expect(fromJson({ promoted_grace_hours: 0 }).promotedGraceHours).toBe(0);
+    expect(fromJson({ promoted_grace_hours: 48 }).promotedGraceHours).toBe(48);
+    expect(fromJson({ promoted_grace_hours: 49 }).promotedGraceHours).toBe(3);
+    expect(fromJson({ promoted_grace_hours: -1 }).promotedGraceHours).toBe(3);
+    expect(fromJson({ promoted_grace_hours: 'สามชั่วโมง' }).promotedGraceHours).toBe(3);
+  });
+
+  it('[ADR-011] validate: promotedGraceHours ต้องอยู่ 0–48', () => {
+    expect(validate({ ...DEFAULT_CANCELLATION_POLICY, promotedGraceHours: 0 })).toEqual([]);
+    expect(validate({ ...DEFAULT_CANCELLATION_POLICY, promotedGraceHours: 48 })).toEqual([]);
+    for (const bad of [-1, 49, Number.NaN]) {
+      expect(
+        validate({ ...DEFAULT_CANCELLATION_POLICY, promotedGraceHours: bad }).map((i) => i.field),
+        String(bad),
+      ).toContain('promotedGraceHours');
+    }
   });
 
   it('ไม่ใส่ penaltyValue → ไม่โผล่ใน json (ไม่เขียน undefined ลง jsonb)', () => {

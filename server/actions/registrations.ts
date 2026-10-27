@@ -106,6 +106,12 @@ export async function registerMember(
  */
 export async function cancelRegistration(
   registrationId: string,
+  /**
+   * **[ADR-011]** แอดมินยกเลิกแทนแบบ "ไม่คิดค่าปรับ" — ต้องมีเหตุผล
+   * (ใช้ตอน "เปลี่ยนคน": ส่ง `promoteRegistrationId` = B มาด้วยเพื่อเลื่อน B ใน transaction เดียวกัน)
+   * ❌ ไม่ใช่ช่องให้สมาชิกยกเว้นค่าปรับให้ตัวเอง — `cancel_registration()` ตรวจสิทธิ์แอดมินซ้ำใน DB
+   */
+  options: { waivePenalty?: boolean; reason?: string; promoteRegistrationId?: string } = {},
 ): Promise<ApiResponse<{ status: string }>> {
   const correlationId = await cid();
 
@@ -137,16 +143,92 @@ export async function cancelRegistration(
 
     assertCan({ role }, isSelf ? 'registration.cancel.self' : 'registration.cancel.other');
 
+    const waive = options.waivePenalty === true;
+    if (waive) {
+      // ยกเว้นค่าปรับ = งานแอดมิน แม้จะยกเลิกของตัวเอง · ต้องมีเหตุผล (DB ตรวจซ้ำ)
+      assertCan({ role }, 'registration.cancel.other');
+      if (!options.reason?.trim()) {
+        throw new AppError('VALIDATION_ERROR', 'ต้องระบุเหตุผลที่ไม่คิดค่าปรับ');
+      }
+    }
+
+    const promoteId = options.promoteRegistrationId;
+    if (promoteId) {
+      // "เปลี่ยนคน": ยกเลิกคนนี้แล้วเลื่อนคนที่เลือกใน transaction เดียว (DB ตรวจสิทธิ์แอดมิน/ที่ว่างซ้ำ)
+      assertCan({ role }, 'registration.promote.other');
+    }
+
     const { data, error } = await supabaseAdmin().rpc('cancel_registration', {
       p_registration_id: registrationId,
       p_actor_id: user.id,
       p_correlation_id: correlationId,
+      p_waive_penalty: waive,
+      p_reason: waive ? options.reason!.trim() : null,
+      p_promote_registration_id: promoteId ?? null,
     });
 
     if (error) throw error;
 
     revalidatePath(`/gangs/${gangId}/sessions/${reg.session_id}`);
     return { status: (data as { status: string }).status };
+  });
+}
+
+/**
+ * แอดมินเลือกเลื่อนคนจาก waitlist เอง (ข้ามลำดับคิว) **[WO-B11 · ADR-011]**
+ *
+ * 🔴 ยังเป็นทางเลื่อนคิวทางเดียว — เรียก `promote_waitlist(p_registration_id)` ตัวเดิม
+ *    (lock session → ตรวจสิทธิ์แอดมิน + มีที่ว่างจริงใน DB) ไม่เช็คที่ว่างใน TS
+ * ไม่มีที่ว่าง = `SESSION_FULL` · "เปลี่ยนคน" = `cancelRegistration(A, { waivePenalty, reason, promoteRegistrationId: B })`
+ * (ยกเลิก A + เลื่อน B ใน transaction เดียว — แยกเป็นสองคำสั่งไม่ได้ เพราะหัวคิวจะได้ที่ของ A ก่อน)
+ */
+export async function promoteRegistration(
+  registrationId: string,
+): Promise<ApiResponse<{ status: string }>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const user = await requireUser();
+    const supabase = await supabaseServer();
+
+    const { data: reg } = await supabase
+      .from('session_registrations')
+      .select('id, session_id, sessions!inner(gang_id)')
+      .eq('id', registrationId)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    if (!reg) throw new AppError('REGISTRATION_NOT_FOUND', 'ไม่พบการลงชื่อนี้');
+
+    const gangId = (reg as unknown as { sessions: { gang_id: string } }).sessions.gang_id;
+
+    const { data: membership } = await supabase
+      .from('gang_members')
+      .select('role')
+      .eq('gang_id', gangId)
+      .eq('user_id', user.id)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    assertCan(
+      { role: (membership?.role as GangRole | undefined) ?? null },
+      'registration.promote.other',
+    );
+
+    const { data, error } = await supabaseAdmin().rpc('promote_waitlist', {
+      p_session_id: reg.session_id,
+      p_actor_id: user.id,
+      p_correlation_id: correlationId,
+      p_registration_id: registrationId,
+    });
+
+    if (error) throw error;
+
+    const promoted = (data as { status: string }[] | null)?.[0];
+    if (!promoted) throw new AppError('INTERNAL_ERROR', 'promote_waitlist ไม่คืนแถวที่เลื่อน');
+
+    revalidatePath(`/gangs/${gangId}/sessions/${reg.session_id}`);
+    return { status: promoted.status };
   });
 }
 

@@ -64,6 +64,8 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'registration.create.other',
     'registration.create.guest',
     'registration.cancel.other',
+    // [WO-B11 · ADR-011]
+    'registration.promote.other',
     'registration.checkin',
     'registration.no_show',
     'game.manage',

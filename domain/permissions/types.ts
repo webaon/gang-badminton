@@ -61,6 +61,8 @@ export const ACTIONS = [
   'registration.create.guest',
   'registration.cancel.self',
   'registration.cancel.other',
+  // [WO-B11 · ADR-011] แอดมินเลือกเลื่อนคนจาก waitlist เอง (ข้ามลำดับคิว)
+  'registration.promote.other',
   'registration.checkin',
   'registration.no_show',
 

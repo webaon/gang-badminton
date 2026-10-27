@@ -66,7 +66,7 @@ async function loadBillingContext(sessionId: string) {
 
   const { data: registrations } = await admin
     .from('session_registrations')
-    .select('id, user_id, status, cancelled_at')
+    .select('id, user_id, status, cancelled_at, cancel_waiver')
     .eq('session_id', sessionId)
     .is('deleted_at', null);
 
@@ -94,6 +94,7 @@ async function loadBillingContext(sessionId: string) {
     registrationId: r.id,
     status: r.status as ParticipantStatus,
     cancelledAt: r.cancelled_at ? new Date(r.cancelled_at) : null,
+    cancelPenaltyWaived: r.cancel_waiver !== null && r.cancel_waiver !== undefined,
     isMonthlyMember: r.user_id !== null && monthly.has(r.user_id),
   }));
 
