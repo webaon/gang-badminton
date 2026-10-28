@@ -496,3 +496,4 @@
 - [ ] **(WO-6.2)** guest ที่ลงผ่านลิงก์ `/join/[token]` มี `registered_by = null` (`register_guest` ส่ง null) ⇒ แสดง "พามาโดยใคร" ไม่ได้ · ควรบันทึกคนสร้างลิงก์เชิญ (@gb-backend · แตะ registration)
 - [ ] 🟠 **(QA B11)** `sendSessionReminders` (`server/notifications/reminders.ts:63`) select นัดที่ open ใน 14 วันโดยไม่แบ่งหน้า ⇒ PostgREST ตัดที่ `max_rows = 1000` ⇒ ถ้านัดเปิดเกิน 1000 จะไม่เตือนส่วนที่เกิน**แบบเงียบ** (เห็นแล้วใน local 1997 นัด: `tests/sessions/reminders.test.ts` ล้ม 5) · แก้: แบ่งหน้า `range()` หรือกรอง horizon ใน SQL ให้แคบ (@gb-integrations)
 - [ ] **(QA)** Supabase local ใช้ร่วมกันทุกบอท ⇒ `db reset` กลางคันทำให้เทสต์ของคนอื่นล้ม (QA เจอ 53 ตัว) · กติกา: แจ้ง @gb-planner ก่อน reset · ระยะยาว: แยก DB ต่อ worktree
+- [ ] **(QA B11.1)** `cancelPreview` server action ยังไม่มีเทสต์ระดับ TS (มีแค่ระดับ DB) — เพิ่มเทสต์ assertCan cancel.self/cancel.other + map ผล
