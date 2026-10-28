@@ -15,6 +15,7 @@ import {
   roundingFromJson,
 } from '@/domain/policies/pricing';
 import { fromSatang, sumSatang, toSatang } from '@/domain/billing/money';
+import { breakdownCharges } from '@/domain/billing/charge-breakdown';
 import { assertUsableSnapshot } from '@/domain/sessions/snapshot';
 import {
   calculateSessionCharges,
@@ -164,6 +165,12 @@ export type ChargePreviewRow = {
   reason: string;
   amount: string;
   isMonthlyMember: boolean;
+  /**
+   * **[WO-B12]** แยกยอดต่อคน: `court + shuttle + penalty + rounding = amount` (string `numeric(12,2)`)
+   * คนที่ไม่ถูกเก็บเงินเป็น `0.00` ทุกช่อง · `flat_rate` ราคาต่อหัวทั้งก้อนอยู่ช่อง `court`
+   * ค่าปรับ (no_check_in / no_show / late_cancel) ย้ายทั้งก้อนมาช่อง `penalty` ไม่นับซ้ำ
+   */
+  breakdown: { court: string; shuttle: string; penalty: string; rounding: string };
 };
 
 export type BillingPreview = {
@@ -178,6 +185,14 @@ export type BillingPreview = {
   total: string;
   chargedCount: number;
   checkedInCount: number;
+  /** **[WO-B12]** ผลรวมแต่ละหมวดของทุกแถว: court + shuttle + penalty + rounding = `total` */
+  courtCostTotal: string;
+  shuttleCostTotal: string;
+  penaltyTotal: string;
+  /** ผลรวมเศษรายคน (ปกติเท่ากับ `roundingSurplus`) */
+  roundingTotal: string;
+  /** ต้นทุนที่ไม่มีใครหาร (เช่นทุกคนเป็นสมาชิกรายเดือน) — ปกติ `0.00` · `roundingSurplus = roundingTotal − absorbedCostTotal` */
+  absorbedCostTotal: string;
   /** true = ต้องติ๊กยืนยันก่อน ไม่งั้น `closeSessionWithBilling()` จะปฏิเสธ */
   needsConfirmation: boolean;
   /** เรื่องที่ต้องอ่านก่อนกดยืนยัน — ไม่ใช่ error แต่ปล่อยผ่านแล้วเก็บเงินผิด */
@@ -229,11 +244,18 @@ export async function previewSessionCharges(
 
     const names = await displayNames(sessionId);
     const chargeOf = new Map(result.charges.map((c) => [c.registrationId, c]));
+    // [WO-B12] แยกยอดต่อคนจากผลเดียวกัน — ไม่มีสูตรใหม่ (ดู domain/billing/charge-breakdown.ts)
+    const split = breakdownCharges({
+      result,
+      snapshot: context.billingSnapshot,
+      shuttlesUsedTotal: context.shuttlesUsedTotal,
+    });
 
-    // แสดง**ทุกคน**ที่ลงชื่อไว้ ไม่ใช่เฉพาะคนที่มียอด — คนที่ "ไม่ถูกเก็บ"
+    // แสดงทุกคนที่ลงชื่อไว้ ไม่ใช่เฉพาะคนที่มียอด — คนที่ไม่ถูกเก็บ
     // คือสิ่งที่แอดมินต้องตรวจมากที่สุด (เช่นลืมเช็คอินให้ หรือ no-show ผิดคน)
     const rows: ChargePreviewRow[] = context.participants.map((p) => {
       const charge = chargeOf.get(p.registrationId);
+      const parts = split.parts.get(p.registrationId);
       return {
         registrationId: p.registrationId,
         displayName: names.get(p.registrationId) ?? 'ไม่ทราบชื่อ',
@@ -241,6 +263,12 @@ export async function previewSessionCharges(
         reason: String(charge?.breakdown.reason ?? reasonWhenFree(p)),
         amount: charge?.amount ?? '0.00',
         isMonthlyMember: p.isMonthlyMember,
+        breakdown: {
+          court: parts?.court ?? '0.00',
+          shuttle: parts?.shuttle ?? '0.00',
+          penalty: parts?.penalty ?? '0.00',
+          rounding: parts?.rounding ?? '0.00',
+        },
       };
     });
 
@@ -272,6 +300,11 @@ export async function previewSessionCharges(
       total: result.totalCollected,
       chargedCount: result.charges.length,
       checkedInCount,
+      courtCostTotal: split.courtCostTotal,
+      shuttleCostTotal: split.shuttleCostTotal,
+      penaltyTotal: split.penaltyTotal,
+      roundingTotal: split.roundingTotal,
+      absorbedCostTotal: split.absorbedCostTotal,
       needsConfirmation,
       warnings,
     };
