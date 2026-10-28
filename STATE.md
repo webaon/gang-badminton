@@ -282,8 +282,8 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 | WO | งาน | เจ้าของงาน | สถานะ |
 |---|---|---|---|
 | 6.0 | Design foundation — theme `badgame` (tokens v4 + dark tokens) ผ่าน `astryx theme build` · ฟอนต์ self-host | @gb-frontend | ✅ `315a507` QA ผ่าน |
-| 6.1a | App shell — tab bar มือถือ · sidebar แอดมิน · สลับก๊วน | @gb-frontend | ✅ QA ผ่าน |
-| 6.1b | global states g1–g4 + ErrorCode → ข้อความไทยกลาง | @gb-frontend | ✅ QA ผ่าน |
+| 6.1a | App shell — tab bar มือถือ · sidebar แอดมิน · สลับก๊วน | @gb-frontend | ✅ `f042a50` + `0e0588f` QA ผ่าน |
+| 6.1b | global states g1–g4 + ErrorCode → ข้อความไทยกลาง | @gb-frontend | ✅ `2c82b89` QA ผ่าน |
 | 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) | @gb-frontend | ✅ `69533df` + แก้ QA `56798cc` · `cef63c0` |
 | 6.4a | วันเล่น (ลำดับแรกหลัง 6.2) | @gb-frontend | 🔄 |
 | 6.4b | วันเล่น (ส่วนที่เหลือ) | @gb-frontend | ⏳ |
