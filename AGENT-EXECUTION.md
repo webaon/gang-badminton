@@ -1726,8 +1726,9 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | 6.1b | global states g1–g4 + ErrorCode → ข้อความไทยกลาง + บั๊ก 390px (plan §10) | @gb-frontend | ✅ `2c82b89` QA ผ่าน |
 | 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) (plan §11.3) | @gb-frontend | ✅ `69533df`+`56798cc`+`cef63c0` QA ผ่าน |
 | 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) | @gb-frontend | ⏳ |
-| 6.4a | วันเล่น — เช็คอิน · กระดานคิวสด · จัดคู่ · เกม+ลูก · เวลาพัก (23–27) | @gb-frontend | 🔄 รอ QA `44fe570` |
+| 6.4a | วันเล่น — เช็คอิน · กระดานคิวสด · จัดคู่ · เกม+ลูก · เวลาพัก (23–27) | @gb-frontend | ✅ `44fe570` QA ผ่าน |
 | 6.4b | ปิดรอบ → ตรวจยอด (28 + K28a · K28b → BACKLOG) | @gb-frontend | 🔄 |
+| HF-2 | 🔴 hotfix main: server component ส่ง function `idKey` เข้า Astryx Table ⇒ /close /membership /stats พัง (บั๊กเดิมจาก WO-2.5-A) | @gb-frontend | 🔄 |
 | B12 | `previewSessionCharges` ส่ง breakdown ต่อคน + ยอดค่าคอร์ท/ลูก/ปรับ (map จาก calculateSessionCharges เดิม) | @gb-backend | 🔄 |
 | 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ |
 | 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
