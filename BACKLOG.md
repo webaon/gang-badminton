@@ -504,3 +504,4 @@
 - [x] (QA 6.4a) เปลี่ยนตัวข้ามคอร์ทได้ = ฟีเจอร์เดิมของ `substitute_game_player` (migration 0020) — planner ยอมรับ ไม่ใช่บั๊ก
 - [ ] **(QA B13)** `sendPaymentReminders` ยังเป็น `.order(created_at desc).limit(500)` ครั้งเดียว ⇒ ยอดค้างเกิน 500 แถว ยอดเก่าสุดไม่ถูกเตือนแบบเงียบ — ใช้ keyset แบบ B13 (@gb-integrations)
 - [ ] **(QA B13)** `tests/sessions/reminders.test.ts:445` flaky — claim_notifications(50)×20 หยิบจากทั้ง DB (pending สะสม >1000) ⇒ แถวของเทสต์หลุด · แก้ให้เทสต์ claim/ตรวจเฉพาะแถวของ gang ทดสอบ หรือเคลียร์ pending ของ fixture ก่อน (@gb-integrations)
+- [ ] 🟡 **(B13.1 · รอเจ้าของงานตัดสินเมื่อข้อมูลโต)** `sendPaymentReminders` ไล่ charge ค้างทั้งตารางทุกรอบ cron (ถูกต้องเพราะ dedupe แต่ O(n)) · ทางเลือก: ตัดย้อนหลัง N วัน = ยอดค้างเก่ากว่า N จะไม่ถูกเตือนอีก (เปลี่ยนกติกา) — ยังไม่จำเป็นจนกว่าจะมีข้อมูลจริงหลายพันแถว

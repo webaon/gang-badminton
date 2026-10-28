@@ -1731,6 +1731,7 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | HF-2 | 🔴 hotfix main: server component ส่ง function `idKey` เข้า Astryx Table ⇒ /close /membership /stats พัง (บั๊กเดิมจาก WO-2.5-A) | @gb-frontend | 🔄 |
 | B12 | `previewSessionCharges` ส่ง breakdown ต่อคน + ยอดค่าคอร์ท/ลูก/ปรับ (map จาก calculateSessionCharges เดิม) | @gb-backend | ✅ `ee6bffd` QA ผ่าน (fuzz 5000 นัด) |
 | B13 | reminders แบ่งหน้า keyset (max_rows 1000 ตัดเงียบ) | @gb-integrations | ✅ `e7ee0b4` QA ผ่าน |
+| B13.1 | payment reminders keyset + แก้เทสต์ claim flaky | @gb-integrations | 🔄 รอ QA `090d22b` |
 | 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ |
 | 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
 | 6.7 | Auth + onboarding | @gb-frontend | ⏳ |
