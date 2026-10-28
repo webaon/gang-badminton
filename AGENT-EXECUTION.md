@@ -1724,9 +1724,10 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | 6.0 | Design foundation — theme `badgame` (tokens v4 + dark tokens) ผ่าน `astryx theme build` · ฟอนต์ self-host | @gb-frontend | ✅ `315a507` QA ผ่าน |
 | 6.1a | App shell — tab bar มือถือ · sidebar แอดมิน · สลับก๊วน (plan §10) | @gb-frontend | ✅ `f042a50`+`0e0588f` QA ผ่าน |
 | 6.1b | global states g1–g4 + ErrorCode → ข้อความไทยกลาง + บั๊ก 390px (plan §10) | @gb-frontend | ✅ `2c82b89` QA ผ่าน |
-| 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) (plan §11.3) | @gb-frontend | 🔄 |
+| 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) (plan §11.3) | @gb-frontend | ✅ `69533df`+`56798cc`+`cef63c0` QA ผ่าน |
 | 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) | @gb-frontend | ⏳ |
-| 6.4 | วันเล่น (23–28 + states) | @gb-frontend | ⏳ |
+| 6.4a | วันเล่น — เช็คอิน · กระดานคิวสด · จัดคู่ · เกม+ลูก · เวลาพัก (23–27) | @gb-frontend | 🔄 |
+| 6.4b | ปิดรอบ → ตรวจยอด (28 + K28) | @gb-frontend | ⏳ |
 | 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ |
 | 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
 | 6.7 | Auth + onboarding | @gb-frontend | ⏳ |
@@ -1734,7 +1735,7 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | 6.9 | Playwright checkpoint + `v1.1.0` | @gb-qa | ⏳ |
 | B2 | ออกจากก๊วน + โอน owner — ADR-012 (plan §11) | @gb-backend | ✅ `71c308b` QA ผ่าน (ยังไม่ db push) |
 | B2.1 | ปิด race ลงชื่อนัดพร้อมกับออกจากก๊วน (`register_to_session` ตรวจสมาชิกใน DB) (plan §11) | @gb-backend | ✅ `f12408f` QA ผ่าน (ยังไม่ db push) |
-| B11.1 | `cancelPreview` read-only ใช้ตรรกะเดียวกับ cancel_registration (ให้ 6.2 แสดง "ยกเลิกฟรีถึง") | @gb-backend | 🔄 รอ QA `45cfa5b` |
+| B11.1 | `cancelPreview` read-only ใช้ตรรกะเดียวกับ cancel_registration (ให้ 6.2 แสดง "ยกเลิกฟรีถึง") | @gb-backend | ✅ `45cfa5b` QA ผ่าน (ยังไม่ db push) |
 | B11 | สละสิทธิ์หลังถูกเลื่อน 3 ชม. + แอดมินเลื่อนเอง — ADR-011 (plan §11) | @gb-backend | ✅ `f6977ed` QA ผ่าน (ยังไม่ db push) |
 | B1-ADR | ร่าง ADR-013 LINE Login เป็นทางเข้าหลัก (plan §11) | @gb-integrations | ✅ `927afee` → Accepted `4b61d1c` |
 | B1.a+c | ปุ่ม LINE Login + ผูก/ถอด LINE ในโปรไฟล์ (หลัง flag `LINE_PLATFORM_LOGIN_ENABLED`) | @gb-integrations | ✅ `217ad60` QA ผ่าน · ⚠️ `b48bd1a..1967be2` build ไม่ผ่าน ห้าม cherry-pick แยก · รอเจ้าของงานตั้งค่า LINE (`docs/ops/line-login-setup.md`) แล้วค่อย spike S1–S5 |

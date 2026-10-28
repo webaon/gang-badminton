@@ -338,3 +338,26 @@ hotfix open redirect แยกเป็น `7e90739` → PR #15 เข้า mai
 - หน้า guest (`/guest/*`): reskin + state ลิงก์หมดอายุใช้ StatePanel ของ 6.1b
 **DoD**: typecheck/lint/test:unit/build · Playwright: สมาชิกลงชื่อ → ยกเลิก · ลง guest ต้องผ่านขั้นยืนยัน · นัดเต็มได้ waitlist ลำดับถูก · 390px ไม่มี horizontal scroll · screenshot 17/19/20/21/22 × light/dark ที่ `docs/design/wo-6.2/` · ไม่มี role === / ไม่มีการคิดเงินใน UI (grep gate)
 **Forbidden**: migration · แก้ DB function / state machine / `domain/billing` · เปลี่ยนการตรวจสิทธิ์ · query ใหม่ที่ไม่ผ่าน server action/RLS เดิม · ปุ่มแอดมินเลื่อนคิว/เปลี่ยนคน (ของ B11 อยู่ใน 6.6)
+
+### 11.4 WO-6.2 ✅ ผ่าน QA (`69533df` `56798cc` `cef63c0`, 28 ต.ค. 2026) · Track B ✅ B11 `f6977ed` · B2.1 `f12408f` · B11.1 `45cfa5b` · B1.a+c `217ad60` · hotfix open-redirect merge เข้า main (PR #15 `71d62ed`)
+deviation ที่อนุมัติใน 6.2: guest ยังเกิดทางเดียวคือลิงก์ `/join/[token]` (ไม่มี action ให้สมาชิกลง guest เอง) ⇒ หน้า join เตือนเมื่อล็อกอิน + ติ๊กยืนยัน + กันกดซ้ำ · "ชื่อซ้ำ" เป็นป้ายในรายชื่อ · "guest พามาโดยใคร" → BACKLOG (ต้องให้ backend บันทึกผู้สร้างลิงก์)
+ข้อสังเกตที่ส่งต่อ: timeline event ดิบ · แถบ "ดูนัดถัดมา" ลอยทับ header ที่ 390 dark → BACKLOG (ตรวจใน 6.4a ถ้าอยู่ใน shell) · TS test ของ `cancelPreview` → BACKLOG
+
+### WO-6.4 แตกเป็น 2 ใบ (console เดิม 326 บรรทัด + scan + close)
+| ใบ | หน้า | ของจริงใน repo |
+|---|---|---|
+| **6.4a** | 23 เช็คอิน · 24 กระดานคิวสด (navy เต็มจอ) · 25 จัดคู่ลงสนาม · 26 เกม + นับลูก · 27 เวลาพักแต่ละคน | `sessions/[sessionId]/console` + `scan` · `features/sessions/GameConsole.tsx` `ScanCheckin.tsx` `CheckinQrButton.tsx` · เวลาพักใช้ `waiting_since` + `games_played` ที่ `ConsoleQueueRow` มีอยู่แล้ว |
+| **6.4b** | 28 ปิดรอบ → ตรวจยอด + K28a/b | `sessions/[sessionId]/close` · `features/billing/ConfirmCloseButton.tsx` |
+
+### WO-6.4a (@gb-frontend): วันเล่น — เช็คอิน · กระดานคิวสด · จัดคู่ · เกม + นับลูก · เวลาพัก
+**Goal**: แอดมินคุมทั้งวันเล่นจากมือถือมือเดียวได้ — เห็นคิวรอ/คนพักนานสุด/คอร์ทที่ว่างในจอเดียว กดจัดคู่ จบเกม ใส่จำนวนลูก ได้โดยไม่ต้องเลื่อนหา และมีจอ "กระดานคิวสด" สำหรับเปิดค้างบนแท็บเล็ต/ทีวีที่สนาม
+**หน้า (hi-fi)**: e23, h24, e25, e26, h27 · route `console/page.tsx`, `scan/page.tsx` + route ใหม่สำหรับ 24 (เช่น `console/board/page.tsx` — อ่านอย่างเดียว ใช้ข้อมูลชุดเดียวกับ console)
+**Scope**:
+- 23 เช็คอิน: รายชื่อ confirmed + สถานะเช็คอิน · ปุ่มเช็คอิน/no-show/เช็คอินทุกคน (action เดิม) · QR ให้สแกน (`CheckinQrButton`) · หน้า scan reskin
+- 24 กระดานคิวสด: ธีม navy เต็มจอ ตัวใหญ่อ่านได้จาก 3 เมตร · คอร์ท → ใครเล่นอยู่ · คิวถัดไป · ไม่มีปุ่มแก้ไข · อัปเดตด้วย realtime/refresh เดิม (`RosterSync` หรือ router.refresh เป็นระยะ — ห้ามเปิด channel ใหม่ที่ข้าม RLS) · สิทธิ์เดียวกับ console (ไม่ใช่ public)
+- 25 จัดคู่: ปุ่ม generateGames เดิม · แสดงผลคู่ต่อคอร์ท · เปลี่ยนตัว (`substitutePlayer`) · logic การจัดคู่อยู่ `domain/matching` ห้ามแตะ
+- 26 เกม + นับลูก: การ์ดเกมที่กำลังเล่น + ช่องลูกที่ใช้ + จบเกม · แก้จำนวนลูกเกมที่จบแล้วก่อนปิดรอบ (`updateGameShuttles`) · หลังปิดรอบแสดงแบบอ่านอย่างเดียว
+- 27 เวลาพัก: คิวรอเรียงตามที่ server ส่ง แสดง "พักมา N นาที" จาก `waiting_since` + "เล่นแล้ว N เกม" · เน้นคนที่พักนานสุด (สี/ป้าย ไม่ใช่สีอย่างเดียว)
+- ตรวจแถบ "ดูนัดถัดมา" ลอยทับ header ที่ 390 dark (BACKLOG 6.2) — ถ้าต้นเหตุอยู่ใน shell แก้ในใบนี้
+**DoD**: typecheck/lint/test:unit/**build** · **Playwright ทั้งชุดเขียว** + spec ใหม่: เช็คอิน 4 คน → จัดคู่ → จบเกมใส่ลูก 2 → แก้เป็น 3 → กระดาน 24 แสดงคอร์ท/คิวตรงกับ console · member ธรรมดาเปิด console/board ได้ 404/forbidden · 390px ไม่มี horizontal scroll · screenshot 23–27 × light/dark (24 navy) ที่ `docs/design/wo-6.4a/` · grep gate: ไม่มี role ===, ไม่คำนวณเงิน, ไม่ import `domain/matching` ใน component
+**Forbidden**: migration · แก้ DB function / state machine เกม / `domain/matching` / `domain/billing` · เปลี่ยน `can()` · query ใหม่นอก server action/RLS เดิม (กระดาน 24 ต้องใช้ loader เดียวกับ console) · หน้า close (เป็นของ 6.4b)
