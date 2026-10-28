@@ -24,5 +24,16 @@ export function safeNext(raw: string | null | undefined, fallback = DEFAULT_NEXT
   if (value.startsWith('/\\')) return fallback;
   if (value.includes('\\')) return fallback;
 
+  // 🔴 control char (tab, LF, CR ฯลฯ): URL parser ของเบราว์เซอร์ตัด tab/LF/CR ทิ้ง ⇒ "/<tab>/evil.example" กลายเป็น "//evil.example"
+  //    เช็คด้านบนมองไม่เห็นเพราะตัวอักษรคั่นอยู่ — ปฏิเสธทั้งกลุ่ม ไม่มี path ภายในปกติที่ต้องใช้ตัวเหล่านี้
+  if (/[\u0000-\u001F\u007F]/.test(value)) return fallback;
+
+  // ด่านสอง: resolve แบบเดียวกับเบราว์เซอร์แล้วต้องยังอยู่ origin เดิม (กันกรณีที่ parser ตีความต่างจากการเช็คสตริงข้างบน)
+  try {
+    if (new URL(value, 'http://safe-next.invalid').origin !== 'http://safe-next.invalid') return fallback;
+  } catch {
+    return fallback;
+  }
+
   return value;
 }

@@ -42,6 +42,37 @@ describe('safeNext — รับเฉพาะ path ภายใน', () => {
     expect(safeNext('/path\\..\\evil')).toBe(DEFAULT_NEXT);
   });
 
+  it('🔴 control char คั่นกลาง (\\t \\n \\r) ที่เบราว์เซอร์ตัดทิ้งจนกลายเป็น // ถูกปฏิเสธ', () => {
+    for (const evil of [
+      '/\t/evil.example',
+      '/\n/evil.example',
+      '/\r/evil.example',
+      '/\r\n/evil.example',
+      '/\t\t/evil.example',
+      '/\u0000/evil.example',
+      '/\u007F/evil.example',
+      '/profile\u000B',
+    ]) {
+      expect(safeNext(evil), JSON.stringify(evil)).toBe(DEFAULT_NEXT);
+    }
+  });
+
+  it('ทุกค่าที่ safeNext ปล่อยผ่าน resolve แล้วต้องอยู่ origin เดิม (property check)', () => {
+    const base = 'http://app.test';
+    const probes = ['/a', '/a/b?x=1#h', '/', '/\t/x', '//x', '/\\x', '/%2F/x', '/%09/x', '/.//x', '/..//x', '/ /x'];
+    for (const p of probes) {
+      const out = safeNext(p);
+      expect(new URL(out, base).origin, JSON.stringify(p)).toBe(base);
+    }
+  });
+
+  it('รูปที่ percent-encode ค้างเป็นตัวอักษร (%09 %0A %0D %5C %2F) เป็น path ภายใน ไม่ใช่ตัวคั่น — resolve แล้วอยู่ origin เดิม', () => {
+    for (const p of ['/%09/evil.example', '/%0A/evil.example', '/%0D/evil.example', '/%5Cevil.example', '/%2F/evil.example']) {
+      const out = safeNext(p);
+      expect(new URL(out, 'http://app.test').origin, p).toBe('http://app.test');
+    }
+  });
+
   it('เว้นวรรคหัวท้ายถูกตัดก่อนตรวจ (กันเลี่ยงด้วยช่องว่าง)', () => {
     expect(safeNext('  /profile  ')).toBe('/profile');
     expect(safeNext('  https://evil.example  ')).toBe(DEFAULT_NEXT);
