@@ -86,11 +86,9 @@ export function CreateSessionForm({ gangId, timezone }: { gangId: string; timezo
         </label>
       </div>
 
-      <div className="mt-3">
-        <FormLayout direction="horizontal">
-          <TextInput label="จำนวนคอร์ท" value={courtCount} onChange={setCourtCount} />
-          <TextInput label="รับสูงสุด (คน)" value={maxPlayers} onChange={setMaxPlayers} />
-        </FormLayout>
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextInput label="จำนวนคอร์ท" value={courtCount} onChange={setCourtCount} />
+        <TextInput label="รับสูงสุด (คน)" value={maxPlayers} onChange={setMaxPlayers} />
       </div>
 
       <div className="mt-3">
