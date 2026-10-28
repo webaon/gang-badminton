@@ -497,3 +497,5 @@
 - [ ] 🟠 **(QA B11)** `sendSessionReminders` (`server/notifications/reminders.ts:63`) select นัดที่ open ใน 14 วันโดยไม่แบ่งหน้า ⇒ PostgREST ตัดที่ `max_rows = 1000` ⇒ ถ้านัดเปิดเกิน 1000 จะไม่เตือนส่วนที่เกิน**แบบเงียบ** (เห็นแล้วใน local 1997 นัด: `tests/sessions/reminders.test.ts` ล้ม 5) · แก้: แบ่งหน้า `range()` หรือกรอง horizon ใน SQL ให้แคบ (@gb-integrations)
 - [ ] **(QA)** Supabase local ใช้ร่วมกันทุกบอท ⇒ `db reset` กลางคันทำให้เทสต์ของคนอื่นล้ม (QA เจอ 53 ตัว) · กติกา: แจ้ง @gb-planner ก่อน reset · ระยะยาว: แยก DB ต่อ worktree
 - [ ] **(QA B11.1)** `cancelPreview` server action ยังไม่มีเทสต์ระดับ TS (มีแค่ระดับ DB) — เพิ่มเทสต์ assertCan cancel.self/cancel.other + map ผล
+- [ ] **(QA 6.2)** timeline หน้านัดยังโชว์ event ดิบ เช่น "เหตุการณ์: registration.waitlisted" — ต้องมี map ชื่อ event → ข้อความไทย (@gb-frontend)
+- [ ] **(6.2)** ที่ 390 dark มีแถบ "ดูนัดถัดมา" ลอยทับขอบบน header — ยังไม่รู้ต้นตอ (skip-link/shell?) ตรวจรอบ 6.x ถัดไป
