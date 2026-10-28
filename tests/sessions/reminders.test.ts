@@ -421,37 +421,124 @@ describe('WO-2.5-G DoD — เตือนยอดค้างจ่าย', ()
   });
 });
 
+describe('WO-B13.1 — เตือนยอดค้างแบ่งหน้า (ไม่ใช่ limit 500 ครั้งเดียว)', () => {
+  async function sessionChargeCount(): Promise<number> {
+    const {
+      rows: [row],
+    } = await pool.query<{ n: string }>(
+      `select count(*) as n from public.session_charges where type = 'session'`,
+    );
+    return Number(row.n);
+  }
+
+  it('🔴 ยอดค้างที่เก่าสุด (ท้ายลำดับ created_at desc) ยังถูกเตือน เมื่อ pageSize เล็กจนต้องวนหลายหน้า', async () => {
+    // fixture ถูกสร้าง "ใหม่สุด" ⇒ อยู่หน้าแรก · ทำให้เป็น "เก่าสุด" ด้วยการย้อน created_at ไปก่อนทุกแถวใน DB
+    const oldest = await endedSessionWithCharge('120.00');
+    const newest = await endedSessionWithCharge('130.00');
+
+    await pool.query(
+      `update public.session_charges
+          set created_at = (select min(created_at) from public.session_charges where id <> $1) - interval '1 day'
+        where id = $1`,
+      [oldest.chargeId],
+    );
+
+    const total = await sessionChargeCount();
+    const pageSize = Math.max(1, Math.floor(total / 4));
+    expect(total).toBeGreaterThanOrEqual(2);
+
+    await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize });
+
+    // ถ้าอ่านหน้าเดียว (หรือ limit ครั้งเดียว) แถวเก่าสุดจะไม่ถูกเห็น
+    const oldRows = await remindersOf(oldest.gangId, 'payment.overdue');
+    expect(oldRows).toHaveLength(1);
+    expect(oldRows[0].payload.outstanding).toBe('120.00');
+    expect(await remindersOf(newest.gangId, 'payment.overdue')).toHaveLength(1);
+  });
+
+  it('🔴 หลายหน้า + รันซ้ำ → ไม่เตือนซ้ำ (dedupe) และไม่ข้ามแม้ created_at ชนกัน', async () => {
+    const a = await endedSessionWithCharge('100.00');
+    const b = await endedSessionWithCharge('110.00');
+    const c = await endedSessionWithCharge('120.00');
+
+    // ทำให้ created_at ชนกันทั้งสามแถว ⇒ keyset ต้องใช้ id เป็นตัวตัดสิน
+    await pool.query(
+      `update public.session_charges set created_at = $2::timestamptz where id = any($1::uuid[])`,
+      [[a.chargeId, b.chargeId, c.chargeId], '2000-01-01T00:00:00.000001Z'],
+    );
+
+    // pageSize = 1 ⇒ ทุกแถวที่ชนกันคั่นด้วยขอบหน้า · จำกัดให้ DB ที่มีข้อมูลเยอะไม่วนนานเกินไป
+    const total = await sessionChargeCount();
+    const pageSize = total > 300 ? Math.ceil(total / 5) : 1;
+
+    await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize });
+    const again = await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize });
+
+    expect(again).toBe(0);
+    for (const ctx of [a, b, c]) {
+      expect(await remindersOf(ctx.gangId, 'payment.overdue')).toHaveLength(1);
+    }
+  });
+
+  it('ไม่เปลี่ยน logic: จ่ายครบแล้ว/ยังไม่ถึงกำหนด ไม่ถูกเตือนแม้วนหลายหน้า', async () => {
+    const paid = await endedSessionWithCharge('200.00');
+    await pool.query(`select public.add_payment_adjustment($1, 'credit', $2, $3, null, $4)`, [
+      paid.chargeId,
+      '-200.00',
+      'ยกให้',
+      paid.owner,
+    ]);
+
+    const total = await sessionChargeCount();
+    await sendPaymentReminders(crypto.randomUUID(), new Date(), {
+      pageSize: Math.max(1, Math.floor(total / 3)),
+    });
+
+    expect(await remindersOf(paid.gangId, 'payment.overdue')).toHaveLength(0);
+  });
+});
+
 describe('WO-2.5-G — ใช้คิวเดิม ไม่มี worker ใหม่', () => {
   it('แถวที่เข้าคิวถูก claim_notifications() หยิบไปส่งได้ตามปกติ', async () => {
     const ctx = await openSessionIn(12);
     await sendSessionReminders(crypto.randomUUID(), new Date());
 
-    // ⚠️ `claim_notifications()` หยิบงานของ **ทั้งฐานข้อมูล** ครั้งละไม่กี่แถวและเรียงตามเวลา
-    //    ⇒ ของค้างจากเทสต์อื่นกินโควต้าของ batch จนแถวของเทสต์นี้ไม่ถูกหยิบได้
-    //    (เทสต์ชุดนี้ไม่ล้างข้อมูลระหว่างรัน) ⇒ ต้องวน claim จนกว่าจะเจอของตัวเอง
-    const mine: { id: string; event_type: string; gang_id: string }[] = [];
+    // ⚠️ [WO-B13.1] `claim_notifications()` หยิบงานของ **ทั้งฐานข้อมูล** เรียงตาม scheduled_at
+    //    และ DB local สะสม pending ค้างจากเทสต์อื่นเป็นพัน ⇒ เดิมวน claim(50)×20 เพื่อ "หวังว่าจะเจอของตัวเอง"
+    //    แล้วแกว่ง (และไป claim แถวของคนอื่นทิ้งไว้เป็น processing)
+    //    ตอนนี้: ย้ายเฉพาะ **แถวของ fixture นี้** ให้ถึงคิวก่อนใครทั้งหมด (scheduled_at เก่ากว่า pending อื่นทุกแถว)
+    //    แล้ว claim ทีละ 1 แถว ⇒ ได้แถวของเราแน่นอน และไม่แตะแถวของคนอื่น
+    const { rows: mineRows } = await pool.query<{ id: string }>(
+      `select id from public.notifications
+        where gang_id = $1 and event_type = 'session.reminder' and status = 'pending'`,
+      [ctx.gangId],
+    );
+    expect(mineRows).toHaveLength(1);
 
-    for (let round = 0; round < 20 && mine.length === 0; round++) {
-      const { rows } = await pool.query<{ id: string; event_type: string; gang_id: string }>(
-        `select * from public.claim_notifications(50)`,
-      );
-      if (rows.length === 0) break;
+    await pool.query(
+      `update public.notifications
+          set scheduled_at = (select coalesce(min(scheduled_at), now()) from public.notifications
+                               where status = 'pending' and id <> $1) - interval '1 minute'
+        where id = $1`,
+      [mineRows[0].id],
+    );
 
-      mine.push(
-        ...rows.filter((r) => r.event_type === 'session.reminder' && r.gang_id === ctx.gangId),
-      );
-    }
+    const { rows: claimed } = await pool.query<{ id: string; event_type: string; gang_id: string }>(
+      `select * from public.claim_notifications(1)`,
+    );
 
-    expect(mine.length).toBeGreaterThan(0);
+    expect(claimed).toHaveLength(1);
+    expect(claimed[0].id).toBe(mineRows[0].id);
+    expect(claimed[0].gang_id).toBe(ctx.gangId);
+    expect(claimed[0].event_type).toBe('session.reminder');
 
     // worker บันทึกผลด้วยฟังก์ชันเดิม
-    await pool.query(`select public.mark_notification_sent($1, true, null)`, [mine[0].id]);
+    await pool.query(`select public.mark_notification_sent($1, true, null)`, [claimed[0].id]);
 
     const { rows: after } = await pool.query<{ status: string }>(
       `select status from public.notifications where id = $1`,
-      [mine[0].id],
+      [claimed[0].id],
     );
     expect(after[0].status).toBe('sent');
-    expect(ctx.gangId).toBeTruthy();
   });
 });

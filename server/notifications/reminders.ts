@@ -208,28 +208,19 @@ async function remindSessions(
  *    ❌ ห้ามดูจาก `payments.status` — สลิปใบเดียวครอบหนี้ได้หลายคน และ refund
  *      ไม่ได้เปลี่ยน status ของอะไรเลย
  */
-export async function sendPaymentReminders(correlationId: string, now: Date): Promise<number> {
+export async function sendPaymentReminders(
+  correlationId: string,
+  now: Date,
+  paging: Pick<ReminderPaging, 'pageSize'> = {},
+): Promise<number> {
   const admin = supabaseAdmin();
 
-  const { data, error } = await admin
-    .from('session_charges')
-    .select(
-      `id, gang_id, amount, type,
-       sessions!inner(id, title, ends_at, gangs!inner(settings, deleted_at)),
-       session_registrations!inner(user_id),
-       payment_allocations(amount, payments(status)),
-       payment_adjustments(amount)`,
-    )
-    .eq('type', 'session')
-    .not('session_registrations.user_id', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(500);
-
-  if (error) throw error;
+  const pageSize = Math.max(1, paging.pageSize ?? PAGE_SIZE);
 
   type ChargeRow = {
     id: string;
     gang_id: string;
+    created_at: string;
     amount: string | number;
     sessions: {
       id: string;
@@ -242,49 +233,97 @@ export async function sendPaymentReminders(correlationId: string, now: Date): Pr
     payment_adjustments: { amount: string | number }[];
   };
 
-  const rows: NotificationRow[] = [];
+  let created = 0;
 
-  for (const charge of (data ?? []) as unknown as ChargeRow[]) {
-    const gang = charge.sessions.gangs;
-    if (gang?.deleted_at) continue;
+  /**
+   * 🔴 keyset pagination ตาม (created_at desc, id desc) — [WO-B13.1]
+   *    เดิม `.limit(500)` ครั้งเดียว ⇒ ยอดค้างที่เก่ากว่า 500 รายการล่าสุดไม่ถูกตรวจเลยโดยไม่มี error
+   *    · ยังเรียงใหม่→เก่าเหมือนเดิม (ถ้ารันไม่จบ ของใหม่ถูกเตือนก่อน)
+   *    · logic "ใครถูกเตือน" ไม่เปลี่ยน: กรองเวลา/ledger ต่อใน TS แล้วเข้าคิวด้วย dedupe_key เดิม
+   *    · ⚠️ ยังไม่จำกัดย้อนหลัง — ทุกรอบ cron จึงไล่ charge ทั้งหมด (ซ้ำแล้ว enqueue คืน 0 ด้วย dedupe)
+   *      ถ้าข้อมูลโตจนช้า ให้พิจารณาตัดช่วงย้อนหลังเป็น WO แยก (เปลี่ยนว่าใครถูกเตือน ⇒ ต้องให้เจ้าของงานตัดสิน)
+   */
+  let cursor: { createdAt: string; id: string } | null = null;
 
-    const userId = charge.session_registrations.user_id;
-    if (!userId) continue;
+  for (;;) {
+    let query = admin
+      .from('session_charges')
+      .select(
+        `id, gang_id, amount, type, created_at,
+       sessions!inner(id, title, ends_at, gangs!inner(settings, deleted_at)),
+       session_registrations!inner(user_id),
+       payment_allocations(amount, payments(status)),
+       payment_adjustments(amount)`,
+      )
+      .eq('type', 'session')
+      .not('session_registrations.user_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(pageSize);
 
-    const { paymentDueAfterHours } = reminderFromJson(gang?.settings);
-    if (!shouldRemindPayment(new Date(charge.sessions.ends_at), now, paymentDueAfterHours)) {
-      continue;
+    if (cursor) {
+      query = query.or(
+        `created_at.lt."${cursor.createdAt}",and(created_at.eq."${cursor.createdAt}",id.lt.${cursor.id})`,
+      );
     }
 
-    // ⚠️ PostgREST คืน numeric เป็น JSON number ⇒ แปลงที่ขอบก่อนเข้า domain
-    const entry: LedgerEntry = {
-      chargeId: charge.id,
-      amount: moneyFromDb(charge.amount),
-      allocated: charge.payment_allocations
-        .filter((a) => a.payments?.status === 'verified')
-        .map((a) => moneyFromDb(a.amount)),
-      adjustments: charge.payment_adjustments.map((a) => moneyFromDb(a.amount)),
-    };
+    const { data, error } = await query;
+    if (error) throw error;
 
-    const line = ledgerLineOf(entry);
-    if (toSatang(line.outstanding) <= 0) continue;
+    const page = (data ?? []) as unknown as ChargeRow[];
+    if (page.length === 0) break;
 
-    rows.push({
-      gang_id: charge.gang_id,
-      recipient_id: userId,
-      event_type: 'payment.overdue',
-      payload: {
-        correlation_id: correlationId,
-        session_id: charge.sessions.id,
-        session_title: charge.sessions.title,
-        charge_id: charge.id,
-        outstanding: line.outstanding,
-      },
-      dedupe_key: `payment_due:${charge.id}:${userId}`,
-    });
+    const last = page[page.length - 1];
+    cursor = { createdAt: last.created_at, id: last.id };
+
+    const rows: NotificationRow[] = [];
+
+    for (const charge of page) {
+      const gang = charge.sessions.gangs;
+      if (gang?.deleted_at) continue;
+
+      const userId = charge.session_registrations.user_id;
+      if (!userId) continue;
+
+      const { paymentDueAfterHours } = reminderFromJson(gang?.settings);
+      if (!shouldRemindPayment(new Date(charge.sessions.ends_at), now, paymentDueAfterHours)) {
+        continue;
+      }
+
+      // ⚠️ PostgREST คืน numeric เป็น JSON number ⇒ แปลงที่ขอบก่อนเข้า domain
+      const entry: LedgerEntry = {
+        chargeId: charge.id,
+        amount: moneyFromDb(charge.amount),
+        allocated: charge.payment_allocations
+          .filter((a) => a.payments?.status === 'verified')
+          .map((a) => moneyFromDb(a.amount)),
+        adjustments: charge.payment_adjustments.map((a) => moneyFromDb(a.amount)),
+      };
+
+      const line = ledgerLineOf(entry);
+      if (toSatang(line.outstanding) <= 0) continue;
+
+      rows.push({
+        gang_id: charge.gang_id,
+        recipient_id: userId,
+        event_type: 'payment.overdue',
+        payload: {
+          correlation_id: correlationId,
+          session_id: charge.sessions.id,
+          session_title: charge.sessions.title,
+          charge_id: charge.id,
+          outstanding: line.outstanding,
+        },
+        dedupe_key: `payment_due:${charge.id}:${userId}`,
+      });
+    }
+
+    created += await enqueue(rows);
+
+    if (page.length < pageSize) break;
   }
 
-  return enqueue(rows);
+  return created;
 }
 
 /** งานของ cron — เตือนทั้งสองแบบในรอบเดียว */
