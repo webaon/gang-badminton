@@ -48,14 +48,24 @@ describe('cancelNotice — แปลผล preview ของ server เป็น
     expect(byType('full_share').description).toContain('ส่วนแบ่ง');
     expect(byType('fixed').description).toContain('จำนวนที่ก๊วนกำหนด');
     expect(byType('percent').description).toContain('เปอร์เซ็นต์');
-    expect(byType('none').description).toContain('ไม่มีค่าปรับ');
     expect(byType('something_new').description).toContain('ตามกติกาของก๊วน');
     expect(byType(null).description).toContain('ตามกติกาของก๊วน');
-    for (const t of ['full_share', 'fixed', 'percent', 'none', null]) {
+    for (const t of ['full_share', 'fixed', 'percent', null]) {
       const n = byType(t);
       expect(n.tone).toBe('warning');
+      expect(n.title).toContain('จะมีค่าปรับ');
       expect(n.description).not.toMatch(/฿|\d+\s*บาท/);
     }
+  });
+
+  it('penalty ที่ประเภท none → ไม่ขึ้นว่า "จะมีค่าปรับ" (ไม่ขัดกันเอง)', () => {
+    const n = cancelNotice(
+      preview({ outcome: 'penalty', reason: 'late_cancel', freeUntil: null, penaltyType: 'none' }),
+      fmt,
+    );
+    expect(n.tone).toBe('success');
+    expect(n.title).not.toContain('จะมีค่าปรับ');
+    expect(n.description).toContain('ไม่คิดค่าปรับ');
   });
 
   it('blocked → error บอกให้ติดต่อแอดมิน', () => {

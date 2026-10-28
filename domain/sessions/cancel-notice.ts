@@ -69,6 +69,14 @@ export function cancelNotice(preview: CancelPreview | null, formatTime: (iso: st
           : 'ตอนนี้ยกเลิกได้โดยไม่เสียค่าปรับ',
       };
     case 'penalty':
+      // ก๊วนตั้งค่าปรับเป็น "ไม่มี" — ห้ามขึ้นว่า "จะมีค่าปรับ" ทั้งที่ไม่มี (ขัดกันเอง)
+      if (preview.penaltyType === 'none') {
+        return {
+          tone: 'success',
+          title: 'ยกเลิกได้ไม่เสียค่าปรับ',
+          description: 'เลยเวลายกเลิกฟรีแล้ว แต่ก๊วนนี้ไม่คิดค่าปรับ',
+        };
+      }
       return {
         tone: 'warning',
         title: 'ยกเลิกตอนนี้จะมีค่าปรับ',

@@ -130,17 +130,11 @@ export function SessionListCard({
                 </Text>
               </HStack>
             </>
-          ) : (
-            <Text type="supporting" size="xsm">
-              {SESSION_STATUS_LABELS[session.status] ?? session.status}
-            </Text>
-          )}
+          ) : null}
 
           <HStack gap={2} align="center" wrap="wrap">
             <MyStatusBadge mine={session.mine} />
-            {session.status !== 'open' && known ? (
-              <Badge label={SESSION_STATUS_LABELS[session.status] ?? session.status} />
-            ) : null}
+            <Badge label={SESSION_STATUS_LABELS[session.status] ?? session.status} />
           </HStack>
         </VStack>
 

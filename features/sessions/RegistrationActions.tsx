@@ -62,11 +62,16 @@ export function RegistrationActions({
     setPreview(null);
     setPreviewLoading(true);
     setConfirmOpen(true);
-    // ถามผลจาก server ตอนกดจริง (read-only) — ล้มเหลว = ข้อความกลาง ยังยกเลิกได้ ไม่ขวางผู้ใช้
-    const result = await fetchCancelPreview(myRegistrationId);
-    if (result.success) setPreview(result.data);
-    else if (result.error.code === 'UNAUTHENTICATED') setError(actionError(result.error));
-    setPreviewLoading(false);
+    // ถามผลจาก server ตอนกดจริง (read-only) — ล้มเหลว/โยน error = ข้อความกลาง ยังยกเลิกได้ ไม่ขวางผู้ใช้
+    try {
+      const result = await fetchCancelPreview(myRegistrationId);
+      if (result.success) setPreview(result.data);
+      else if (result.error.code === 'UNAUTHENTICATED') setError(actionError(result.error));
+    } catch {
+      setPreview(null);
+    } finally {
+      setPreviewLoading(false);
+    }
   }
 
   async function onConfirmCancel() {
@@ -80,6 +85,7 @@ export function RegistrationActions({
     else setError(actionError(result.error));
   }
 
+  const blocked = !previewLoading && preview?.outcome === 'blocked';
   const notice = cancelNotice(preview, (iso) =>
     formatInTimeZone(new Date(iso), timezone, { weekday: 'short', hour: '2-digit', minute: '2-digit' }),
   );
@@ -161,9 +167,10 @@ export function RegistrationActions({
               ? notice.description
               : `${notice.title} — ${notice.description}`
         }
-        actionLabel="ยืนยันยกเลิก"
-        cancelLabel="ไม่ยกเลิก"
-        onAction={onConfirmCancel}
+        actionLabel={blocked ? 'รับทราบ' : 'ยืนยันยกเลิก'}
+        actionVariant={blocked ? 'secondary' : 'destructive'}
+        cancelLabel={blocked ? 'ปิด' : 'ไม่ยกเลิก'}
+        onAction={blocked ? () => setConfirmOpen(false) : onConfirmCancel}
         isActionLoading={pending || previewLoading}
       />
     </VStack>

@@ -76,6 +76,35 @@ test.describe('หน้านัดฝั่งสมาชิก', () => {
     await expect(page.getByRole('button', { name: 'ลงชื่อ', exact: true }).or(page.getByRole('link', { name: 'ลงชื่อ', exact: true })).first()).toBeVisible();
   });
 
+  test('preview ยกเลิกล้มเหลว (network abort) → ข้อความกลาง และกดยืนยันได้ ไม่ค้าง', async ({ page }) => {
+    const { sessionUrl } = await setupOpenSession(page, 4);
+    await page.getByRole('button', { name: 'ลงชื่อเข้านัด' }).click();
+    await expect(page.getByText(/คุณลงชื่อแล้ว/)).toBeVisible({ timeout: 15_000 });
+
+    // abort server action ครั้งแรกหลังกดยกเลิก (= cancelPreview) ครั้งเดียว
+    let aborted = false;
+    await page.route(sessionUrl, async (route) => {
+      const req = route.request();
+      if (!aborted && req.method() === 'POST' && req.headers()['next-action']) {
+        aborted = true;
+        await route.abort('failed');
+      } else {
+        await route.continue();
+      }
+    });
+
+    await page.getByRole('button', { name: 'ยกเลิกการลงชื่อ' }).click();
+    const dialog = page.getByRole('alertdialog');
+    await expect(dialog).toContainText('อาจมีค่าปรับตามกติกาของก๊วน', { timeout: 15_000 });
+    await expect(dialog).not.toContainText('กำลังตรวจผล');
+    await expect(dialog.getByRole('button', { name: 'ยืนยันยกเลิก' })).toBeEnabled();
+    expect(aborted).toBe(true);
+
+    await page.unroute(sessionUrl);
+    await dialog.getByRole('button', { name: 'ยืนยันยกเลิก' }).click();
+    await expect(page.getByRole('button', { name: 'ลงชื่อเข้านัด' })).toBeVisible({ timeout: 15_000 });
+  });
+
   test('นัดเต็ม → สมาชิกคนที่สองเห็น "นัดนี้เต็มแล้ว" และเข้าคิวได้ลำดับที่ 1', async ({ page, browser }) => {
     const { gangId, sessionUrl } = await setupOpenSession(page, 1);
 
