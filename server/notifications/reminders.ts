@@ -27,6 +27,18 @@ import {
 /** ช่วงกว้างสุดที่ดึงนัดมาพิจารณา — ค่าจริงต่อก๊วนกรองอีกทีใน TS */
 const MAX_LOOKAHEAD_HOURS = 24 * 14;
 
+/**
+ * ขนาดหน้าของ query — 🔴 ต้อง **น้อยกว่า** `max_rows` ของ PostgREST (supabase/config.toml: 1000)
+ * ไม่งั้น PostgREST ตัดผลเงียบๆ แล้วเราคิดว่าได้ครบ ⇒ นัด/ผู้เล่นส่วนที่เกินไม่ถูกเตือนโดยไม่มี error
+ */
+const PAGE_SIZE = 500;
+
+/** จำนวน session id ต่อ 1 คำสั่ง `.in()` — กัน URL ยาวเกิน (uuid 36 ตัว × 100 ≈ 3.7KB) */
+const SESSION_ID_CHUNK = 100;
+
+/** ตัวเลือกสำหรับเทสต์เท่านั้น — production ใช้ค่าเริ่มต้น */
+export type ReminderPaging = { pageSize?: number; registrationPageSize?: number };
+
 export type ReminderOutcome = {
   sessionReminders: number;
   paymentReminders: number;
@@ -55,20 +67,17 @@ async function enqueue(rows: NotificationRow[]): Promise<number> {
  * ⚠️ เตือนเฉพาะคนที่ **ได้ที่แล้ว** (`confirmed`) — คนใน waitlist ยังไม่มีอะไรให้เตือน
  *    และคนที่ `checked_in` แล้วก็อยู่ที่สนามแล้ว
  */
-export async function sendSessionReminders(correlationId: string, now: Date): Promise<number> {
+export async function sendSessionReminders(
+  correlationId: string,
+  now: Date,
+  paging: ReminderPaging = {},
+): Promise<number> {
   const admin = supabaseAdmin();
 
+  const pageSize = Math.max(1, paging.pageSize ?? PAGE_SIZE);
+  const registrationPageSize = Math.max(1, paging.registrationPageSize ?? PAGE_SIZE);
+
   const horizon = new Date(now.getTime() + MAX_LOOKAHEAD_HOURS * 60 * 60 * 1000);
-
-  const { data, error } = await admin
-    .from('sessions')
-    .select('id, gang_id, title, starts_at, gangs!inner(settings, deleted_at)')
-    .eq('status', 'open')
-    .is('deleted_at', null)
-    .gt('starts_at', now.toISOString())
-    .lte('starts_at', horizon.toISOString());
-
-  if (error) throw error;
 
   type SessionRow = {
     id: string;
@@ -78,46 +87,118 @@ export async function sendSessionReminders(correlationId: string, now: Date): Pr
     gangs: { settings: unknown; deleted_at: string | null } | null;
   };
 
-  const sessions = ((data ?? []) as unknown as SessionRow[]).filter((s) => {
-    if (s.gangs?.deleted_at) return false;
-    const { sessionHoursBefore } = reminderFromJson(s.gangs?.settings);
-    return shouldRemindSession(new Date(s.starts_at), now, sessionHoursBefore);
-  });
+  let created = 0;
 
+  /**
+   * 🔴 keyset pagination ตาม (starts_at, id) — ไม่ใช้ offset
+   *    · PostgREST ตัดที่ max_rows (1000) เงียบๆ ⇒ query เดียวไม่พอเมื่อมีนัดเปิดใน 14 วันเกินนั้น
+   *    · offset จะ "ข้าม" แถวถ้ามีนัดปิด/ลบระหว่างวน ส่วน keyset ยึดตำแหน่งจริงของแถว
+   *    · ช่วงเวลา (now, now+14d] คือช่วงแคบสุดที่ถูกต้องในระดับ SQL — ชั่วโมงเตือนจริงเป็นของแต่ละก๊วน
+   *      (0–336 ชม. ใน `settings` JSON) จึงกรองต่อใน TS เหมือนเดิม
+   */
+  let cursor: { startsAt: string; id: string } | null = null;
+
+  for (;;) {
+    let query = admin
+      .from('sessions')
+      .select('id, gang_id, title, starts_at, gangs!inner(settings, deleted_at)')
+      .eq('status', 'open')
+      .is('deleted_at', null)
+      .gt('starts_at', now.toISOString())
+      .lte('starts_at', horizon.toISOString())
+      .order('starts_at', { ascending: true })
+      .order('id', { ascending: true })
+      .limit(pageSize);
+
+    if (cursor) {
+      query = query.or(
+        `starts_at.gt."${cursor.startsAt}",and(starts_at.eq."${cursor.startsAt}",id.gt.${cursor.id})`,
+      );
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const page = (data ?? []) as unknown as SessionRow[];
+    if (page.length === 0) break;
+
+    const last = page[page.length - 1];
+    cursor = { startsAt: last.starts_at, id: last.id };
+
+    const sessions = page.filter((s) => {
+      if (s.gangs?.deleted_at) return false;
+      const { sessionHoursBefore } = reminderFromJson(s.gangs?.settings);
+      return shouldRemindSession(new Date(s.starts_at), now, sessionHoursBefore);
+    });
+
+    created += await remindSessions(admin, correlationId, sessions, registrationPageSize);
+
+    if (page.length < pageSize) break;
+  }
+
+  return created;
+}
+
+/** เข้าคิวเตือนของนัดกลุ่มหนึ่ง — อ่านผู้เล่นเป็นหน้าๆ (ผู้เล่นต่อนัดก็เกิน max_rows ได้เมื่อรวมหลายนัด) */
+async function remindSessions(
+  admin: ReturnType<typeof supabaseAdmin>,
+  correlationId: string,
+  sessions: { id: string; gang_id: string; title: string; starts_at: string }[],
+  registrationPageSize: number,
+): Promise<number> {
   if (sessions.length === 0) return 0;
 
-  const { data: registrations, error: regError } = await admin
-    .from('session_registrations')
-    .select('session_id, user_id')
-    .in(
-      'session_id',
-      sessions.map((s) => s.id),
-    )
-    .eq('status', 'confirmed')
-    .is('deleted_at', null)
-    .not('user_id', 'is', null);
-
-  if (regError) throw regError;
-
   const sessionById = new Map(sessions.map((s) => [s.id, s]));
+  let created = 0;
 
-  const rows: NotificationRow[] = (registrations ?? []).map((r) => {
-    const session = sessionById.get(r.session_id as string)!;
-    return {
-      gang_id: session.gang_id,
-      recipient_id: r.user_id as string,
-      event_type: 'session.reminder',
-      payload: {
-        correlation_id: correlationId,
-        session_id: session.id,
-        session_title: session.title,
-        starts_at: session.starts_at,
-      },
-      dedupe_key: `session_reminder:${session.id}:${r.user_id}`,
-    };
-  });
+  for (let i = 0; i < sessions.length; i += SESSION_ID_CHUNK) {
+    const ids = sessions.slice(i, i + SESSION_ID_CHUNK).map((s) => s.id);
+    let afterId: string | null = null;
 
-  return enqueue(rows);
+    for (;;) {
+      let query = admin
+        .from('session_registrations')
+        .select('id, session_id, user_id')
+        .in('session_id', ids)
+        .eq('status', 'confirmed')
+        .is('deleted_at', null)
+        .not('user_id', 'is', null)
+        .order('id', { ascending: true })
+        .limit(registrationPageSize);
+
+      if (afterId) query = query.gt('id', afterId);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const registrations = (data ?? []) as { id: string; session_id: string; user_id: string }[];
+      if (registrations.length === 0) break;
+
+      afterId = registrations[registrations.length - 1].id;
+
+      const rows: NotificationRow[] = registrations.map((r) => {
+        const session = sessionById.get(r.session_id)!;
+        return {
+          gang_id: session.gang_id,
+          recipient_id: r.user_id,
+          event_type: 'session.reminder',
+          payload: {
+            correlation_id: correlationId,
+            session_id: session.id,
+            session_title: session.title,
+            starts_at: session.starts_at,
+          },
+          dedupe_key: `session_reminder:${session.id}:${r.user_id}`,
+        };
+      });
+
+      created += await enqueue(rows);
+
+      if (registrations.length < registrationPageSize) break;
+    }
+  }
+
+  return created;
 }
 
 /**

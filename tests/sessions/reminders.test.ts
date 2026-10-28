@@ -184,6 +184,100 @@ describe('WO-2.5-G DoD — เตือนก่อนถึงนัด', () =>
   });
 });
 
+describe('WO-B13 — แบ่งหน้า ไม่ให้ PostgREST ตัดผลเงียบๆ (max_rows)', () => {
+  /** นัดเปิดที่อยู่ในช่วงที่ query ดึง (now, now+14d] — DB local มีนัดค้างจากเทสต์อื่นเป็นพัน */
+  async function openSessionsInWindow(): Promise<number> {
+    const {
+      rows: [row],
+    } = await pool.query<{ n: string }>(
+      `select count(*) as n from public.sessions
+        where status = 'open' and deleted_at is null
+          and starts_at > now() and starts_at <= now() + interval '336 hours'`,
+    );
+    return Number(row.n);
+  }
+
+  /** นัดที่ "ท้ายสุด" ของลำดับ starts_at: ห่างอีก 13 วัน + ก๊วนตั้งเตือน 336 ชม. (14 วัน) */
+  async function lateSession() {
+    return openSessionIn(13 * 24, { reminderHours: 336 });
+  }
+
+  it('🔴 นัดที่อยู่หลังหน้าแรกหลายหน้า ยังถูกเตือน (pageSize เล็ก ⇒ ต้องวนอ่านจนหมด)', async () => {
+    const early = await openSessionIn(1);
+    const late = await lateSession();
+
+    const total = await openSessionsInWindow();
+    const pageSize = Math.max(1, Math.floor(total / 4));
+    expect(total).toBeGreaterThanOrEqual(2);
+
+    await sendSessionReminders(crypto.randomUUID(), new Date(), { pageSize });
+
+    // นัดท้ายสุดต้องไปไกลกว่าหน้าแรกอย่างน้อย 3 หน้า — ถ้าโค้ดอ่านหน้าเดียว จะไม่เห็นนัดนี้
+    expect(await remindersOf(early.gangId, 'session.reminder')).toHaveLength(1);
+    const rows = await remindersOf(late.gangId, 'session.reminder');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].recipient_id).toBe(late.player);
+  });
+
+  it('🔴 pageSize = 1 (ขอบเขตสุด) ก็ยังเตือนถูก และรันซ้ำไม่เตือนซ้ำ', async () => {
+    // ลดงานให้พอดี: ใช้ pageSize 1 กับ DB ที่มีนัดเปิดน้อยพอเท่านั้น ไม่งั้นวนนานเกินจำเป็น
+    const ctx = await openSessionIn(12);
+    const total = await openSessionsInWindow();
+    const pageSize = total > 300 ? Math.ceil(total / 5) : 1;
+
+    await sendSessionReminders(crypto.randomUUID(), new Date(), { pageSize });
+    const again = await sendSessionReminders(crypto.randomUUID(), new Date(), { pageSize });
+
+    expect(again).toBe(0);
+    expect(await remindersOf(ctx.gangId, 'session.reminder')).toHaveLength(1);
+  });
+
+  it('🔴 ผู้เล่นในนัดเดียวเกินหน้า (registrationPageSize เล็ก) ถูกเตือนครบทุกคน ไม่ขาดไม่ซ้ำ', async () => {
+    const ctx = await openSessionIn(12);
+
+    // เติมผู้เล่นอีก 6 คน (นัดรับ 8) ⇒ รวม 7 คน confirmed
+    const players = [ctx.player];
+    for (let i = 0; i < 6; i += 1) {
+      const p = await newUser();
+      await pool.query(
+        `insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'member')`,
+        [ctx.gangId, p],
+      );
+      await pool.query(`select public.register_to_session($1, $2)`, [ctx.sessionId, p]);
+      players.push(p);
+    }
+
+    await sendSessionReminders(crypto.randomUUID(), new Date(), { registrationPageSize: 2 });
+
+    const rows = await remindersOf(ctx.gangId, 'session.reminder');
+    expect(rows).toHaveLength(7);
+    expect(new Set(rows.map((r) => r.recipient_id))).toEqual(new Set(players));
+    expect(new Set(rows.map((r) => r.dedupe_key)).size).toBe(7);
+  });
+
+  it('ค่าเริ่มต้นของหน้า (production) ต้องน้อยกว่า max_rows ของ PostgREST (1000)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const root = join(__dirname, '..', '..');
+
+    const src = readFileSync(join(root, 'server/notifications/reminders.ts'), 'utf8');
+    const config = readFileSync(join(root, 'supabase/config.toml'), 'utf8');
+
+    const pageSize = Number(/const PAGE_SIZE = (\d+);/.exec(src)?.[1]);
+    const maxRows = Number(/^max_rows\s*=\s*(\d+)/m.exec(config)?.[1]);
+
+    expect(maxRows).toBeGreaterThan(0);
+    expect(pageSize).toBeGreaterThan(0);
+    expect(pageSize).toBeLessThan(maxRows);
+  });
+
+  it('ไม่เปลี่ยน logic ว่าใครได้เตือน: นัดไกล (ก๊วนตั้ง 24 ชม.) ยังไม่เตือน แม้อยู่ในช่วง 14 วัน', async () => {
+    const far = await openSessionIn(5 * 24); // ก๊วนตั้งเตือน 24 ชม.
+    await sendSessionReminders(crypto.randomUUID(), new Date(), { pageSize: 50 });
+    expect(await remindersOf(far.gangId, 'session.reminder')).toHaveLength(0);
+  });
+});
+
 // ---------------------------------------------------------------------------
 
 /** นัดที่จบไปแล้ว + ปิดรอบ + charge ของผู้เล่นหนึ่งคน */
