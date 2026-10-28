@@ -503,3 +503,4 @@
 - [ ] **(QA 6.4a)** หน้า scan: network error ระหว่างสแกน ยังไม่มีทางทดสอบ headless (ต้องใช้กล้อง) → ทดสอบมือบนมือถือจริงตอน UAT
 - [x] (QA 6.4a) เปลี่ยนตัวข้ามคอร์ทได้ = ฟีเจอร์เดิมของ `substitute_game_player` (migration 0020) — planner ยอมรับ ไม่ใช่บั๊ก
 - [ ] **(QA B13)** `sendPaymentReminders` ยังเป็น `.order(created_at desc).limit(500)` ครั้งเดียว ⇒ ยอดค้างเกิน 500 แถว ยอดเก่าสุดไม่ถูกเตือนแบบเงียบ — ใช้ keyset แบบ B13 (@gb-integrations)
+- [ ] **(QA B13)** `tests/sessions/reminders.test.ts:445` flaky — claim_notifications(50)×20 หยิบจากทั้ง DB (pending สะสม >1000) ⇒ แถวของเทสต์หลุด · แก้ให้เทสต์ claim/ตรวจเฉพาะแถวของ gang ทดสอบ หรือเคลียร์ pending ของ fixture ก่อน (@gb-integrations)
