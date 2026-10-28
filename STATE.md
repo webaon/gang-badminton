@@ -1,7 +1,7 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 26 ต.ค. 2026** · MVP-0 = `v0.1.0` · Phase 2.5 = `v0.2.0` ·
+> **อัปเดตล่าสุด: 28 ต.ค. 2026** (HEAD `36e75dd`) · MVP-0 = `v0.1.0` · Phase 2.5 = `v0.2.0` ·
 > Phase 3 = `v0.3.0` (+ `v0.3.1` ADR-007) · Phase 4 (LINE) = `v0.4.0` ·
 > 🎉 **Phase 5 (Hardening & Deploy) เสร็จครบ = `v1.0.0` — public release**
 > 🎨 **Phase 6 (Redesign ตาม hi-fi 87 หน้า + tokens v4) กำลังทำ** — แผนที่ `docs/phase6-redesign-plan.md`
@@ -192,8 +192,8 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 
 ```bash
 npm test          # vitest run — 712 tests, 65 files (17 ส.ค. 2026)
-npm run test:unit # เทสต์ที่ไม่ต้องมี DB (397 passed / 1 skipped หลัง WO-6.0) — ใช้เป็น PR gate
-npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLIC_* ก่อน)
+npm run test:unit # เทสต์ที่ไม่ต้องมี DB (548 tests หลัง Track B + 6.2 · 28 ต.ค. 2026) — ใช้เป็น PR gate
+npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLIC_* ก่อน) — repo มี 47 spec (28 ต.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
@@ -282,16 +282,31 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 | WO | งาน | เจ้าของงาน | สถานะ |
 |---|---|---|---|
 | 6.0 | Design foundation — theme `badgame` (tokens v4 + dark tokens) ผ่าน `astryx theme build` · ฟอนต์ self-host | @gb-frontend | ✅ `315a507` QA ผ่าน |
-| 6.1a | App shell — tab bar มือถือ · sidebar แอดมิน · สลับก๊วน | @gb-frontend | 🔄 |
-| 6.1b | global states g1–g4 + ErrorCode → ข้อความไทยกลาง | @gb-frontend | ⏳ |
-| 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) | @gb-frontend | ⏳ |
-| 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) | @gb-frontend | ⏳ |
-| 6.4 | วันเล่น (23–28 + states) | @gb-frontend | ⏳ |
+| 6.1a | App shell — tab bar มือถือ · sidebar แอดมิน · สลับก๊วน | @gb-frontend | ✅ QA ผ่าน |
+| 6.1b | global states g1–g4 + ErrorCode → ข้อความไทยกลาง | @gb-frontend | ✅ QA ผ่าน |
+| 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) | @gb-frontend | ✅ `69533df` + แก้ QA `56798cc` · `cef63c0` |
+| 6.4a | วันเล่น (ลำดับแรกหลัง 6.2) | @gb-frontend | 🔄 |
+| 6.4b | วันเล่น (ส่วนที่เหลือ) | @gb-frontend | ⏳ |
+| 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) — ทำหลัง 6.4 | @gb-frontend | ⏳ |
 | 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ |
 | 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
 | 6.7 | Auth + onboarding | @gb-frontend | ⏳ |
 | 6.8 | Growth screens + หน้าแรก | @gb-frontend | ⏳ |
 | 6.9 | Playwright checkpoint + `v1.1.0` | @gb-qa | ⏳ |
+
+ลำดับที่ใช้จริง: **6.2 → 6.4 → 6.3** (แตก 6.4 เป็น 6.4a/6.4b และ 6.4a เป็นวันเล่นลำดับแรก) · ดูแผนที่ `docs/phase6-redesign-plan.md` §10
+
+**Track B (ความสามารถใหม่ที่เจ้าของงานตัดสินแล้ว)**
+
+| WO | งาน | commit | สถานะ |
+|---|---|---|---|
+| B2 | ออกจากก๊วน + โอน owner — `leave_gang()` / `transfer_gang_ownership()` (ADR-012) | `71c308b` | ✅ QA ผ่าน · migration **0040–0043 ยังไม่ `db push`** (รอเจ้าของงาน `supabase login`) |
+| B2.1 | `register_to_session` lock `gang_members` FOR SHARE ก่อน session + ตรวจ active (กัน race กับ `leave_gang`) | `f12408f` | ✅ QA ผ่าน · รอ db push เดียวกับ B2 |
+| B11 | grace 3 ชม. หลังถูกเลื่อนคิว + แอดมินเลื่อน/เปลี่ยนคนเอง (ADR-011) | `f6977ed` | ✅ QA ผ่าน · รอ db push เดียวกับ B2 |
+| B11.1 | `preview_cancel_registration` (read-only) + `cancelPreview` | `45cfa5b` | ✅ QA ผ่าน |
+| B1.a+c | LINE Login ผูกบัญชี (ทางเข้าหลักแทน SMTP) | `217ad60` | ✅ QA ผ่าน · **flag ปิดอยู่** รอตั้งค่า LINE + `APP_BASE_URL` |
+
+**Production**: hotfix open-redirect ที่ `/sign-in?next=` merge เข้า `main` ผ่าน **PR #15 → `71d62ed`** แล้ว deploy แล้ว (`main` remote = `71d62ed`)
 
 **คำตัดสินเจ้าของงาน** (plan §3.1 และ §9):
 - C2: ใช้ tokens v4 เป็น source of truth · ชื่อในแอปยังเป็น "Gang Badminton"
@@ -561,6 +576,10 @@ baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
 - 🔴 **npm รุ่นนี้บล็อก install scripts** — `npm ci` ข้าม esbuild / unrs-resolver / @astryxdesign/core แต่ build/test ยังผ่าน (WO-6.0)
 - 🔴 **Playwright 1.62 ไม่มี chromium ในเครื่อง** ⇒ ใช้ `channel: 'chrome'` (Chrome ที่ติดตั้งในเครื่อง)
 - 🔴 **theme ต้อง `npm run theme:build` หลังแก้ `theme/src`** แล้ว commit ไฟล์ built ด้วย
+- 🔴 **`npm run build` บังคับทุกใบที่ mount component** — tsc ไม่จับการ import `server-only` จาก client ⇒ b48bd1a..1967be2 build พังทั้งที่ tsc ผ่าน (แก้ที่ `217ad60`)
+- 🔴 **worktree ที่ junction `node_modules` ห้าม `git worktree remove --force` ก่อนถอด junction** — ถอดด้วย PowerShell ก่อน (`cmd //c rmdir` จาก git-bash ใช้ไม่ได้) · เคยลบ `node_modules` หลักไปแล้ว 1 ครั้ง
+- 🔴 **Supabase local ใช้ร่วมกัน** — ห้าม `npm run supabase -- db reset` โดยไม่แจ้ง planner ก่อน
+- npm 11 ไม่รัน postinstall ของ esbuild / unrs-resolver / astryx — ใช้งานได้ปกติ
 - รายละเอียดที่เหลือทั้งหมดอยู่ใน **`BACKLOG.md`**
 
 ---
