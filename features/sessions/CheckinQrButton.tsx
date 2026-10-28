@@ -4,6 +4,8 @@ import { actionError } from '@/lib/i18n/error-text';
 import { useState } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
+import { Text } from '@astryxdesign/core/Text';
+import { VStack } from '@astryxdesign/core/VStack';
 
 import { issueCheckinQr } from '@/server/actions/game-console';
 
@@ -33,7 +35,7 @@ export function CheckinQrButton({ registrationId }: { registrationId: string }) 
   }
 
   return (
-    <div>
+    <VStack gap={3} align="center">
       <Button
         label={dataUrl ? 'ขอ QR ใหม่' : 'QR เช็คอินของฉัน'}
         isLoading={pending}
@@ -41,18 +43,16 @@ export function CheckinQrButton({ registrationId }: { registrationId: string }) 
       />
 
       {dataUrl ? (
-        <div className="mt-3">
+        <VStack gap={2} align="center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={dataUrl} alt="QR เช็คอิน" className="mx-auto w-56" />
-          <p className="mt-2 text-center text-xs">ให้แอดมินสแกนตอนถึงสนาม</p>
-        </div>
+          <Text type="supporting" size="sm" justify="center">
+            ให้แอดมินสแกนตอนถึงสนาม
+          </Text>
+        </VStack>
       ) : null}
 
-      {error ? (
-        <div className="mt-3">
-          <Banner status="error" title={error} />
-        </div>
-      ) : null}
-    </div>
+      {error ? <Banner status="error" title={error} /> : null}
+    </VStack>
   );
 }

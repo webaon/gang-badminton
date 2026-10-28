@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
+import { HStack } from '@astryxdesign/core/HStack';
+import { VStack } from '@astryxdesign/core/VStack';
 
 import { checkInByQr } from '@/server/actions/game-console';
 
@@ -43,24 +45,26 @@ export function ScanCheckin({
 
     setResult({ kind: 'working' });
 
-    checkInByQr(sessionId, token).then((response) => {
-      setResult(
-        response.success
-          ? {
-              kind: 'done',
-              displayName: response.data.displayName,
-              already: response.data.already,
-            }
-          : { kind: 'error', message: actionError(response.error) },
-      );
-
+    checkInByQr(sessionId, token)
+      .then((response) => {
+        setResult(
+          response.success
+            ? {
+                kind: 'done',
+                displayName: response.data.displayName,
+                already: response.data.already,
+              }
+            : { kind: 'error', message: actionError(response.error) },
+        );
+      })
+      // network/5xx — ไม่ปล่อยให้ค้างที่ "กำลังเช็คอิน…" ตลอดไป
+      .catch(() => setResult({ kind: 'error', message: actionError({ code: 'INTERNAL_ERROR', message: '' }) }))
       // ทิ้ง token ออกจาก URL ไม่ว่าผลจะเป็นอย่างไร
-      router.replace(`/gangs/${gangId}/sessions/${sessionId}/scan`);
-    });
+      .finally(() => router.replace(`/gangs/${gangId}/sessions/${sessionId}/scan`));
   }, [token, sessionId, gangId, router]);
 
   return (
-    <div className="flex flex-col gap-3">
+    <VStack gap={3}>
       {result.kind === 'idle' ? (
         <Banner
           status="info"
@@ -81,7 +85,7 @@ export function ScanCheckin({
 
       {result.kind === 'error' ? <Banner status="error" title={result.message} /> : null}
 
-      <div className="flex gap-2">
+      <HStack gap={2} wrap="wrap">
         <Button
           label="ไปที่คอนโซล"
           onClick={() => router.push(`/gangs/${gangId}/sessions/${sessionId}/console`)}
@@ -96,7 +100,7 @@ export function ScanCheckin({
             }}
           />
         ) : null}
-      </div>
-    </div>
+      </HStack>
+    </VStack>
   );
 }

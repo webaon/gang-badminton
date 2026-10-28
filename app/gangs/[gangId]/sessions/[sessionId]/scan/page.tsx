@@ -1,6 +1,9 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
+import { Button } from '@astryxdesign/core/Button';
 import { Card } from '@astryxdesign/core/Card';
+import { Heading } from '@astryxdesign/core/Heading';
+import { HStack } from '@astryxdesign/core/HStack';
+import { VStack } from '@astryxdesign/core/VStack';
 
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseServer } from '@/lib/supabase/server';
@@ -60,17 +63,17 @@ export default async function ScanPage({
   }
 
   return (
-    <section className="mx-auto max-w-md p-4">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">สแกนเช็คอิน · {session.title}</h1>
-        <Link href={`/gangs/${gangId}/sessions/${sessionId}/console`} className="underline">
-          คอนโซล
-        </Link>
-      </div>
+    <VStack as="section" gap={4} className="mx-auto w-full max-w-md p-4">
+      <VStack gap={2}>
+        <Heading level={1}>สแกนเช็คอิน · {session.title}</Heading>
+        <HStack gap={2} wrap="wrap">
+          <Button size="sm" variant="secondary" label="คอนโซล" href={`/gangs/${gangId}/sessions/${sessionId}/console`} />
+        </HStack>
+      </VStack>
 
       <Card padding={6}>
         <ScanCheckin sessionId={sessionId} gangId={gangId} token={token ?? null} />
       </Card>
-    </section>
+    </VStack>
   );
 }

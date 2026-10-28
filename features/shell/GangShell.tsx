@@ -42,7 +42,8 @@ export function GangShell({ gangId, gangName, tabs, side, gangs, children }: Pro
   const [isSwitcherOpen, setSwitcherOpen] = useState(false);
 
   // LIFF ทำงานในแอป LINE ที่มีกรอบของตัวเอง — ไม่ใส่ shell ซ้อน
-  if (pathname.endsWith('/liff')) return <>{children}</>;
+  // กระดานคิวสด (WO-6.4a) เป็นจอเต็มสำหรับเปิดค้างที่สนาม — ไม่มี header/tab bar ซ้อน
+  if (pathname.endsWith('/liff') || pathname.endsWith('/console/board')) return <>{children}</>;
 
   const activeSide = activeMenuId(pathname, side);
   const activeTab = activeMenuId(pathname, tabs);
