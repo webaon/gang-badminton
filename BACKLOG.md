@@ -498,4 +498,4 @@
 - [ ] **(QA)** Supabase local ใช้ร่วมกันทุกบอท ⇒ `db reset` กลางคันทำให้เทสต์ของคนอื่นล้ม (QA เจอ 53 ตัว) · กติกา: แจ้ง @gb-planner ก่อน reset · ระยะยาว: แยก DB ต่อ worktree
 - [ ] **(QA B11.1)** `cancelPreview` server action ยังไม่มีเทสต์ระดับ TS (มีแค่ระดับ DB) — เพิ่มเทสต์ assertCan cancel.self/cancel.other + map ผล
 - [ ] **(QA 6.2)** timeline หน้านัดยังโชว์ event ดิบ เช่น "เหตุการณ์: registration.waitlisted" — ต้องมี map ชื่อ event → ข้อความไทย (@gb-frontend)
-- [ ] **(6.2)** ที่ 390 dark มีแถบ "ดูนัดถัดมา" ลอยทับขอบบน header — ยังไม่รู้ต้นตอ (skip-link/shell?) ตรวจรอบ 6.x ถัดไป
+- [ ] **(6.4a)** หัวกระดานคิวสด "ใช้ลูกไปรวม" ตาม hi-fi ยังไม่ทำ — query เกมที่จบ limit 50 ⇒ ต้องมี aggregate ฝั่ง server (sum shuttles ต่อนัด) ก่อน (@gb-backend, R+)
