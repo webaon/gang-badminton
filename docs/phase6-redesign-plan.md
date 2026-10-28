@@ -361,3 +361,13 @@ deviation ที่อนุมัติใน 6.2: guest ยังเกิด�
 - ตรวจแถบ "ดูนัดถัดมา" ลอยทับ header ที่ 390 dark (BACKLOG 6.2) — ถ้าต้นเหตุอยู่ใน shell แก้ในใบนี้
 **DoD**: typecheck/lint/test:unit/**build** · **Playwright ทั้งชุดเขียว** + spec ใหม่: เช็คอิน 4 คน → จัดคู่ → จบเกมใส่ลูก 2 → แก้เป็น 3 → กระดาน 24 แสดงคอร์ท/คิวตรงกับ console · member ธรรมดาเปิด console/board ได้ 404/forbidden · 390px ไม่มี horizontal scroll · screenshot 23–27 × light/dark (24 navy) ที่ `docs/design/wo-6.4a/` · grep gate: ไม่มี role ===, ไม่คำนวณเงิน, ไม่ import `domain/matching` ใน component
 **Forbidden**: migration · แก้ DB function / state machine เกม / `domain/matching` / `domain/billing` · เปลี่ยน `can()` · query ใหม่นอก server action/RLS เดิม (กระดาน 24 ต้องใช้ loader เดียวกับ console) · หน้า close (เป็นของ 6.4b)
+
+### WO-6.4b (@gb-frontend) + WO-B12 (@gb-backend) — ปิดรอบ → ตรวจยอด (h28, K28a)
+แผนบอก: H28 = KPI 5 ใบ (ค่าคอร์ท/ค่าลูก/ค่าปรับ/เศษปัด/เก็บรวม) + ตารางต่อคน 4 คอลัมน์ + K28b "ยอดไม่ลงตัว — ยืนยันไม่ได้"
+ของจริง: `previewSessionCharges()` คืนแค่ยอดรวมต่อคน + total/roundingSurplus/shuttlesUsedTotal · `calculateSessionCharges()` มี `breakdown` ต่อ charge + courtCost/shuttleCost อยู่แล้วแต่ไม่ส่งออก · DB ไม่มีกติกา "ยอดไม่ลง ห้ามปิด" และตามสูตร roundingSurplus = เก็บรวม − ต้นทุนจริง เสมอ
+คำตัดสิน planner:
+- **WO-B12 (@gb-backend, R+ ไม่มี migration)**: ขยายผลของ `previewSessionCharges()` ให้ส่ง breakdown ต่อแถว (court/shuttle/penalty/rounding) + `courtCostTotal` `shuttleCostTotal` `penaltyTotal` โดย **map จากผลของ `calculateSessionCharges()` เดิมเท่านั้น** ห้ามสูตรใหม่ · ไม่แตะ close_session / state machine · เทสต์: ผลรวมคอลัมน์ต่อคน = amount ทุกแถว, KPI รวม = total, ตรงกับ charge ที่ปิดรอบจริงเขียนลง DB
+- **WO-6.4b (@gb-frontend)**: ทำตาม (ก) ทันที — KPI ที่มีจริง (เก็บรวม/ถูกเก็บ N คน/เช็คอิน/ลูกที่ใช้/เศษปัด) · ตารางต่อคน ชื่อ+ป้ายประเภท+เหตุผล+ยอด · `loading.tsx` = K28a skeleton · preview ล้ม = StatePanel · คงด่าน ConfirmCloseButton เดิม (ไม่มีใครเช็คอิน + warnings + needsConfirmation) · เพิ่มปุ่ม/ลิงก์ "ปิดรอบ" บน **console** (ไม่ใช่กระดาน 24) เห็นเฉพาะ `can(billing.close)` · ออกแบบตารางให้เติมคอลัมน์ breakdown ได้เมื่อ B12 ลง (รอบเล็กตามมา)
+- **K28b ยอดไม่ลงตัว**: ไม่ทำ — เป็นกติกาเงินใหม่ (บล็อกการปิดรอบ) → BACKLOG รอเจ้าของงานตัดสินถ้าต้องการ
+DoD 6.4b: typecheck/lint/unit/build · Playwright ทั้งชุด + spec: แอดมินจาก console → ปิดรอบ → เห็น KPI/ตาราง → ยืนยัน → session closed · member ธรรมดาเปิด /close ไม่เห็นยอด · ไม่มีการคำนวณเงินใน component (grep gate) · 390px · screenshot h28/K28a light/dark ที่ `docs/design/wo-6.4b/`
+Forbidden: migration · แก้ domain/billing / server action billing (เป็นของ B12) / DB function

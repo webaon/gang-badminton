@@ -499,3 +499,4 @@
 - [ ] **(QA B11.1)** `cancelPreview` server action ยังไม่มีเทสต์ระดับ TS (มีแค่ระดับ DB) — เพิ่มเทสต์ assertCan cancel.self/cancel.other + map ผล
 - [ ] **(QA 6.2)** timeline หน้านัดยังโชว์ event ดิบ เช่น "เหตุการณ์: registration.waitlisted" — ต้องมี map ชื่อ event → ข้อความไทย (@gb-frontend)
 - [ ] **(6.4a)** หัวกระดานคิวสด "ใช้ลูกไปรวม" ตาม hi-fi ยังไม่ทำ — query เกมที่จบ limit 50 ⇒ ต้องมี aggregate ฝั่ง server (sum shuttles ต่อนัด) ก่อน (@gb-backend, R+)
+- [ ] **(6.4b · K28b)** "ยอดรวมไม่ลงตัว — ปิดรอบไม่ได้" ตาม hi-fi = กติกาเงินใหม่ (DB ไม่บล็อก · ตามสูตร surplus = เก็บรวม − ต้นทุน เสมอ) → ต้องให้เจ้าของงานตัดสินว่าต้องการด่านนี้ไหม (เช่น บล็อกเมื่อ surplus < 0)
