@@ -1,6 +1,11 @@
 import { redirect } from 'next/navigation';
 import { Badge } from '@astryxdesign/core/Badge';
+import { Banner } from '@astryxdesign/core/Banner';
 import { Card } from '@astryxdesign/core/Card';
+import { Heading } from '@astryxdesign/core/Heading';
+import { HStack } from '@astryxdesign/core/HStack';
+import { Text } from '@astryxdesign/core/Text';
+import { VStack } from '@astryxdesign/core/VStack';
 
 import { StatePanel } from '@/components/ui/StatePanel';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -79,28 +84,35 @@ export default async function GuestStatusPage({
 
   const canCancel = ['confirmed', 'waitlist'].includes(reg.status);
 
+  // hi-fi 22 — หน้ายืนยัน/สถานะของ guest (ไม่ต้องสมัครสมาชิก)
   return (
-    <main className="mx-auto max-w-md p-4">
-      <Card padding={6}>
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold">{reg.session_title}</h1>
-          <Badge label={STATUS_LABELS[reg.status] ?? reg.status} />
-        </div>
-
-        <p className="text-sm">ชื่อที่ลง: {reg.guest_name}</p>
-        <p className="text-sm">
-          {formatInTimeZone(new Date(reg.starts_at), reg.timezone)} –{' '}
-          {formatInTimeZone(new Date(reg.ends_at), reg.timezone, { timeStyle: 'short' })}
-        </p>
-        {reg.venue ? <p className="text-sm">{reg.venue}</p> : null}
-
-        {canCancel ? (
-          <div className="mt-4">
-            {/* ⚠️ ไม่ส่ง token ลงไปที่ client — server action อ่านจาก cookie เอง */}
-            <GuestCancelButton registrationId={registrationId} />
-          </div>
-        ) : null}
+    <VStack as="main" gap={4} className="mx-auto w-full max-w-md p-4">
+      <Card padding={5} variant={reg.status === 'waitlist' ? 'orange' : reg.status === 'cancelled' ? 'muted' : 'green'}>
+        <VStack gap={2}>
+          <HStack justify="between" align="start" gap={3}>
+            <Text type="supporting" size="sm">
+              ชื่อที่ลง: {reg.guest_name}
+            </Text>
+            <Badge label={STATUS_LABELS[reg.status] ?? reg.status} />
+          </HStack>
+          <Heading level={1}>{reg.session_title}</Heading>
+          <Text weight="medium">{formatInTimeZone(new Date(reg.starts_at), reg.timezone, { dateStyle: 'full' })}</Text>
+          <Text type="supporting">
+            {formatInTimeZone(new Date(reg.starts_at), reg.timezone, { timeStyle: 'short' })}–
+            {formatInTimeZone(new Date(reg.ends_at), reg.timezone, { timeStyle: 'short' })}
+            {reg.venue ? ` · ${reg.venue}` : ''}
+          </Text>
+        </VStack>
       </Card>
-    </main>
+
+      {reg.status === 'waitlist' ? (
+        <Banner status="info" title="คุณอยู่ในคิวรอ" description="ถ้ามีคนยกเลิก คุณจะได้ที่ตามลำดับ เปิดลิงก์นี้ดูสถานะได้ตลอด" />
+      ) : null}
+
+      {canCancel ? (
+        // ⚠️ ไม่ส่ง token ลงไปที่ client — server action อ่านจาก cookie เอง
+        <GuestCancelButton registrationId={registrationId} />
+      ) : null}
+    </VStack>
   );
 }

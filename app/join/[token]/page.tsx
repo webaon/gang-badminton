@@ -1,7 +1,11 @@
 import { Card } from '@astryxdesign/core/Card';
+import { Heading } from '@astryxdesign/core/Heading';
+import { Text } from '@astryxdesign/core/Text';
+import { VStack } from '@astryxdesign/core/VStack';
 
 import { StatePanel } from '@/components/ui/StatePanel';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { currentUser } from '@/lib/supabase/server';
 import { formatInTimeZone } from '@/domain/time/timezone';
 import { GuestJoinForm } from '@/features/sessions/GuestJoinForm';
 
@@ -47,29 +51,40 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   }
 
   const seatsLeft = session.max_players - session.occupied_seats;
+  // ล็อกอินอยู่ไหม — ใช้เตือนสมาชิกที่เผลอเปิดลิงก์ guest ลงชื่อให้ตัวเอง (ไม่ใช่การตรวจสิทธิ์ ลิงก์นี้เปิดสาธารณะ)
+  const user = await currentUser();
 
   return (
-    <main className="mx-auto max-w-md p-4">
-      <Card padding={6}>
-        <p className="text-sm">{session.gang_name}</p>
-        <h1 className="mb-2 text-xl font-semibold">{session.title}</h1>
-        <p className="text-sm">
-          {formatInTimeZone(new Date(session.starts_at), session.timezone)} –{' '}
-          {formatInTimeZone(new Date(session.ends_at), session.timezone, { timeStyle: 'short' })}
-        </p>
-        {session.venue ? <p className="text-sm">{session.venue}</p> : null}
-        <p className="mt-1 text-sm">
-          {seatsLeft > 0 ? `เหลือที่ว่าง ${seatsLeft} คน` : 'เต็มแล้ว — ลงชื่อได้แต่จะอยู่ในคิวรอ'}
-        </p>
+    <VStack as="main" gap={4} className="mx-auto w-full max-w-md p-4">
+      <Card padding={5} variant="blue">
+        <VStack gap={2}>
+          <Text type="supporting" size="sm">
+            {session.gang_name} ชวนคุณมาตีแบด
+          </Text>
+          <Heading level={1}>{session.title}</Heading>
+          <Text weight="medium">{formatInTimeZone(new Date(session.starts_at), session.timezone, { dateStyle: 'full' })}</Text>
+          <Text type="supporting">
+            {formatInTimeZone(new Date(session.starts_at), session.timezone, { timeStyle: 'short' })}–
+            {formatInTimeZone(new Date(session.ends_at), session.timezone, { timeStyle: 'short' })}
+            {session.venue ? ` · ${session.venue}` : ''}
+          </Text>
+          <Text type="supporting" size="sm">
+            {seatsLeft > 0 ? `เหลือที่ว่าง ${seatsLeft} คน` : 'เต็มแล้ว — ลงชื่อได้แต่จะอยู่ในคิวรอ'}
+          </Text>
+        </VStack>
+      </Card>
 
+      <Card padding={5}>
         {session.is_open ? (
-          <div className="mt-4">
-            <GuestJoinForm inviteToken={token} />
-          </div>
+          <GuestJoinForm inviteToken={token} signedInAs={user?.email ?? (user ? 'ของคุณ' : null)} />
         ) : (
-          <p className="mt-4 text-sm">นัดนี้ยังไม่เปิดรับสมัคร หรือปิดรับแล้ว</p>
+          <Text>นัดนี้ยังไม่เปิดรับสมัคร หรือปิดรับแล้ว</Text>
         )}
       </Card>
-    </main>
+
+      <Text type="supporting" size="xsm" justify="center">
+        ไม่ต้องสมัครสมาชิก
+      </Text>
+    </VStack>
   );
 }
