@@ -417,3 +417,10 @@ Commit + push เป็นช่วงๆ ตามโมดูลไป `claude
 - 🔴 เปลี่ยนกติกาเดิม "ค้างเก็บกับต้องคืนไม่หักกลบ" ⇒ หักกลบได้**ผ่านเครดิตเท่านั้น**
 - รายงาน "เก็บได้จริง" = allocation `source='transfer'` เท่านั้น (query หน้า reports/payments ต้องกรอง source — งาน 6.5) · `member_statistics.total_paid` นับรวมเครดิต (มุมมองรายคน)
 - ช่องทางเข้าเครดิตใบ B5a: โอนเกิน (แอดมินยืนยัน) · B5b: ยกเลิกนัดที่จ่ายแล้ว / refund charge ที่จ่ายด้วยเครดิต → คืนเข้าเครดิต · แอดมินเติม/จ่ายคืนเงินสด · leave_gang แสดงยอดเครดิตคู่ยอดค้าง
+
+### ADR-014 — (28 ต.ค. 2026 · WO-B15-ADR · ร่างเต็ม `docs/adr/ADR-014-web-push.md` @75a9464) — Web push เป็นช่องที่ 3 (เสริม in-app/LINE ไม่แทน) — Q1–Q10 รับตาม ★ โดย planner (อำนาจจนถึง UAT)
+- channel `push` เพิ่มใน CHECK ของ `notifications` / `notification_logs` (migration) · fan-out ผ่าน `enqueue_notifications()` ทางเดียว · ไม่กินโควต้า LINE · กระดิ่งยังกรอง `in_app`
+- `push_subscriptions` (RLS ของตัวเอง) + `notification_preferences` · endpoint ต้อง https + allow-list โฮสต์ push service ตรวจทั้งตอนสมัครและตอนส่ง (กัน SSRF) · 404/410 ⇒ ลบ subscription
+- PWA: manifest + SW เป็นไฟล์ static ใน `public/` · CSP เพิ่ม `worker-src 'self'` · iOS รับเฉพาะ Home Screen app (16.4+) ⇒ คำแนะนำในแอป ไม่ทำ beforeinstallprompt
+- VAPID: public = `NEXT_PUBLIC_VAPID_PUBLIC_KEY` · private + subject เป็น env server บน Vercel (เจ้าของงานสร้างเอง) · ไลบรารี `web-push` · ความหน่วง 5–10 นาที (cron */5) ยอมรับได้
+- ลำดับ: B15.0 spike S1–S9 (ต้องใช้มือถือจริง) → B15.1 DB (@gb-backend) → B15.2 ส่ง + B15.3 PWA/CSP (@gb-integrations) → B15.4 UI (@gb-frontend) · ทั้งหมดหลัง R3 / B5 / 6.3
