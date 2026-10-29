@@ -1725,7 +1725,8 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | 6.1a | App shell — tab bar มือถือ · sidebar แอดมิน · สลับก๊วน (plan §10) | @gb-frontend | ✅ `f042a50`+`0e0588f` QA ผ่าน |
 | 6.1b | global states g1–g4 + ErrorCode → ข้อความไทยกลาง + บั๊ก 390px (plan §10) | @gb-frontend | ✅ `2c82b89` QA ผ่าน |
 | 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) (plan §11.3) | @gb-frontend | ✅ `69533df`+`56798cc`+`cef63c0` QA ผ่าน |
-| 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) | @gb-frontend | ⏳ |
+| 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) | @gb-frontend | 🔄 |
+| R3 | loader อ่านอย่างเดียว: ยอดของฉันข้ามนัด + breakdown ของฉัน + payment ที่ผูกนัด (แก้บั๊ก limit 1) | @gb-integrations | ⏳ หลัง B15-ADR |
 | 6.4a | วันเล่น — เช็คอิน · กระดานคิวสด · จัดคู่ · เกม+ลูก · เวลาพัก (23–27) | @gb-frontend | ✅ `44fe570` QA ผ่าน |
 | 6.4b | ปิดรอบ → ตรวจยอด (28 + K28a · K28b → BACKLOG) | @gb-frontend | 🔄 |
 | HF-2 | server component ส่ง function `idKey` เข้า Astryx Table ⇒ /close /membership /stats พัง (บั๊กเดิมจาก WO-2.5-A) — prod ยังไม่เคยใช้ปิดรอบ ⇒ ไม่ hotfix main · แก้เป็น commit แยกในใบ 6.4b | @gb-frontend | 🔄 |

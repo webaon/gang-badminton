@@ -387,3 +387,15 @@ Forbidden: migration · แก้ domain/billing / server action billing (เป
 | — | B3 PDPA · B4 · B6–B10 · B12 | — | ยังไม่ตัดสิน → ถามเจ้าของงานก่อนเปิด discovery วงกว้าง |
 | 👤 | B1 LINE Login เปิดใช้ | **เจ้าของงาน** | ตั้งค่า LINE Developers + Supabase + `APP_BASE_URL` ตาม `docs/ops/line-login-setup.md` |
 กติกาคงเดิม: บอททำงานพร้อมกันไม่เกิน 3 ตัว · ห้าม db reset โดยไม่แจ้ง planner · build + Playwright ทั้งชุดทุกใบ UI
+
+### WO-6.3 (@gb-frontend) + WO-R3 (@gb-integrations) — จ่ายเงินฝั่งสมาชิก (h29, h30, h31 + K30a/b, K31a/b)
+ช่องว่างที่ frontend รายงาน (28 ต.ค.) + คำตัดสิน planner:
+| # | แผนบอก | ของจริง | ตัดสิน |
+|---|---|---|---|
+| 1 | H29 "ยอดของฉัน" รวมข้ามนัด + ประวัติ | ไม่มีหน้า · แท็บ "ยอดเงิน" ผูก `payment.verify` ⇒ สมาชิกไม่มีทางเข้า · ไม่มี loader ข้ามนัด | **ทำ** — R3 ทำ loader อ่านอย่างเดียว · แท็บ "ยอดเงิน" ของสมาชิกชี้หน้าใหม่ (ผูก action ที่มีอยู่ `payment.submit.self` · แอดมินยังไป /payments) |
+| 2 | รายละเอียด ค่าคอร์ท/ลูก/ปรับ ต่อคน | `session_charges.breakdown` jsonb มี แต่ไม่มี loader ฝั่งสมาชิก | R3 คืน breakdown ต่อ charge ของฉัน **map จากข้อมูลที่เก็บไว้/`breakdownCharges` เดิม ห้ามสูตรใหม่** · component ห้าม import `domain/billing` |
+| 3 | หน้าจ่ายรายนัดโชว์ payment ของนัดนั้น | 🐞 pay/page.tsx เลือก payment ล่าสุดของก๊วน (`limit 1`) ไม่ผูกนัด ⇒ อาจโชว์ยอด/QR ของนัดอื่น | **แก้** — R3 คืน payment ที่ผูกกับ charge ของนัดนี้ (ผ่าน `payment_allocations`) · page ใช้ loader นี้ |
+| 4 | QR หมดอายุ · ชื่อบัญชีผู้รับ · จ่ายเงินสดที่สนาม · โน้ตถึงแอดมิน · progress % / ยกเลิกอัปโหลด · ไฟล์ 8MB/HEIC | schema/สตอเรจไม่รองรับ (PromptPay QR สถิต · ไม่มีคอลัมน์ · bucket 5MB jpeg/png/webp/pdf) | **ตัดออกจาก 6.3 → BACKLOG** · ข้อความต้องตรงของจริง (5MB, ชนิดไฟล์จริง) |
+Scope 6.3 (เริ่มได้ทันทีส่วนที่ไม่พึ่ง R3): reskin pay page เป็น Astryx (grep gate เดียวกับ 6.x) · H30 QR + คัดลอกเลข PromptPay + บันทึกรูป QR (client) · H31 เลือกรูป/ถ่ายรูป (`capture`) + preview + ปุ่มส่ง + ตรวจขนาด ≤5MB/ชนิดไฟล์ฝั่ง client ด้วยข้อความไทยคงที่ + ขั้นสถานะ 3 ขั้นจาก `payment.status` + rejected อัปใหม่ · K30a/b K31a/b ด้วย StatePanel · ช่องเครดิตเป็น block ที่ซ่อนเมื่อไม่มีข้อมูล (รอ B5a) · H29 + การต่อ loader ทำเมื่อ R3 ลง
+DoD 6.3: typecheck/lint/unit/build · Playwright ทั้งชุด + spec: สมาชิกจากแท็บ ยอดเงิน → นัดค้าง → ขอ QR → อัปสลิป → แอดมินยืนยัน → สถานะ verified · **มี 2 นัดค้าง หน้าจ่ายนัดเก่าต้องโชว์ยอดของนัดเก่า** · ไฟล์ >5MB ถูกปฏิเสธก่อนอัป · member ไม่เห็นยอดคนอื่น · 390px · screenshot h29/h30/h31 + K30/K31 light/dark ที่ `docs/design/wo-6.3/` · ไม่มีการคิดเงินใน component
+Forbidden: migration · แก้ domain/billing / server action payments เดิม (R3 เพิ่มได้) · เปลี่ยน `can()` (ใช้ action ที่มี)
