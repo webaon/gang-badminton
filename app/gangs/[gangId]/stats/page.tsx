@@ -1,8 +1,8 @@
 import { notFound, redirect } from 'next/navigation';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Card } from '@astryxdesign/core/Card';
-import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 
+import { SimpleTable } from '@/components/ui/SimpleTable';
 import { requireUser } from '@/lib/supabase/auth';
 import { moneyFromDb } from '@/lib/supabase/money';
 import { supabaseServer } from '@/lib/supabase/server';
@@ -72,12 +72,8 @@ export default async function StatsPage({ params }: { params: Promise<{ gangId: 
 
   const rows = (stats ?? []) as unknown as Row[];
 
-  type StatRow = { name: string; attended: string; games: string; paid: string } & Record<
-    string,
-    unknown
-  >;
-
-  const tableRows: StatRow[] = rows.map((r) => ({
+  const tableRows = rows.map((r) => ({
+    id: r.gang_member_id,
     name: r.gang_members.profiles.display_name,
     attended: `${r.attended_count} ครั้ง (${Number(r.attendance_rate)}%)`,
     games: `${r.games_count} เกม · ${Number(r.shuttles_used)} ลูก`,
@@ -108,15 +104,13 @@ export default async function StatsPage({ params }: { params: Promise<{ gangId: 
               : ' · เห็นเฉพาะสถิติของตัวเอง'}
           </p>
 
-          <Table
-            data={tableRows}
-            idKey={(row) => row.name}
-            density="compact"
+          <SimpleTable
+            rows={tableRows}
             columns={[
-              { key: 'name', header: 'ชื่อ', width: proportional(1) },
-              { key: 'attended', header: 'มาเล่น', width: pixel(140) },
-              { key: 'games', header: 'เกม/ลูก', width: pixel(140) },
-              { key: 'paid', header: 'จ่ายสะสม', width: pixel(110), align: 'end' },
+              { key: 'name', header: 'ชื่อ' },
+              { key: 'attended', header: 'มาเล่น', widthPx: 140 },
+              { key: 'games', header: 'เกม/ลูก', widthPx: 140 },
+              { key: 'paid', header: 'จ่ายสะสม', widthPx: 110, align: 'end' },
             ]}
           />
         </Card>
