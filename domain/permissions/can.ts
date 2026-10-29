@@ -38,10 +38,15 @@ const MEMBER: readonly Action[] = [
   'line.link.self',
   // [WO-B2 · ADR-012] ออกจากก๊วนเอง — DB function `leave_gang()` ตรวจซ้ำ (owner คนสุดท้ายออกไม่ได้)
   'gang.leave.self',
+  // [WO-B5a · ADR-010] ดูเครดิตของตัวเอง
+  'credit.read.self',
 ];
 
 const ADMIN: readonly Action[] = [
   ...MEMBER,
+  // [WO-B5a · ADR-010] เครดิตสมาชิก — RLS กรองแถวซ้ำอีกชั้น · บันทึกโอนเกิน DB ตรวจแอดมินซ้ำ
+  'credit.read.other',
+  'credit.overpayment.record',
   'gang.update',
   'gang.member.manage',
   'gang.skill.manage',

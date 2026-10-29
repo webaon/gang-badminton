@@ -47,6 +47,10 @@ export const ACTIONS = [
   // [WO-B2 · ADR-012] ออกจากก๊วนเอง (ทุก role) / โอนความเป็นเจ้าของ (owner เท่านั้น)
   'gang.leave.self',
   'gang.ownership.transfer',
+  // [WO-B5a · ADR-010] เครดิตสมาชิก: ดูของตัวเอง / ดูของคนอื่น (แอดมิน) / บันทึกยอดโอนเกิน (แอดมิน)
+  'credit.read.self',
+  'credit.read.other',
+  'credit.overpayment.record',
 
   // นัดเล่น
   'session.view',

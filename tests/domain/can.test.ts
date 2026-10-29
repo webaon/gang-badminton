@@ -33,6 +33,8 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'line.link.self',
     // [WO-B2 · ADR-012] ออกจากก๊วนเอง — ทุก role
     'gang.leave.self',
+    // [WO-B5a · ADR-010]
+    'credit.read.self',
   ],
   admin: [
     'gang.view',
@@ -46,6 +48,10 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'statistics.view',
     'line.link.self',
     'gang.leave.self',
+    // [WO-B5a · ADR-010]
+    'credit.read.self',
+    'credit.read.other',
+    'credit.overpayment.record',
     'gang.update',
     'gang.member.manage',
     'gang.skill.manage',

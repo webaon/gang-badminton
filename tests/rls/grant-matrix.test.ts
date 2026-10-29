@@ -24,6 +24,9 @@ const EXPECTED: Record<string, { anon: string[]; authenticated: string[] }> = {
   payment_allocations: { anon: [], authenticated: ['SELECT'] },
   payment_adjustments: { anon: [], authenticated: ['SELECT'] },
   member_line_links: { anon: [], authenticated: ['SELECT'] },
+  // [WO-B5a · ADR-010] เครดิตสมาชิก — อ่านผ่าน RLS เท่านั้น เขียนผ่าน DB function (service_role)
+  credit_ledger: { anon: [], authenticated: ['SELECT'] },
+  credit_balances: { anon: [], authenticated: ['SELECT'] },
   // [WO-3.E] 0033 ถอน INSERT/UPDATE ออก — ขอ/ยกเลิก/อนุมัติผ่าน DB function เท่านั้น
   join_requests: { anon: [], authenticated: ['SELECT'] },
 
