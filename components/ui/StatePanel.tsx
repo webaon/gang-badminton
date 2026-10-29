@@ -18,6 +18,7 @@ export type StateAction = {
   label: string;
   /** นำทางด้วยลิงก์ (a11y ถูกกว่าปุ่ม onClick สำหรับการเปลี่ยนหน้า) */
   href?: string;
+  /** ⚠️ function ส่งจาก server component เข้ามาไม่ได้ — ใช้ `onClick` เฉพาะเมื่อผู้เรียกเป็น client (เช่น error.tsx) · จาก server ให้ใช้ `href` */
   onClick?: () => void;
   variant?: 'primary' | 'secondary' | 'ghost';
 };
