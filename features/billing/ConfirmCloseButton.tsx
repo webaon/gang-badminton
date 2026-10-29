@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
 import { CheckboxInput } from '@astryxdesign/core/CheckboxInput';
+import { VStack } from '@astryxdesign/core/VStack';
 
 import { closeSessionWithBilling } from '@/server/actions/billing';
 
@@ -17,6 +18,8 @@ import { closeSessionWithBilling } from '@/server/actions/billing';
  *
  * ⚠️ ช่อง "ยืนยันทั้งที่ไม่มีใครเช็คอิน" โผล่เฉพาะตอนที่ server เตือนจริงเท่านั้น
  *    (ไม่ใช่ติ๊กไว้ล่วงหน้าได้ทุกครั้ง) — ไม่งั้นก็เท่ากับไม่มีด่าน
+ *
+ * [WO-6.4b] reskin เป็น Astryx stack + กัน network/5xx ค้าง — ด่านทั้งหมดคงเดิม
  */
 export function ConfirmCloseButton({
   sessionId,
@@ -36,22 +39,27 @@ export function ConfirmCloseButton({
     setPending(true);
     setError(null);
 
-    const result = await closeSessionWithBilling(sessionId, {
-      toStatus: 'billing',
-      confirmNoCheckIn: confirmed,
-    });
+    try {
+      const result = await closeSessionWithBilling(sessionId, {
+        toStatus: 'billing',
+        confirmNoCheckIn: confirmed,
+      });
 
-    if (result.success) {
-      router.replace(`/gangs/${gangId}/sessions/${sessionId}`);
-      router.refresh();
-    } else {
+      if (result.success) {
+        router.replace(`/gangs/${gangId}/sessions/${sessionId}`);
+        router.refresh();
+        return;
+      }
       setError(actionError(result.error));
-      setPending(false);
+    } catch {
+      // network/5xx — ไม่ปล่อยให้ปุ่มค้างเป็น disabled ตลอดไป
+      setError(actionError({ code: 'INTERNAL_ERROR', message: '' }));
     }
+    setPending(false);
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <VStack gap={3}>
       {needsCheckInConfirmation ? (
         <CheckboxInput
           label="เข้าใจแล้ว — ยืนยันปิดรอบทั้งที่ไม่มีใครเช็คอิน"
@@ -60,16 +68,17 @@ export function ConfirmCloseButton({
         />
       ) : null}
 
-      <div className="flex gap-2">
-        <Button
-          variant="primary"
-          label="ยืนยันปิดรอบ เก็บเงิน"
-          isDisabled={pending || (needsCheckInConfirmation && !confirmed)}
-          onClick={close}
-        />
-      </div>
+      <Button
+        variant="primary"
+        size="lg"
+        width="100%"
+        label="ยืนยันปิดรอบ เก็บเงิน"
+        isLoading={pending}
+        isDisabled={pending || (needsCheckInConfirmation && !confirmed)}
+        onClick={close}
+      />
 
       {error ? <Banner status="error" title={error} /> : null}
-    </div>
+    </VStack>
   );
 }
