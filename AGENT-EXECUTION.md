@@ -1735,7 +1735,7 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | R1 (เดิมเรียก B12) | `previewSessionCharges` ส่ง breakdown ต่อคน + ยอดค่าคอร์ท/ลูก/ปรับ (map จาก calculateSessionCharges เดิม) | @gb-backend | ✅ `ee6bffd` QA ผ่าน (fuzz 5000 นัด) |
 | R2 (เดิมเรียก B13) | reminders แบ่งหน้า keyset (max_rows 1000 ตัดเงียบ) | @gb-integrations | ✅ `e7ee0b4` QA ผ่าน |
 | R2.1 (เดิมเรียก B13.1) | payment reminders keyset + แก้เทสต์ claim flaky | @gb-integrations | ✅ `090d22b` QA ผ่าน |
-| B5a | เครดิตสมาชิก — ADR-010 + credit_ledger + apply_credit + หักอัตโนมัติ | @gb-backend | 🔄 |
+| B5a | เครดิตสมาชิก — ADR-010 `aeb9fe1` + migration 0044 `003e800` | @gb-backend | 🔄 รอ QA ใบ 13 (ยังไม่ db push) |
 | B15-ADR | web push — ADR เท่านั้น | @gb-integrations | 🔄 |
 | 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ |
 | 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
