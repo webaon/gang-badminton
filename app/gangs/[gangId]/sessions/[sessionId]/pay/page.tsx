@@ -1,25 +1,22 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Badge } from '@astryxdesign/core/Badge';
-import { Card } from '@astryxdesign/core/Card';
 
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseServer } from '@/lib/supabase/server';
 import { summarize, type LedgerEntry } from '@/domain/billing/ledger';
+import { baht, isZeroAmount } from '@/domain/sessions/close-view';
 import { moneyFromDb } from '@/lib/supabase/money';
 import { promptPayQrDataUrl } from '@/lib/promptpay/qr';
-import { PaySlipForm } from '@/features/payments/PaySlipForm';
-import { CreateMyPaymentButton } from '@/features/payments/CreateMyPaymentButton';
+import { PayView } from '@/features/payments/PayView';
 
 export const dynamic = 'force-dynamic';
 
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'รอโอน',
-  submitted: 'รอแอดมินยืนยัน',
-  verified: 'ยืนยันแล้ว',
-  rejected: 'ถูกปฏิเสธ',
-};
-
+/**
+ * หน้าจ่ายเงินรายนัดของสมาชิก (hi-fi 30/31) — **[WO-2.5-D · reskin WO-6.3]**
+ * เนื้อหาแสดงผลอยู่ที่ `features/payments/PayView` (ไม่คิดเงิน)
+ *
+ * ⚠️ TODO(WO-R3): ตอนนี้ยังเลือก payment ล่าสุดของ "ก๊วน" ไม่ผูกนัด (บั๊กที่ planner สั่งแก้ผ่าน loader ของ R3)
+ *    เมื่อ R3 ลง ให้เปลี่ยนแหล่ง `payment` + ledger ของหน้านี้เป็น loader นั้น — PayView ไม่ต้องแก้
+ */
 export default async function PayPage({
   params,
 }: {
@@ -38,6 +35,8 @@ export default async function PayPage({
     .maybeSingle();
 
   if (!session) notFound();
+
+  const { data: gang } = await supabase.from('gangs').select('name').eq('id', gangId).maybeSingle();
 
   // ยอดของฉันในนัดนี้ — RLS ให้เห็นเฉพาะ charge ของตัวเอง (หรือทั้งหมดถ้าเป็นแอดมิน)
   const { data: charges } = await supabase
@@ -102,64 +101,29 @@ export default async function PayPage({
   }
 
   return (
-    <section className="mx-auto max-w-md p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">จ่ายเงิน</h1>
-        <Link href={`/gangs/${gangId}/sessions/${sessionId}`} className="underline">
-          กลับไปที่นัด
-        </Link>
-      </div>
-
-      <Card padding={6}>
-        <p className="text-sm">{session.title}</p>
-
-        {mine.length === 0 ? (
-          <p className="mt-3 text-sm">ยังไม่มียอดที่ต้องจ่ายในนัดนี้</p>
-        ) : (
-          <>
-            <p className="mt-2 text-2xl font-semibold">{myLedger.outstanding} บาท</p>
-            {myLedger.allocated !== '0.00' ? (
-              <p className="text-sm opacity-70">จ่ายมาแล้ว {myLedger.allocated} บาท</p>
-            ) : null}
-            {myLedger.credit !== '0.00' ? (
-              <p className="text-sm opacity-70">
-                ก๊วนต้องคืนให้ {myLedger.credit.replace('-', '')} บาท
-              </p>
-            ) : null}
-
-            {!payment ? (
-              <div className="mt-4">
-                <CreateMyPaymentButton sessionId={sessionId} />
-              </div>
-            ) : (
-              <>
-                <div className="mt-2 flex items-center gap-2">
-                  <Badge label={STATUS_LABELS[payment.status] ?? payment.status} />
-                  <span className="text-sm">{moneyFromDb(payment.amount)} บาท</span>
-                </div>
-
-                {payment.status === 'rejected' && payment.reject_reason ? (
-                  <p className="mt-2 text-sm">เหตุผลที่ถูกปฏิเสธ: {payment.reject_reason}</p>
-                ) : null}
-
-                {qr ? (
-                  <div className="mt-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={qr} alt="PromptPay QR" className="mx-auto w-64" />
-                    <p className="mt-2 text-center text-xs">สแกนด้วยแอปธนาคารเพื่อโอน</p>
-                  </div>
-                ) : payment.status !== 'verified' ? (
-                  <p className="mt-3 text-sm">ก๊วนยังไม่ได้ตั้งพร้อมเพย์ — ติดต่อแอดมินเพื่อโอน</p>
-                ) : null}
-
-                <div className="mt-4">
-                  <PaySlipForm paymentId={payment.id} status={payment.status} />
-                </div>
-              </>
-            )}
-          </>
-        )}
-      </Card>
-    </section>
+    <PayView
+      gangId={gangId}
+      gangName={gang?.name ?? 'ก๊วน'}
+      sessionId={sessionId}
+      sessionTitle={session.title}
+      hasCharges={mine.length > 0}
+      outstandingText={baht(myLedger.outstanding)}
+      allocatedText={isZeroAmount(myLedger.allocated) ? null : baht(myLedger.allocated)}
+      refundText={
+        isZeroAmount(myLedger.credit) ? null : `ก๊วนต้องคืนให้ ${baht(myLedger.credit.replace('-', ''))}`
+      }
+      payment={
+        payment
+          ? {
+              id: payment.id,
+              amountText: baht(moneyFromDb(payment.amount)),
+              status: payment.status,
+              rejectReason: payment.reject_reason,
+            }
+          : null
+      }
+      qr={qr}
+      promptPayId={promptPayId}
+    />
   );
 }
