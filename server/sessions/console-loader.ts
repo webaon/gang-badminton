@@ -36,6 +36,8 @@ export type ConsoleData = {
   finishedGames: { id: string; courtNo: number; shuttlesUsed: string }[];
   /** เวลา ณ ตอน render (ISO) — ใช้คำนวณ "พักมา N นาที" ให้ SSR กับ hydrate ตรงกัน */
   now: string;
+  /** แสดงลิงก์ "ปิดรอบ" บนคอนโซลหรือไม่ — แค่การแสดงผล (หน้า /close ตรวจ `billing.close` ซ้ำฝั่ง server) */
+  canClose: boolean;
 };
 
 export async function loadConsole(gangId: string, sessionId: string, nextPath: string): Promise<ConsoleData> {
@@ -142,5 +144,6 @@ export async function loadConsole(gangId: string, sessionId: string, nextPath: s
     games,
     finishedGames,
     now: new Date().toISOString(),
+    canClose: can({ role }, 'billing.close'),
   };
 }

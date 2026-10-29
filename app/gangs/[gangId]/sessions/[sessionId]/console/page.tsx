@@ -34,6 +34,14 @@ export default async function ConsolePage({
             href={`/gangs/${gangId}/sessions/${sessionId}/console/board`}
           />
           <Button size="sm" variant="ghost" label="รายละเอียดนัด" href={`/gangs/${gangId}/sessions/${sessionId}`} />
+          {data.canClose && ['open', 'in_play'].includes(session.status) ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              label="ปิดรอบ"
+              href={`/gangs/${gangId}/sessions/${sessionId}/close`}
+            />
+          ) : null}
         </HStack>
       </VStack>
 
