@@ -1729,7 +1729,9 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | R3 | loader อ่านอย่างเดียว: ยอดของฉันข้ามนัด + breakdown ของฉัน + payment ที่ผูกนัด (แก้บั๊ก limit 1) | @gb-integrations | ⏳ หลัง B15-ADR |
 | 6.4a | วันเล่น — เช็คอิน · กระดานคิวสด · จัดคู่ · เกม+ลูก · เวลาพัก (23–27) | @gb-frontend | ✅ `44fe570` QA ผ่าน |
 | 6.4b | ปิดรอบ → ตรวจยอด (28 + K28a · K28b → BACKLOG) | @gb-frontend | 🔄 |
-| HF-2 | server component ส่ง function `idKey` เข้า Astryx Table ⇒ /close /membership /stats พัง (บั๊กเดิมจาก WO-2.5-A) — prod ยังไม่เคยใช้ปิดรอบ ⇒ ไม่ hotfix main · แก้เป็น commit แยกในใบ 6.4b | @gb-frontend | 🔄 |
+| HF-2 | server component ส่ง function `idKey` เข้า Astryx Table ⇒ /close /membership /stats พัง (บั๊กเดิมจาก WO-2.5-A) — prod ยังไม่เคยใช้ปิดรอบ ⇒ ไม่ hotfix main · แก้เป็น commit แยกในใบ 6.4b | @gb-frontend | ✅ `aad4838` QA ใบ 12 ผ่าน |
+| 6.4b | ปิดรอบ h28 + ลิงก์ console + กระดาน ≥1280 (`0fd5d5f` `24708d2` `518ae32`) | @gb-frontend | ✅ QA ใบ 12 ผ่าน (F1 → 6.4b.1) |
+| 6.4b.1 | ตารางปิดรอบ: ยอดเห็นได้ไม่ต้องเลื่อน (การ์ดบนมือถือ / ชื่อ sticky / กรอบกว้าง ≥1024) + ป้าย KPI นับคน | @gb-frontend | ⏳ ก่อน 6.3 |
 | R1 (เดิมเรียก B12) | `previewSessionCharges` ส่ง breakdown ต่อคน + ยอดค่าคอร์ท/ลูก/ปรับ (map จาก calculateSessionCharges เดิม) | @gb-backend | ✅ `ee6bffd` QA ผ่าน (fuzz 5000 นัด) |
 | R2 (เดิมเรียก B13) | reminders แบ่งหน้า keyset (max_rows 1000 ตัดเงียบ) | @gb-integrations | ✅ `e7ee0b4` QA ผ่าน |
 | R2.1 (เดิมเรียก B13.1) | payment reminders keyset + แก้เทสต์ claim flaky | @gb-integrations | ✅ `090d22b` QA ผ่าน |
