@@ -362,12 +362,28 @@ deviation ที่อนุมัติใน 6.2: guest ยังเกิด�
 **DoD**: typecheck/lint/test:unit/**build** · **Playwright ทั้งชุดเขียว** + spec ใหม่: เช็คอิน 4 คน → จัดคู่ → จบเกมใส่ลูก 2 → แก้เป็น 3 → กระดาน 24 แสดงคอร์ท/คิวตรงกับ console · member ธรรมดาเปิด console/board ได้ 404/forbidden · 390px ไม่มี horizontal scroll · screenshot 23–27 × light/dark (24 navy) ที่ `docs/design/wo-6.4a/` · grep gate: ไม่มี role ===, ไม่คำนวณเงิน, ไม่ import `domain/matching` ใน component
 **Forbidden**: migration · แก้ DB function / state machine เกม / `domain/matching` / `domain/billing` · เปลี่ยน `can()` · query ใหม่นอก server action/RLS เดิม (กระดาน 24 ต้องใช้ loader เดียวกับ console) · หน้า close (เป็นของ 6.4b)
 
-### WO-6.4b (@gb-frontend) + WO-B12 (@gb-backend) — ปิดรอบ → ตรวจยอด (h28, K28a)
+### WO-6.4b (@gb-frontend) + WO-R1 (@gb-backend · เดิมเรียก B12 — ชนกับ Track B ตาราง §5) — ปิดรอบ → ตรวจยอด (h28, K28a)
 แผนบอก: H28 = KPI 5 ใบ (ค่าคอร์ท/ค่าลูก/ค่าปรับ/เศษปัด/เก็บรวม) + ตารางต่อคน 4 คอลัมน์ + K28b "ยอดไม่ลงตัว — ยืนยันไม่ได้"
 ของจริง: `previewSessionCharges()` คืนแค่ยอดรวมต่อคน + total/roundingSurplus/shuttlesUsedTotal · `calculateSessionCharges()` มี `breakdown` ต่อ charge + courtCost/shuttleCost อยู่แล้วแต่ไม่ส่งออก · DB ไม่มีกติกา "ยอดไม่ลง ห้ามปิด" และตามสูตร roundingSurplus = เก็บรวม − ต้นทุนจริง เสมอ
 คำตัดสิน planner:
-- **WO-B12 (@gb-backend, R+ ไม่มี migration)**: ขยายผลของ `previewSessionCharges()` ให้ส่ง breakdown ต่อแถว (court/shuttle/penalty/rounding) + `courtCostTotal` `shuttleCostTotal` `penaltyTotal` โดย **map จากผลของ `calculateSessionCharges()` เดิมเท่านั้น** ห้ามสูตรใหม่ · ไม่แตะ close_session / state machine · เทสต์: ผลรวมคอลัมน์ต่อคน = amount ทุกแถว, KPI รวม = total, ตรงกับ charge ที่ปิดรอบจริงเขียนลง DB
+- **WO-R1 (@gb-backend, R+ ไม่มี migration)**: ขยายผลของ `previewSessionCharges()` ให้ส่ง breakdown ต่อแถว (court/shuttle/penalty/rounding) + `courtCostTotal` `shuttleCostTotal` `penaltyTotal` โดย **map จากผลของ `calculateSessionCharges()` เดิมเท่านั้น** ห้ามสูตรใหม่ · ไม่แตะ close_session / state machine · เทสต์: ผลรวมคอลัมน์ต่อคน = amount ทุกแถว, KPI รวม = total, ตรงกับ charge ที่ปิดรอบจริงเขียนลง DB
 - **WO-6.4b (@gb-frontend)**: ทำตาม (ก) ทันที — KPI ที่มีจริง (เก็บรวม/ถูกเก็บ N คน/เช็คอิน/ลูกที่ใช้/เศษปัด) · ตารางต่อคน ชื่อ+ป้ายประเภท+เหตุผล+ยอด · `loading.tsx` = K28a skeleton · preview ล้ม = StatePanel · คงด่าน ConfirmCloseButton เดิม (ไม่มีใครเช็คอิน + warnings + needsConfirmation) · เพิ่มปุ่ม/ลิงก์ "ปิดรอบ" บน **console** (ไม่ใช่กระดาน 24) เห็นเฉพาะ `can(billing.close)` · ออกแบบตารางให้เติมคอลัมน์ breakdown ได้เมื่อ B12 ลง (รอบเล็กตามมา)
 - **K28b ยอดไม่ลงตัว**: ไม่ทำ — เป็นกติกาเงินใหม่ (บล็อกการปิดรอบ) → BACKLOG รอเจ้าของงานตัดสินถ้าต้องการ
 DoD 6.4b: typecheck/lint/unit/build · Playwright ทั้งชุด + spec: แอดมินจาก console → ปิดรอบ → เห็น KPI/ตาราง → ยืนยัน → session closed · member ธรรมดาเปิด /close ไม่เห็นยอด · ไม่มีการคำนวณเงินใน component (grep gate) · 390px · screenshot h28/K28a light/dark ที่ `docs/design/wo-6.4b/`
 Forbidden: migration · แก้ domain/billing / server action billing (เป็นของ B12) / DB function
+
+### 11.5 ที่เหลือ + ลำดับ (28 ต.ค. 2026 · เจ้าของงาน: "เหลืออะไรทำได้เลย")
+หมายเหตุชื่อ: WO เล็กที่ planner เปิดระหว่างทาง (breakdown ปิดรอบ / reminders แบ่งหน้า) เปลี่ยนชื่อเป็น **R1 / R2 / R2.1** เพราะ B12/B13 ชนกับตาราง Track B §5 (B12 = ช่วยเหลือ+feedback · B13 = บทบาทกำหนดเอง)
+| ลำดับ | งาน | เจ้าของ | หมายเหตุ |
+|---|---|---|---|
+| 1 | 6.4b ปิดรอบ + fix Table idKey (/close /membership /stats) | @gb-frontend | 🔄 |
+| 2 | **B5a เครดิตสมาชิก** — ADR-010 ร่างเต็ม + `credit_ledger` + `apply_credit()` + หักอัตโนมัติเมื่อมีหนี้ใหม่ | @gb-backend | เริ่มทันที (ตัดสินแล้ว 26 ต.ค.) · ADR ก่อนโค้ด |
+| 3 | **B15-ADR web push** — เอกสารเท่านั้น | @gb-integrations | เริ่มทันที (กลับเข้าแผน 26 ต.ค.) |
+| 4 | 6.3 จ่ายเงินฝั่งสมาชิก (29–31) | @gb-frontend | หลัง 6.4b · แสดงเครดิตเมื่อ B5a ลง |
+| 5 | B5b เครดิต: ยกเลิกนัดที่จ่ายแล้ว → เครดิต · แอดมินเติม/จ่ายคืน | @gb-backend | หลัง B5a ผ่าน QA |
+| 6 | 6.5 แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | หลัง 6.3 |
+| 7 | 6.6 → 6.7 → 6.8 → 6.9 (`v1.1.0`) | @gb-frontend | ตาม §4 |
+| — | B13 บทบาทกำหนดเอง · B14 ความชอบจับคู่ (ADR กลับคำ "ไม่รับ") | @gb-backend | หลัง B5b |
+| — | B3 PDPA · B4 · B6–B10 · B12 | — | ยังไม่ตัดสิน → ถามเจ้าของงานก่อนเปิด discovery วงกว้าง |
+| 👤 | B1 LINE Login เปิดใช้ | **เจ้าของงาน** | ตั้งค่า LINE Developers + Supabase + `APP_BASE_URL` ตาม `docs/ops/line-login-setup.md` |
+กติกาคงเดิม: บอททำงานพร้อมกันไม่เกิน 3 ตัว · ห้าม db reset โดยไม่แจ้ง planner · build + Playwright ทั้งชุดทุกใบ UI

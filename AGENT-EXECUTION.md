@@ -1729,9 +1729,11 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | 6.4a | วันเล่น — เช็คอิน · กระดานคิวสด · จัดคู่ · เกม+ลูก · เวลาพัก (23–27) | @gb-frontend | ✅ `44fe570` QA ผ่าน |
 | 6.4b | ปิดรอบ → ตรวจยอด (28 + K28a · K28b → BACKLOG) | @gb-frontend | 🔄 |
 | HF-2 | server component ส่ง function `idKey` เข้า Astryx Table ⇒ /close /membership /stats พัง (บั๊กเดิมจาก WO-2.5-A) — prod ยังไม่เคยใช้ปิดรอบ ⇒ ไม่ hotfix main · แก้เป็น commit แยกในใบ 6.4b | @gb-frontend | 🔄 |
-| B12 | `previewSessionCharges` ส่ง breakdown ต่อคน + ยอดค่าคอร์ท/ลูก/ปรับ (map จาก calculateSessionCharges เดิม) | @gb-backend | ✅ `ee6bffd` QA ผ่าน (fuzz 5000 นัด) |
-| B13 | reminders แบ่งหน้า keyset (max_rows 1000 ตัดเงียบ) | @gb-integrations | ✅ `e7ee0b4` QA ผ่าน |
-| B13.1 | payment reminders keyset + แก้เทสต์ claim flaky | @gb-integrations | ✅ `090d22b` QA ผ่าน |
+| R1 (เดิมเรียก B12) | `previewSessionCharges` ส่ง breakdown ต่อคน + ยอดค่าคอร์ท/ลูก/ปรับ (map จาก calculateSessionCharges เดิม) | @gb-backend | ✅ `ee6bffd` QA ผ่าน (fuzz 5000 นัด) |
+| R2 (เดิมเรียก B13) | reminders แบ่งหน้า keyset (max_rows 1000 ตัดเงียบ) | @gb-integrations | ✅ `e7ee0b4` QA ผ่าน |
+| R2.1 (เดิมเรียก B13.1) | payment reminders keyset + แก้เทสต์ claim flaky | @gb-integrations | ✅ `090d22b` QA ผ่าน |
+| B5a | เครดิตสมาชิก — ADR-010 + credit_ledger + apply_credit + หักอัตโนมัติ | @gb-backend | 🔄 |
+| B15-ADR | web push — ADR เท่านั้น | @gb-integrations | 🔄 |
 | 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ |
 | 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
 | 6.7 | Auth + onboarding | @gb-frontend | ⏳ |
