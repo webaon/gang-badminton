@@ -409,3 +409,11 @@ Commit + push เป็นช่วงๆ ตามโมดูลไป `claude
   - `cancel_registration` / `promote_waitlist` เปลี่ยน signature (มี default ทุกตัวใหม่ — ผู้เรียกแบบ positional เดิม รวม `cancel_registration_as_guest`, cron `sweep_waitlist`, `leave_gang` ยังใช้ได้)
   - ผู้ที่ถูกเลื่อนแล้วไม่ยกเลิก และไม่มา ⇒ ยังเป็น no-show ตามเดิม (grace ช่วยเฉพาะคนที่ "ตอบทัน")
   - ค่า grace ตั้งได้ที่ตั้งค่าก๊วน (`validate()` ตรวจ 0–48) — หน้าจอเป็นงาน Track A · ข้อความเหตุผลของแอดมินอ่านได้เฉพาะแอดมิน
+
+### ADR-010 — (✅ เจ้าของงานตัดสิน 26 ต.ค. 2026 · WO-B5a · ร่างเต็ม `docs/adr/ADR-010-member-credit.md` @aeb9fe1) — เครดิตสมาชิก: กระเป๋าต่อ (gang, user) แบบ append-only หักอัตโนมัติเมื่อมีหนี้ใหม่
+- `credit_ledger` append-only · ยอด = Σ (CHECK ≥ 0) · guest ไม่มีเครดิต · ใช้เครดิตผ่าน `apply_credit()` ทางเดียว (FOR UPDATE) → เขียน `payment_allocations source='credit'` ผูก payment verified ⇒ `charge_outstanding()` ไม่เปลี่ยน · ledger ยอดค้างยังเป็นความจริงเดียว
+- ต่างจาก `payment_adjustments type='credit'` (ลดหนี้ charge ก้อนเดียว ไม่มียอดคงเหลือ) — ใช้คู่กัน ไม่แทนกัน
+- หักอัตโนมัติ: AFTER INSERT statement trigger บน `session_charges` (ครอบ `close_session_with_charges` + `commit_monthly_fees` โดยไม่แก้ฟังก์ชันทั้งสอง · ADR-001 คงเดิม) · หักเฉพาะ charge ที่เพิ่งเกิด
+- 🔴 เปลี่ยนกติกาเดิม "ค้างเก็บกับต้องคืนไม่หักกลบ" ⇒ หักกลบได้**ผ่านเครดิตเท่านั้น**
+- รายงาน "เก็บได้จริง" = allocation `source='transfer'` เท่านั้น (query หน้า reports/payments ต้องกรอง source — งาน 6.5) · `member_statistics.total_paid` นับรวมเครดิต (มุมมองรายคน)
+- ช่องทางเข้าเครดิตใบ B5a: โอนเกิน (แอดมินยืนยัน) · B5b: ยกเลิกนัดที่จ่ายแล้ว / refund charge ที่จ่ายด้วยเครดิต → คืนเข้าเครดิต · แอดมินเติม/จ่ายคืนเงินสด · leave_gang แสดงยอดเครดิตคู่ยอดค้าง

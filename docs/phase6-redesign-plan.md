@@ -381,7 +381,7 @@ Forbidden: migration · แก้ domain/billing / server action billing (เป
 | 3 | **B15-ADR web push** — เอกสารเท่านั้น | @gb-integrations | เริ่มทันที (กลับเข้าแผน 26 ต.ค.) |
 | 4 | 6.3 จ่ายเงินฝั่งสมาชิก (29–31) | @gb-frontend | หลัง 6.4b · แสดงเครดิตเมื่อ B5a ลง |
 | 5 | B5b เครดิต: ยกเลิกนัดที่จ่ายแล้ว → เครดิต · แอดมินเติม/จ่ายคืน | @gb-backend | หลัง B5a ผ่าน QA |
-| 6 | 6.5 แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | หลัง 6.3 |
+| 6 | 6.5 แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | หลัง 6.3 · **ต้องกรอง `payment_allocations.source='transfer'` ในยอด "เก็บได้จริง" (ADR-010)** |
 | 7 | 6.6 → 6.7 → 6.8 → 6.9 (`v1.1.0`) | @gb-frontend | ตาม §4 |
 | — | B13 บทบาทกำหนดเอง · B14 ความชอบจับคู่ (ADR กลับคำ "ไม่รับ") | @gb-backend | หลัง B5b |
 | — | B3 PDPA · B4 · B6–B10 · B12 | — | ยังไม่ตัดสิน → ถามเจ้าของงานก่อนเปิด discovery วงกว้าง |
