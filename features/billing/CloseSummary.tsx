@@ -1,4 +1,6 @@
 import { Banner } from "@astryxdesign/core/Banner";
+import { Badge } from "@astryxdesign/core/Badge";
+import { HStack } from "@astryxdesign/core/HStack";
 import { Card } from "@astryxdesign/core/Card";
 import { Grid } from "@astryxdesign/core/Grid";
 import { Heading } from "@astryxdesign/core/Heading";
@@ -119,16 +121,19 @@ export function CloseSummary({ preview }: { preview: BillingPreview }) {
         />
       ) : null}
 
-      <Card padding={0}>
-        <CloseTable
-          rows={tableRows}
-          columns={{
-            shuttle: showShuttle,
-            penalty: showPenalty,
-            rounding: showRounding,
-          }}
-        />
-      </Card>
+      <HStack justify="between" align="center" gap={2} wrap="wrap">
+        <Heading level={2}>ยอดต่อคน</Heading>
+        <Badge variant="info" label={`ในรายการ ${rows.length} คน`} />
+      </HStack>
+
+      <CloseTable
+        rows={tableRows}
+        columns={{
+          shuttle: showShuttle,
+          penalty: showPenalty,
+          rounding: showRounding,
+        }}
+      />
     </VStack>
   );
 }

@@ -154,4 +154,40 @@ test.describe('ปิดรอบ (หน้า close)', () => {
     expect(aborted).toBe(true);
     await expect(confirm).toBeEnabled();
   });
+
+  // WO-6.4b.1 — ชื่อกับยอดต้องอยู่ใน viewport พร้อมกันทั้งมือถือ (การ์ด) และจอใหญ่ (ตาราง ยอดถัดชื่อ)
+  for (const viewport of [
+    { name: '390', width: 390, height: 844, mobile: true },
+    { name: '1280', width: 1280, height: 800, mobile: false },
+  ]) {
+    test(`${viewport.name}px: ชื่อ + ยอดต่อคนเห็นพร้อมกัน · ป้าย "ในรายการ N คน" · ${viewport.mobile ? 'การ์ด' : 'ตาราง'}`, async ({ page }) => {
+      test.setTimeout(120_000);
+      const { owner, sessionPath } = await setupOpenSession(page);
+      await page.goto(`${sessionPath}/console`);
+      await page.getByRole('button', { name: 'เช็คอินทุกคน' }).click();
+      await expect(page.getByText('มาแล้ว 1/1 คน')).toBeVisible({ timeout: 15_000 });
+
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto(`${sessionPath}/close`);
+      await expect(page.getByText('ในรายการ 1 คน').first()).toBeVisible({ timeout: 15_000 });
+
+      const container = viewport.mobile ? page.getByLabel('การ์ดยอดต่อคน').first() : page.getByRole('table');
+      await expect(container).toBeVisible();
+      // อีกรูปแบบต้องซ่อน (สลับด้วย CSS)
+      await expect(viewport.mobile ? page.getByRole('table') : page.getByLabel('การ์ดยอดต่อคน').first()).toBeHidden();
+
+      const name = container.getByText(owner.displayName);
+      const amount = container.getByText('฿150.00').first();
+      await expect(name).toBeInViewport();
+      await expect(amount).toBeInViewport();
+
+      const nameBox = await name.boundingBox();
+      const amountBox = await amount.boundingBox();
+      expect(nameBox && amountBox).toBeTruthy();
+      // ยอดอยู่ถัดชื่อ: ไม่เกิน 1 หน้าจอห่างกัน และไม่มี horizontal scroll ของหน้า
+      expect(Math.abs((amountBox!.x ?? 0) - (nameBox!.x ?? 0))).toBeLessThan(viewport.width);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+  }
 });

@@ -66,7 +66,7 @@ export async function CloseSessionPage({
 
   if (!preview.success) {
     return (
-      <VStack as="section" gap={4} className="mx-auto w-full max-w-2xl p-4">
+      <VStack as="section" gap={4} className="mx-auto w-full max-w-2xl p-4 lg:max-w-4xl">
         <StatePanel
           fullPage={false}
           tone="error"
@@ -84,7 +84,7 @@ export async function CloseSessionPage({
   const { needsConfirmation, warnings } = preview.data;
 
   return (
-    <VStack as="section" gap={4} className="mx-auto w-full max-w-2xl p-4">
+    <VStack as="section" gap={4} className="mx-auto w-full max-w-2xl p-4 lg:max-w-4xl">
       <VStack gap={2}>
         <Heading level={1}>ปิดรอบ · {session.title}</Heading>
         <Text type="supporting">ตรวจยอดก่อนยืนยัน — ปิดแล้วแก้ไม่ได้</Text>

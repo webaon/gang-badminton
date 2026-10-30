@@ -11,7 +11,7 @@ import { VStack } from '@astryxdesign/core/VStack';
  */
 export default function CloseLoading() {
   return (
-    <VStack as="section" gap={4} className="mx-auto w-full max-w-2xl p-4" aria-busy="true">
+    <VStack as="section" gap={4} className="mx-auto w-full max-w-2xl p-4 lg:max-w-4xl" aria-busy="true">
       <VStack gap={2}>
         <Heading level={1}>ปิดรอบ</Heading>
         <Text type="supporting">กำลังคำนวณยอดต่อคน…</Text>
