@@ -42,6 +42,8 @@ async function roleInGang(gangId: string, userId: string): Promise<GangRole | nu
 
 export type CreditEntry = {
   id: string;
+  /** ลำดับรายการต่อสมาชิก (เริ่ม 1 ไม่ซ้ำไม่ข้าม) — ใช้เรียงประวัติ */
+  seq: number;
   type: 'overpayment' | 'applied';
   /** บวก = เข้า / ลบ = ออก (ใช้จ่ายหนี้) */
   amount: string;
@@ -75,11 +77,10 @@ async function readMemberCredit(gangId: string, userId: string): Promise<MemberC
 
   const { data: rows, error: ledgerError } = await supabase
     .from('credit_ledger')
-    .select('id, type, amount, balance_after, reason, payment_id, created_at')
+    .select('id, seq, type, amount, balance_after, reason, payment_id, created_at')
     .eq('gang_id', gangId)
     .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .order('id', { ascending: false })
+    .order('seq', { ascending: false })
     .limit(RECENT_ENTRIES);
   if (ledgerError) throw ledgerError;
 
@@ -89,6 +90,7 @@ async function readMemberCredit(gangId: string, userId: string): Promise<MemberC
     balance: moneyFromDb(balanceRow?.balance),
     entries: (rows ?? []).map((r) => ({
       id: r.id as string,
+      seq: Number(r.seq),
       type: r.type as CreditEntry['type'],
       amount: moneyFromDb(r.amount),
       balanceAfter: moneyFromDb(r.balance_after),

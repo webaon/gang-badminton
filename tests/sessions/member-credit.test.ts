@@ -121,7 +121,7 @@ async function expectCreditConsistent(gangId: string, userId: string, note = '')
 
   const { rows } = await pool.query<{ amount: string; balance_after: string }>(
     `select amount::text, balance_after::text from public.credit_ledger
-      where gang_id = $1 and user_id = $2 order by created_at, id`,
+      where gang_id = $1 and user_id = $2 order by seq`,
     [gangId, userId],
   );
   let running = 0;
@@ -166,8 +166,8 @@ describe('WO-B5a — credit_ledger เป็น append-only', () => {
     const pay = await verifiedPayment(g.gangId, m.userId, '10.00', g.owner);
     const ins = (type: string, amount: string, after: string, reason: string | null, payment: string | null) =>
       pool.query(
-        `insert into public.credit_ledger (gang_id, user_id, type, amount, balance_after, payment_id, reason)
-         values ($1, $2, $3, $4, $5, $6, $7)`,
+        `insert into public.credit_ledger (gang_id, user_id, seq, type, amount, balance_after, payment_id, reason)
+         values ($1, $2, 999, $3, $4, $5, $6, $7)`,
         [g.gangId, m.userId, type, amount, after, payment, reason],
       );
 
