@@ -1727,12 +1727,12 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) (plan §11.3) | @gb-frontend | ✅ `69533df`+`56798cc`+`cef63c0` QA ผ่าน |
 | 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) | @gb-frontend | 🔄 ส่วนไม่พึ่ง R3 `012cfc3` · รอ R3 → H29 แล้วส่ง QA ทั้งใบ |
 | R3 | loader อ่านอย่างเดียว: ยอดของฉันข้ามนัด + breakdown ของฉัน + payment ที่ผูกนัด (แก้บั๊ก limit 1) | @gb-integrations | ⏳ หลัง B15-ADR |
-| R4 | waitlist.promoted + payment.due ⇒ LINE (session.opened in_app เท่านั้น) — เจ้าของงานเลือก ก | @gb-backend | 🔄 |
+| R4 | waitlist.promoted + payment.due ⇒ LINE (session.opened in_app เท่านั้น) — เจ้าของงานเลือก ก · `c9b2fe7` migration 0045 | @gb-backend | 🔄 QA ใบ 15 |
 | 6.4a | วันเล่น — เช็คอิน · กระดานคิวสด · จัดคู่ · เกม+ลูก · เวลาพัก (23–27) | @gb-frontend | ✅ `44fe570` QA ผ่าน |
 | 6.4b | ปิดรอบ → ตรวจยอด (28 + K28a · K28b → BACKLOG) | @gb-frontend | 🔄 |
 | HF-2 | server component ส่ง function `idKey` เข้า Astryx Table ⇒ /close /membership /stats พัง (บั๊กเดิมจาก WO-2.5-A) — prod ยังไม่เคยใช้ปิดรอบ ⇒ ไม่ hotfix main · แก้เป็น commit แยกในใบ 6.4b | @gb-frontend | ✅ `aad4838` QA ใบ 12 ผ่าน |
 | 6.4b | ปิดรอบ h28 + ลิงก์ console + กระดาน ≥1280 (`0fd5d5f` `24708d2` `518ae32`) | @gb-frontend | ✅ QA ใบ 12 ผ่าน (F1 → 6.4b.1) |
-| 6.4b.1 | ตารางปิดรอบ: ยอดเห็นได้ไม่ต้องเลื่อน (การ์ดบนมือถือ / ชื่อ sticky / กรอบกว้าง ≥1024) + ป้าย KPI นับคน | @gb-frontend | ⏳ ก่อน 6.3 |
+| 6.4b.1 | ตารางปิดรอบ: ยอดเห็นได้ไม่ต้องเลื่อน (การ์ดบนมือถือ / ชื่อ sticky / กรอบกว้าง ≥1024) + ป้าย KPI นับคน | @gb-frontend | ✅ `f9f8ae1` QA ใบ 14 ผ่าน (KPI 'ถูกเก็บเงิน N คน' นับแถว ฿0 → แก้ป้ายใน 6.3) |
 | R1 (เดิมเรียก B12) | `previewSessionCharges` ส่ง breakdown ต่อคน + ยอดค่าคอร์ท/ลูก/ปรับ (map จาก calculateSessionCharges เดิม) | @gb-backend | ✅ `ee6bffd` QA ผ่าน (fuzz 5000 นัด) |
 | R2 (เดิมเรียก B13) | reminders แบ่งหน้า keyset (max_rows 1000 ตัดเงียบ) | @gb-integrations | ✅ `e7ee0b4` QA ผ่าน |
 | R2.1 (เดิมเรียก B13.1) | payment reminders keyset + แก้เทสต์ claim flaky | @gb-integrations | ✅ `090d22b` QA ผ่าน |
