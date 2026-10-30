@@ -8,5 +8,7 @@ from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public'
   and p.proname in ('leave_gang','preview_cancel_registration','cancel_registration',
-                    'cancel_decision','promote_waitlist','register_to_session')
+                    'cancel_decision','promote_waitlist','register_to_session',
+                    'apply_credit','record_overpayment','credit_balance_of')
+   or (n.nspname = 'public' and p.proname like '%credit%')
 order by 1, 2;
