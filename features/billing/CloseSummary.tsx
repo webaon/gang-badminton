@@ -53,7 +53,6 @@ export function CloseSummary({ preview }: { preview: BillingPreview }) {
   const {
     rows,
     total,
-    chargedCount,
     checkedInCount,
     pricingType,
     shuttlesUsedTotal,
@@ -87,7 +86,6 @@ export function CloseSummary({ preview }: { preview: BillingPreview }) {
     <VStack gap={4}>
       <Grid columns={{ minWidth: 150, repeat: "fit" }} gap={3}>
         <Kpi label="เก็บรวม" value={baht(total)} highlight />
-        <Kpi label="ถูกเก็บเงิน" value={`${chargedCount} คน`} />
         <Kpi label="เช็คอินแล้ว" value={`${checkedInCount} คน`} />
         <Kpi label="ค่าคอร์ท" value={baht(courtCostTotal)} />
         {showShuttle ? (
