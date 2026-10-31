@@ -125,8 +125,12 @@ export type LeaveGangResult = {
   cancelledRegistrations: number;
   /** จำนวนรายการหนี้ที่ยังค้างอยู่ ณ ตอนออก — หนี้ไม่หายเมื่อออก (ADR-012) */
   outstandingCharges: number;
-  /** ยอดค้างรวม (string — ห้ามเป็น number) */
+  /** ยอดค้างรวม (string — ห้ามเป็น number) — **สุทธิหลังหักเครดิตแล้ว** [B5b-3] */
   outstandingAmount: string;
+  /** [B5b-3] เครดิตที่หักกับหนี้ค้างตอนออก (string) */
+  creditApplied: string;
+  /** [B5b-3] เครดิตที่เหลือหลังออก (string) — แอดมินจ่ายคืนเงินสดเอง (`payOutCredit`) */
+  creditBalance: string;
 };
 
 /**
@@ -157,6 +161,8 @@ export async function leaveGang(gangId: string): Promise<ApiResponse<LeaveGangRe
       cancelled_registrations: number;
       outstanding_charges: number;
       outstanding_amount: string | number;
+      credit_applied: string | number;
+      credit_balance: string | number;
     } | null;
     if (!result) throw new AppError('INTERNAL_ERROR', 'leave_gang ไม่คืนผลลัพธ์');
 
@@ -168,6 +174,8 @@ export async function leaveGang(gangId: string): Promise<ApiResponse<LeaveGangRe
       cancelledRegistrations: result.cancelled_registrations,
       outstandingCharges: result.outstanding_charges,
       outstandingAmount: moneyFromDb(result.outstanding_amount),
+      creditApplied: moneyFromDb(result.credit_applied),
+      creditBalance: moneyFromDb(result.credit_balance),
     };
   });
 }

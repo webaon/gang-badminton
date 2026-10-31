@@ -22,6 +22,7 @@ import {
   payOutCredit,
   returnChargeToCredit,
 } from '@/server/actions/credit';
+import { leaveGang } from '@/server/actions/members';
 
 beforeAll(async () => {
   await reloadPostgrestSchema();
@@ -268,5 +269,33 @@ describe('WO-B5b-2 — server actions ช่องเข้า/ออกขอ�
     const mine = await getMyCredit(s.gangId);
     expect(mine.success && mine.data.balance).toBe('120.00');
     expect(mine.success && mine.data.entries[0]).toMatchObject({ type: 'charge_return', amount: '120.00' });
+  });
+});
+
+describe('WO-B5b-3 — leaveGang action คืนยอดเครดิตสุทธิ', () => {
+  it('🔴 ออกจากก๊วนพร้อมเครดิต+หนี้ ⇒ creditApplied/creditBalance/outstandingAmount เป็น string ตรงกับ DB', async () => {
+    const s = await setup();
+    const {
+      rows: [m],
+    } = await pool.query<{ id: string }>(`select id from public.gang_members where gang_id = $1 and user_id = $2`, [s.gangId, s.member]);
+    await pool.query(
+      `insert into public.session_charges (gang_id, type, gang_member_id, billing_month, amount)
+       values ($1, 'monthly_fee', $2, '1955-01-01', 60)`,
+      [s.gangId, m.id],
+    );
+    h.userId = s.admin;
+    await topUpCredit(s.gangId, s.member, '100.00', 'ชดเชย');
+
+    h.userId = s.member;
+    const res = await leaveGang(s.gangId);
+    expect(res.success).toBe(true);
+    if (res.success) {
+      expect(res.data).toMatchObject({
+        creditApplied: '60.00',
+        creditBalance: '40.00',
+        outstandingCharges: 0,
+        outstandingAmount: '0.00',
+      });
+    }
   });
 });
