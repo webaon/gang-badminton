@@ -76,8 +76,16 @@ async function verifiedPayment(gangId: string, payer: string, amount: string, ac
   return p.id;
 }
 
-const overpay = (paymentId: string, amount: string, actor: string) =>
-  pool.query(`select public.record_overpayment($1, $2, 'ทดสอบ seq', $3)`, [paymentId, amount, actor]);
+const overpay = async (paymentId: string, amount: string, actor: string) => {
+  // [Q1] ต้องกรอกยอดที่โอนจริงก่อน (สลิปในไฟล์นี้ยอด 1.00) — กรอกครั้งแรกครั้งเดียว ครั้งที่สอง (สลิปเดิม) ข้ามไปทดสอบการปฏิเสธซ้ำ
+  const { rows } = await pool.query<{ r: string | null }>(`select received_amount::text r from public.payments where id = $1`, [
+    paymentId,
+  ]);
+  if (rows[0].r === null) {
+    await pool.query(`select public.set_payment_received_amount($1, 1.00 + $2::numeric, $3)`, [paymentId, amount, actor]);
+  }
+  return pool.query(`select public.record_overpayment($1, $2, 'ทดสอบ seq', $3)`, [paymentId, amount, actor]);
+};
 
 const lastSeq = async (gangId: string, userId: string) =>
   Number(
@@ -221,7 +229,11 @@ describe('WO-B5b-1 N1 — ออกเลขใต้ FOR UPDATE', () => {
       const m = await addMember(g.gangId);
       await overpay(await verifiedPayment(g.gangId, m.userId, '1.00', g.owner), '40.00', g.owner);
       const pays = await Promise.all(
-        [0, 1, 2].map(() => verifiedPayment(g.gangId, m.userId, '1.00', g.owner)),
+        [0, 1, 2].map(async () => {
+          const id = await verifiedPayment(g.gangId, m.userId, '1.00', g.owner);
+          await pool.query(`select public.set_payment_received_amount($1, 8.00, $2)`, [id, g.owner]);
+          return id;
+        }),
       );
       // หนี้ 2 ก้อนเกิดตอนมีเครดิต 40 อยู่ ⇒ auto-apply หักไปแล้ว: ใช้ amount ใหญ่เกินเครดิตเพื่อให้เหลือหนี้ให้ apply มือแย่ง
       await charge(g.gangId, m.memberId, '25.00');

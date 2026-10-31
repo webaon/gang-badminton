@@ -46,7 +46,7 @@ async function setup() {
   const other = await add();
   const admin = await add('admin');
 
-  const pay = async (payer: string) => {
+  const pay = async (payer: string, excess?: string) => {
     const {
       rows: [p],
     } = await pool.query<{ id: string }>(
@@ -55,6 +55,10 @@ async function setup() {
     );
     await pool.query(`select public.transition_payment($1, 'submitted', $2)`, [p.id, payer]);
     await pool.query(`select public.transition_payment($1, 'verified', $2)`, [p.id, owner]);
+    // [Q1] แอดมินกรอกยอดที่โอนจริง = 150 + ส่วนเกิน
+    if (excess) {
+      await pool.query(`select public.set_payment_received_amount($1, 150 + $2::numeric, $3)`, [p.id, excess, owner]);
+    }
     return p.id;
   };
   return { gangId: gang.id, owner, member, other, admin, pay };
@@ -63,7 +67,7 @@ async function setup() {
 describe('WO-B5a — server actions เครดิต', () => {
   it('🔴 แอดมินบันทึกโอนเกิน → ผู้โอนเห็นยอดและรายการของตัวเอง · เงินเป็น string', async () => {
     const s = await setup();
-    const payment = await s.pay(s.member);
+    const payment = await s.pay(s.member, '50.50');
 
     h.userId = s.admin;
     const rec = await recordOverpayment(payment, '50.50', 'โอน 200.50 แทน 150');
@@ -120,7 +124,7 @@ describe('WO-B5a — server actions เครดิต', () => {
   it('getMemberCredit: แอดมินดูของคนอื่นได้ · member ดูของคนอื่นไม่ได้ · ดูของตัวเองผ่าน read.self', async () => {
     const s = await setup();
     h.userId = s.admin;
-    await recordOverpayment(await s.pay(s.member), '20.00', 'ทดสอบ');
+    await recordOverpayment(await s.pay(s.member, '20.00'), '20.00', 'ทดสอบ');
 
     h.userId = s.admin;
     const asAdmin = await getMemberCredit(s.gangId, s.member);
@@ -139,8 +143,8 @@ describe('WO-B5a — server actions เครดิต', () => {
   it('listGangCredits: แอดมินเห็นเฉพาะคนที่มียอด > 0 + ผลรวม "เงินที่ก๊วนติดสมาชิก" · member ไม่ได้', async () => {
     const s = await setup();
     h.userId = s.admin;
-    await recordOverpayment(await s.pay(s.member), '20.10', 'a');
-    await recordOverpayment(await s.pay(s.other), '30.20', 'b');
+    await recordOverpayment(await s.pay(s.member, '20.10'), '20.10', 'a');
+    await recordOverpayment(await s.pay(s.other, '30.20'), '30.20', 'b');
 
     const list = await listGangCredits(s.gangId);
     expect(list.success).toBe(true);

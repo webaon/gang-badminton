@@ -44,7 +44,7 @@ export type CreditEntry = {
   id: string;
   /** ลำดับรายการต่อสมาชิก (เริ่ม 1 ไม่ซ้ำไม่ข้าม) — ใช้เรียงประวัติ */
   seq: number;
-  type: 'overpayment' | 'applied';
+  type: 'overpayment' | 'applied' | 'admin_topup' | 'cash_payout' | 'charge_return';
   /** บวก = เข้า / ลบ = ออก (ใช้จ่ายหนี้) */
   amount: string;
   balanceAfter: string;
@@ -173,12 +173,15 @@ export async function listGangCredits(gangId: string): Promise<ApiResponse<GangC
 /**
  * แอดมินบันทึกยอดโอนเกินของสลิปที่ยืนยันแล้ว → เข้าเป็นเครดิตของผู้โอน
  *
+ * 🔴 ยอดเครดิต = (ยอดที่โอนจริง − ยอดสลิป) **คำนวณใน DB** จาก `payments.received_amount` ที่แอดมินกรอกไว้
+ *    (`setPaymentReceivedAmount`) — `amount` ที่ส่งมาเป็นแค่ "ยืนยันตัวเลข": ต้องเท่ากับที่ DB คำนวณ
+ *    (ไม่ส่ง = ใช้ที่ DB คำนวณ) · ไม่มี received_amount ⇒ ปฏิเสธ
  * 🔴 ตัดสินทั้งหมดใน `record_overpayment()` (สลิปต้อง verified · แอดมินจริง · หนึ่งสลิปครั้งเดียว ·
  *    FOR UPDATE ยอด) — ที่นี่แค่ตรวจ `can()` และรูปแบบจำนวนเงิน
  */
 export async function recordOverpayment(
   paymentId: string,
-  amount: string,
+  amount: string | null,
   reason: string,
 ): Promise<ApiResponse<{ balanceAfter: string }>> {
   const correlationId = await cid();
@@ -198,14 +201,14 @@ export async function recordOverpayment(
     assertCan({ role: await roleInGang(payment.gang_id, user.id) }, 'credit.overpayment.record');
 
     // ส่งเป็น string เสมอ — ห้ามผ่าน float (CLAUDE.md §2.6); DB ตรวจรูปแบบซ้ำ
-    if (!/^\d+(\.\d{1,2})?$/.test(amount.trim())) {
+    if (amount !== null && !/^\d+(\.\d{1,2})?$/.test(amount.trim())) {
       throw new AppError('VALIDATION_ERROR', 'จำนวนเงินไม่ถูกต้อง');
     }
     if (!reason.trim()) throw new AppError('VALIDATION_ERROR', 'ต้องระบุเหตุผล');
 
     const { data, error } = await supabaseAdmin().rpc('record_overpayment', {
       p_payment_id: paymentId,
-      p_amount: amount.trim(),
+      p_amount: amount === null ? null : amount.trim(),
       p_reason: reason.trim(),
       p_actor_id: user.id,
       p_correlation_id: correlationId,
@@ -215,5 +218,51 @@ export async function recordOverpayment(
     const row = data as { balance_after: string | number };
     revalidatePath(`/gangs/${payment.gang_id}/payments`);
     return { balanceAfter: moneyFromDb(row.balance_after) };
+  });
+}
+
+/**
+ * แอดมินกรอก "ยอดที่โอนจริง" ของสลิป (ตอนตรวจ/ยืนยันสลิป) **[WO-B5b-1 · ADR-010 Q1]**
+ *
+ * ใช้เทียบกับยอดสลิปเพื่อหาส่วนเกิน (โอนเกิน) — ไม่ได้ทำให้เกิดเครดิตเอง ต้องกด `recordOverpayment` ต่างหาก
+ * ⚠️ สิทธิ์ `payment.verify` (ผู้ตรวจสลิป) · DB ตรวจแอดมินซ้ำ · แก้ได้จนกว่าจะบันทึกโอนเกินจากสลิปนี้
+ * (แยกจาก `reviewPayment` โดยตั้งใจ — ไม่แตะ `payments.ts` ที่มีงานค้างของผู้อื่น · ผูกเข้าปุ่มยืนยันที่ UI ใน WO-6.5)
+ */
+export async function setPaymentReceivedAmount(
+  paymentId: string,
+  receivedAmount: string,
+): Promise<ApiResponse<{ receivedAmount: string; amount: string }>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const user = await requireUser();
+    const supabase = await supabaseServer();
+
+    const { data: payment } = await supabase
+      .from('payments')
+      .select('id, gang_id')
+      .eq('id', paymentId)
+      .is('deleted_at', null)
+      .maybeSingle();
+    if (!payment) throw new AppError('PAYMENT_NOT_FOUND', 'ไม่พบการชำระเงินนี้');
+
+    assertCan({ role: await roleInGang(payment.gang_id, user.id) }, 'payment.verify');
+
+    if (!/^\d+(\.\d{1,2})?$/.test(receivedAmount.trim())) {
+      throw new AppError('VALIDATION_ERROR', 'ยอดที่โอนจริงไม่ถูกต้อง');
+    }
+
+    const { data, error } = await supabaseAdmin().rpc('set_payment_received_amount', {
+      p_payment_id: paymentId,
+      p_received: receivedAmount.trim(),
+      p_actor_id: user.id,
+      p_correlation_id: correlationId,
+    });
+    if (error) throw error;
+
+    const row = data as { amount: string | number; received_amount: string | number };
+    revalidatePath(`/gangs/${payment.gang_id}/payments`);
+    // ส่วนเกินคำนวณใน DB ตอน record_overpayment เท่านั้น — ไม่คำนวณเงินที่นี่
+    return { receivedAmount: moneyFromDb(row.received_amount), amount: moneyFromDb(row.amount) };
   });
 }

@@ -324,6 +324,7 @@ describe('WO-R4 — payment.due ⇒ in_app + line · session.opened ⇒ in_app �
       );
       await pool.query(`select public.transition_payment($1, 'submitted', $2)`, [p.id, u]);
       await pool.query(`select public.transition_payment($1, 'verified', $2)`, [p.id, g.owner]);
+      await pool.query(`select public.set_payment_received_amount($1, 1 + $2::numeric, $3)`, [p.id, amount, g.owner]);
       await pool.query(`select public.record_overpayment($1, $2, 'ทดสอบ', $3)`, [p.id, amount, g.owner]);
     }
 

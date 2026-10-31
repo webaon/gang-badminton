@@ -85,9 +85,27 @@ async function verifiedPayment(gangId: string, payer: string, amount: string, ac
   return p.id;
 }
 
-/** ให้เครดิต `amount` แก่สมาชิกผ่านทางจริง (สลิป verified → โอนเกิน) */
+/** [Q1] แอดมินกรอกยอดที่โอนจริง = ยอดสลิป + ส่วนเกิน ⇒ DB คำนวณโอนเกินได้ (record_overpayment ปฏิเสธถ้าไม่กรอก) */
+async function setReceived(paymentId: string, received: string, actor: string) {
+  await pool.query(`select public.set_payment_received_amount($1, $2, $3)`, [paymentId, received, actor]);
+}
+
+/** สลิป verified ที่ยอด `amount` และโอนจริง `amount + excess` */
+async function verifiedPaymentWithExcess(
+  gangId: string,
+  payer: string,
+  amount: string,
+  excess: string,
+  actor: string,
+): Promise<string> {
+  const id = await verifiedPayment(gangId, payer, amount, actor);
+  await setReceived(id, fromSatang(toSatang(amount) + toSatang(excess)), actor);
+  return id;
+}
+
+/** ให้เครดิต `amount` แก่สมาชิกผ่านทางจริง (สลิป verified → แอดมินกรอกยอดโอนจริง → โอนเกิน) */
 async function giveCredit(g: Gang, userId: string, amount: string): Promise<string> {
-  const paymentId = await verifiedPayment(g.gangId, userId, '1.00', g.owner);
+  const paymentId = await verifiedPaymentWithExcess(g.gangId, userId, '1.00', amount, g.owner);
   await pool.query(`select public.record_overpayment($1, $2, 'ทดสอบโอนเกิน', $3)`, [
     paymentId,
     amount,
@@ -175,7 +193,7 @@ describe('WO-B5a — credit_ledger เป็น append-only', () => {
     await expect(ins('overpayment', '-10', '0', 'x', pay)).rejects.toThrow(/sign_matches_type/);
     await expect(ins('applied', '10', '10', null, pay)).rejects.toThrow(/sign_matches_type/);
     await expect(ins('overpayment', '10', '10', 'x', null)).rejects.toThrow(/payment_required/);
-    await expect(ins('overpayment', '10', '10', '  ', pay)).rejects.toThrow(/overpayment_reason/);
+    await expect(ins('overpayment', '10', '10', '  ', pay)).rejects.toThrow(/reason_required/);
     await expect(ins('refund', '-10', '0', null, pay)).rejects.toThrow(/check constraint/);
 
     await expect(
@@ -216,7 +234,7 @@ describe('WO-B5a — record_overpayment (โอนเกิน · แอดม�
   it('แอดมินบันทึก → เครดิตเข้าให้ผู้โอน · ledger + cache ตรงกัน', async () => {
     const g = await newGang();
     const m = await addMember(g.gangId);
-    const pay = await verifiedPayment(g.gangId, m.userId, '150.00', g.owner);
+    const pay = await verifiedPaymentWithExcess(g.gangId, m.userId, '150.00', '50.00', g.owner);
 
     const {
       rows: [row],
@@ -230,7 +248,7 @@ describe('WO-B5a — record_overpayment (โอนเกิน · แอดม�
     await expectCreditConsistent(g.gangId, m.userId);
 
     // ส่วนเกินสลิปใหม่ → ทบยอด
-    const pay2 = await verifiedPayment(g.gangId, m.userId, '100.00', g.owner);
+    const pay2 = await verifiedPaymentWithExcess(g.gangId, m.userId, '100.00', '25.50', g.owner);
     await pool.query(`select public.record_overpayment($1, 25.50, 'อีกครั้ง', $2)`, [pay2, g.owner]);
     expect(await balanceCache(g.gangId, m.userId)).toBe('75.50');
     await expectCreditConsistent(g.gangId, m.userId);
@@ -269,7 +287,7 @@ describe('WO-B5a — record_overpayment (โอนเกิน · แอดม�
       pool.query(`select public.record_overpayment($1, 10, 'x', $2)`, [crypto.randomUUID(), g.owner]),
     ).rejects.toThrow(/PAYMENT_NOT_FOUND/);
 
-    const ok = await verifiedPayment(g.gangId, m.userId, '100.00', g.owner);
+    const ok = await verifiedPaymentWithExcess(g.gangId, m.userId, '100.00', '10.00', g.owner);
     for (const amount of ['0', '-5', '1.005']) {
       await expect(
         pool.query(`select public.record_overpayment($1, $2, 'x', $3)`, [ok, amount, g.owner]),
@@ -290,7 +308,7 @@ describe('WO-B5a — record_overpayment (โอนเกิน · แอดม�
   it('🔴 สลิปเดียวบันทึกซ้ำไม่ได้ (เครดิตไม่เบิ้ล)', async () => {
     const g = await newGang();
     const m = await addMember(g.gangId);
-    const pay = await verifiedPayment(g.gangId, m.userId, '100.00', g.owner);
+    const pay = await verifiedPaymentWithExcess(g.gangId, m.userId, '100.00', '30.00', g.owner);
     await pool.query(`select public.record_overpayment($1, 30, 'ครั้งแรก', $2)`, [pay, g.owner]);
     let detail = '';
     await expect(
@@ -307,7 +325,7 @@ describe('WO-B5a — record_overpayment (โอนเกิน · แอดม�
     for (let i = 0; i < 10; i++) {
       const g = await newGang();
       const m = await addMember(g.gangId);
-      const pay = await verifiedPayment(g.gangId, m.userId, '100.00', g.owner);
+      const pay = await verifiedPaymentWithExcess(g.gangId, m.userId, '100.00', '40.00', g.owner);
 
       const results = await runConcurrently(4, (c) =>
         c.query(`select public.record_overpayment($1, 40, 'พร้อมกัน', $2)`, [pay, g.owner]),
@@ -668,7 +686,7 @@ describe('WO-B5a — concurrency', () => {
       const m = await addMember(g.gangId);
       const c = await charge(g.gangId, m.memberId, '120.00');
       await giveCredit(g, m.userId, '50.00');
-      const pay = await verifiedPayment(g.gangId, m.userId, '100.00', g.owner);
+      const pay = await verifiedPaymentWithExcess(g.gangId, m.userId, '100.00', '70.00', g.owner);
 
       await runConcurrently(3, (cl, idx) =>
         idx === 0
