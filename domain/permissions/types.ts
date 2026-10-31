@@ -51,6 +51,9 @@ export const ACTIONS = [
   'credit.read.self',
   'credit.read.other',
   'credit.overpayment.record',
+  'credit.topup',
+  'credit.payout.record',
+  'credit.return_charge',
 
   // นัดเล่น
   'session.view',

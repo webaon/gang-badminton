@@ -28,6 +28,7 @@ export const ERROR_MESSAGES_TH: Record<ErrorCode, string> = {
   PAYMENT_NOT_FOUND: 'ไม่พบรายการชำระเงิน',
   ALLOCATION_EXCEEDS_PAYMENT: 'ยอดที่จัดสรรเกินจำนวนเงินที่ชำระ',
   CHARGE_NOT_FOUND: 'ไม่พบรายการค่าใช้จ่ายที่อ้างถึง',
+  INSUFFICIENT_CREDIT: 'เครดิตคงเหลือไม่พอสำหรับรายการนี้',
   CHARGES_ALREADY_COMMITTED: 'นัดนี้สรุปยอดไปแล้ว',
   MONTHLY_FEE_ALREADY_GENERATED: 'ออกบิลรายเดือนของเดือนนี้ไปแล้ว',
 

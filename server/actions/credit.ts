@@ -266,3 +266,105 @@ export async function setPaymentReceivedAmount(
     return { receivedAmount: moneyFromDb(row.received_amount), amount: moneyFromDb(row.amount) };
   });
 }
+
+// ---------------------------------------------------------------------------
+// [WO-B5b-2 · ADR-010] ช่องเข้า/ออกของเครดิต — ตัดสินทั้งหมดใน DB function (ตรวจแอดมินซ้ำ · FOR UPDATE ยอด)
+// ---------------------------------------------------------------------------
+
+const MONEY_RE = /^\d+(\.\d{1,2})?$/;
+
+export type CreditMovement = { balanceAfter: string; entryId: string };
+
+async function creditMovement(
+  gangId: string,
+  userId: string,
+  amount: string,
+  reason: string,
+  action: 'credit.topup' | 'credit.payout.record',
+  rpc: 'credit_topup' | 'credit_cash_payout',
+): Promise<ApiResponse<CreditMovement>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const user = await requireUser();
+    assertCan({ role: await roleInGang(gangId, user.id) }, action);
+
+    // ส่งเป็น string เสมอ — ห้ามผ่าน float (CLAUDE.md §2.6); DB ตรวจรูปแบบซ้ำ
+    if (!MONEY_RE.test(amount.trim())) throw new AppError('VALIDATION_ERROR', 'จำนวนเงินไม่ถูกต้อง');
+    if (!reason.trim()) throw new AppError('VALIDATION_ERROR', 'ต้องระบุเหตุผล');
+
+    const { data, error } = await supabaseAdmin().rpc(rpc, {
+      p_gang_id: gangId,
+      p_user_id: userId,
+      p_amount: amount.trim(),
+      p_reason: reason.trim(),
+      p_actor_id: user.id,
+      p_correlation_id: correlationId,
+    });
+    if (error) throw error;
+
+    const row = data as { id: string; balance_after: string | number };
+    revalidatePath(`/gangs/${gangId}/payments`);
+    return { balanceAfter: moneyFromDb(row.balance_after), entryId: row.id };
+  });
+}
+
+/** แอดมิน/โอเนอร์ "ให้เครดิต" แก่สมาชิก (ไม่ใช่เงินสดเข้า · เหตุผลบังคับ · audit) */
+export async function topUpCredit(
+  gangId: string,
+  userId: string,
+  amount: string,
+  reason: string,
+): Promise<ApiResponse<CreditMovement>> {
+  return creditMovement(gangId, userId, amount, reason, 'credit.topup', 'credit_topup');
+}
+
+/** แอดมิน/โอเนอร์ จ่ายคืนเครดิตเป็นเงินสด (เงินออกจริง · ≤ ยอดคงเหลือ ไม่งั้น INSUFFICIENT_CREDIT) */
+export async function payOutCredit(
+  gangId: string,
+  userId: string,
+  amount: string,
+  reason: string,
+): Promise<ApiResponse<CreditMovement>> {
+  return creditMovement(gangId, userId, amount, reason, 'credit.payout.record', 'credit_cash_payout');
+}
+
+/**
+ * ย้ายยอด "ต้องคืน" ของ charge (outstanding ติดลบ) เข้าเครดิตของเจ้าของหนี้ — ขั้นที่ 2 ของ "คืน charge ที่จ่ายแล้ว"
+ *
+ * ขั้นที่ 1 = `addChargeAdjustment(chargeId, { type: 'credit', amount: '-X', ... })` (payments.ts) เพื่อลดหนี้ให้ติดลบ
+ * `amount` ว่าง = ย้ายเท่าที่ย้ายได้ทั้งหมด · DB จำกัด ≤ min(ยอดต้องคืน, เงินที่ charge นี้ได้รับจริงและยังไม่ถูกจ่ายออก)
+ */
+export async function returnChargeToCredit(
+  chargeId: string,
+  amount: string | null,
+  reason: string,
+): Promise<ApiResponse<CreditMovement>> {
+  const correlationId = await cid();
+
+  return runAction(correlationId, async () => {
+    const user = await requireUser();
+    const admin = supabaseAdmin();
+
+    const { data: charge } = await admin.from('session_charges').select('id, gang_id').eq('id', chargeId).maybeSingle();
+    if (!charge) throw new AppError('CHARGE_NOT_FOUND', 'ไม่พบยอดเรียกเก็บนี้');
+
+    assertCan({ role: await roleInGang(charge.gang_id, user.id) }, 'credit.return_charge');
+
+    if (amount !== null && !MONEY_RE.test(amount.trim())) throw new AppError('VALIDATION_ERROR', 'จำนวนเงินไม่ถูกต้อง');
+    if (!reason.trim()) throw new AppError('VALIDATION_ERROR', 'ต้องระบุเหตุผล');
+
+    const { data, error } = await admin.rpc('credit_return_charge', {
+      p_charge_id: chargeId,
+      p_amount: amount === null ? null : amount.trim(),
+      p_reason: reason.trim(),
+      p_actor_id: user.id,
+      p_correlation_id: correlationId,
+    });
+    if (error) throw error;
+
+    const row = data as { id: string; balance_after: string | number };
+    revalidatePath(`/gangs/${charge.gang_id}/payments`);
+    return { balanceAfter: moneyFromDb(row.balance_after), entryId: row.id };
+  });
+}

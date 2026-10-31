@@ -47,6 +47,10 @@ const ADMIN: readonly Action[] = [
   // [WO-B5a · ADR-010] เครดิตสมาชิก — RLS กรองแถวซ้ำอีกชั้น · บันทึกโอนเกิน DB ตรวจแอดมินซ้ำ
   'credit.read.other',
   'credit.overpayment.record',
+  // [WO-B5b · ADR-010] เติมเครดิต (ให้เครดิต ไม่ใช่เงินสดเข้า) / จ่ายคืนเงินสด / ย้ายยอดต้องคืนของ charge เข้าเครดิต — แอดมิน+โอเนอร์ · DB ตรวจแอดมินซ้ำ
+  'credit.topup',
+  'credit.payout.record',
+  'credit.return_charge',
   'gang.update',
   'gang.member.manage',
   'gang.skill.manage',
