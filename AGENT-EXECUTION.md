@@ -1738,6 +1738,12 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | R2.1 (เดิมเรียก B13.1) | payment reminders keyset + แก้เทสต์ claim flaky | @gb-integrations | ✅ `090d22b` QA ผ่าน |
 | B5a | เครดิตสมาชิก — ADR-010 `aeb9fe1` + migration 0044 `003e800` | @gb-backend | ✅ QA ใบ 13 ผ่าน · db push cloud ✅ (44/44 · EXECUTE anon/auth=false) |
 | B15-ADR | web push — ADR-014 `75a9464` (Q1–Q10 ★ · baseline `4eecade`) | @gb-integrations | ✅ (เอกสาร ไม่ต้อง QA) |
+| B5b-1 | N1 seq `cc8a14e` (0046) + received_amount/type ใหม่ `f917afc` (0047) | @gb-backend | 🔄 QA ใบ 16 (N1) · ใบ 17 (0047) |
+| B5b-2 | topup / cash_payout / credit_return_charge + refund cap + finance.ts `a6254ea` (0048) | @gb-backend | 🔄 QA ใบ 18 |
+| B5b-3 | leave_gang หักเครดิต + ห้าม topup ตัวเอง `6d6a3ba` (0049) | @gb-backend | 🔄 QA ใบ 19 |
+| B13-ADR | ADR-015 บทบาทกำหนดเอง `b2f2f66` · Accepted `e64a1f2` | @gb-backend | ✅ (เอกสาร) |
+| R-roles-0 | golden role-matrix `146bf16` (เทสต์อย่างเดียว) | @gb-backend | 🔄 QA ใบ 20 |
+| R-roles-1 | expand: gang_roles + has_gang_permission + preset + assign (ไม่แก้ policy เดิม) | @gb-backend | 🔄 |
 | 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ |
 | 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
 | 6.7 | Auth + onboarding | @gb-frontend | ⏳ |
