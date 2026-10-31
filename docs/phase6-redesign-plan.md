@@ -405,3 +405,13 @@ Forbidden: migration · แก้ domain/billing / server action payments เด
 - ตัดสิน: `waitlist.promoted` + `payment.due` ⇒ in_app + line · `session.opened` ⇒ **in_app เท่านั้น** (โควต้า LINE 200/เดือน)
 - ทำ: ให้ฟังก์ชันที่ insert ตรงเรียก `enqueue_notifications()` (เพิ่ม `p_channels` ถ้าจำเป็น เพื่อให้ session.opened ไม่ fan-out ไป line) · dedupe_key เดิม · ไม่เปลี่ยน transition/ผลของ `promote_waitlist()` · ก๊วนที่ไม่ได้ผูก LINE ⇒ ไม่มีแถว line (เหมือนเหตุการณ์อื่น)
 - DoD: vitest — promote (ทั้งอัตโนมัติและแอดมินเลือก B11) สร้างแถว in_app + line ครั้งเดียว (dedupe) · payment.due เหมือนกัน · session.opened มีแต่ in_app · ก๊วนไม่ผูก LINE ไม่มีแถว line · concurrency promote/cancel เดิมผ่าน (ไม่มี overbook / 40P01) · ข้อความ LINE ใน line-message.ts ส่งได้จริงจาก worker (mock LINE API) · EXECUTE matrix ไม่เปลี่ยน · ห้าม db reset
+
+### WO-B5b (@gb-backend) — เครดิตส่วนที่ 2 · คำตัดสินเจ้าของงาน 29 ต.ค. 2026 (Q1–Q5 ตาม ★ ทั้งหมด)
+| Q | ตัดสิน |
+|---|---|
+| Q1 เพดานโอนเกิน | **ก** แอดมินกรอก `received_amount` ตอนยืนยันสลิป · overpayment = received − amount คำนวณใน DB · `record_overpayment` ปฏิเสธเกิน (UI ช่องกรอก = งาน 6.5) |
+| Q2 เครดิตคืน | **ก** `credit_return_charge` ทีละรายการ (คิดผิด / ยกเลิกทีหลัง / ค่ารายเดือน) · ❌ ไม่เพิ่ม billing→cancelled · ❌ ไม่ทำ pro-rata |
+| Q3 เติมเครดิต | **ก** admin + owner · เหตุผลบังคับ + audit · ถือเป็น "ให้เครดิต" ไม่นับเงินสดเข้า |
+| Q4 รายงาน | **ก** ตรงบัญชีธนาคาร: โอนเกินนับตอนเงินเข้า (บรรทัด "โอนเกินเข้าเครดิต") · allocation source=credit ไม่นับเป็นเงินสดซ้ำ · `cash_payout` = บรรทัด "เงินคืนสมาชิก" หัก netCash · **อนุญาตแตะ `domain/reports/finance.ts`** (สูตรรายงานเท่านั้น) |
+| Q5 ออกจากก๊วน | **ข** leave_gang หักเครดิตกับหนี้ค้างอัตโนมัติก่อนออก (apply_credit) แล้วคืนยอดเครดิตสุทธิ + ยอดค้างสุทธิใน result · แอดมินจ่ายคืนเอง |
+ใบย่อย: B5b-1 (N1 seq `cc8a14e` + type ใหม่ + N2/received_amount) → B5b-2 (topup / cash_payout / credit_return_charge + refund cap นับเฉพาะ transfer + finance.ts) → B5b-3 (leave_gang)
