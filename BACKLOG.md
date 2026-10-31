@@ -516,3 +516,4 @@
 - [ ] 🟡 **(QA ใบ 13 · B5b)** N1 `credit_ledger` เรียงด้วย created_at ไม่ตรงลำดับล็อกจริง (clock skew µs) ⇒ ประวัติเครดิตจะโชว์ balance_after กระโดด · เงินไม่ผิด (cache = Σ) · แก้: คอลัมน์ `seq` ต่อ (gang,user) เขียนใต้ FOR UPDATE + unique · `expectCreditConsistent` อาจ flaky
 - [ ] 🟡 **(QA ใบ 13 · B5b)** N2 `record_overpayment` ไม่มีเพดาน (สลิป 1.00 บันทึกเครดิต 500 ได้) ⇒ เก็บยอดโอนจริงไว้เทียบ / audit / UI เตือนเมื่อเกินยอดสลิป
 - [ ] (QA ใบ 13) coverage: probe concurrency ×20 ของ QA เองรันได้รอบแรก (ไม่มี deadlock ยอดถูก) แต่ assert ของ probe ผิด แก้ไม่ได้เพราะติดอนุมัติ · เทสต์ของเจ้าของงาน 4 ทาง×20 ผ่าน 5 รอบ ⇒ planner รับ
+- [ ] 🟡 **(B5b-1 · R2.2 → @gb-integrations หลัง R3)** reminders.test.ts B13.1 "ยอดค้างที่เก่าสุด…หลายหน้า" ล้มเมื่อ DB ร่วมมี session_charges หลายพัน: pageSize = floor(total/4) > PostgREST max_rows 1000 ⇒ อ่านถูกตัด · แก้เทสต์ให้ pageSize ≤ 1000 (เช่น min(total/4, 500)) — ไม่ใช่บั๊กโค้ด production (PAGE_SIZE 500)
