@@ -431,6 +431,20 @@ describe('WO-B13.1 — เตือนยอดค้างแบ่งหน้
     return Number(row.n);
   }
 
+  /** Never let shared-DB growth turn a pagination test into a truncated single-page scan. */
+  async function boundedPageSize(total: number): Promise<number> {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const config = readFileSync(join(__dirname, '..', '..', 'supabase/config.toml'), 'utf8');
+    const maxRows = Number(/^max_rows\s*=\s*(\d+)/m.exec(config)?.[1]);
+    expect(maxRows).toBeGreaterThan(1);
+    const size = Math.max(1, Math.min(500, maxRows - 1, Math.floor(total / 4)));
+    expect(size).toBeLessThan(maxRows);
+    expect(size).toBeLessThanOrEqual(500);
+    expect(Math.ceil(total / size)).toBeGreaterThanOrEqual(4);
+    return size;
+  }
+
   it('🔴 ยอดค้างที่เก่าสุด (ท้ายลำดับ created_at desc) ยังถูกเตือน เมื่อ pageSize เล็กจนต้องวนหลายหน้า', async () => {
     // fixture ถูกสร้าง "ใหม่สุด" ⇒ อยู่หน้าแรก · ทำให้เป็น "เก่าสุด" ด้วยการย้อน created_at ไปก่อนทุกแถวใน DB
     const oldest = await endedSessionWithCharge('120.00');
@@ -444,7 +458,7 @@ describe('WO-B13.1 — เตือนยอดค้างแบ่งหน้
     );
 
     const total = await sessionChargeCount();
-    const pageSize = Math.max(1, Math.floor(total / 4));
+    const pageSize = await boundedPageSize(total);
     expect(total).toBeGreaterThanOrEqual(2);
 
     await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize });
@@ -467,9 +481,26 @@ describe('WO-B13.1 — เตือนยอดค้างแบ่งหน้
       [[a.chargeId, b.chargeId, c.chargeId], '2000-01-01T00:00:00.000001Z'],
     );
 
-    // pageSize = 1 ⇒ ทุกแถวที่ชนกันคั่นด้วยขอบหน้า · จำกัดให้ DB ที่มีข้อมูลเยอะไม่วนนานเกินไป
+    // Find the fixture's actual positions in the production ordering. Pick a bounded
+    // page size whose boundary is AFTER the first or second tied row, never after all three.
     const total = await sessionChargeCount();
-    const pageSize = total > 300 ? Math.ceil(total / 5) : 1;
+    const limit = await boundedPageSize(total);
+    const { rows: positions } = await pool.query<{ id: string; position: string }>(
+      `select id, position from (
+         select id, row_number() over (order by created_at desc, id desc) as position
+           from public.session_charges where type = 'session'
+       ) ranked where id = any($1::uuid[]) order by position`,
+      [[a.chargeId, b.chargeId, c.chargeId]],
+    );
+    expect(positions).toHaveLength(3);
+    const ranks = positions.map((r) => Number(r.position));
+    expect(ranks).toEqual([ranks[0], ranks[0] + 1, ranks[0] + 2]);
+    let pageSize = limit;
+    while (pageSize > 1 && !ranks.slice(0, 2).some((rank) => rank % pageSize === 0)) pageSize -= 1;
+    expect(pageSize).toBeLessThanOrEqual(limit);
+    expect(ranks.slice(0, 2).some((rank) => rank % pageSize === 0)).toBe(true);
+    expect(Math.floor((ranks[0] - 1) / pageSize)).not.toBe(Math.floor((ranks[2] - 1) / pageSize));
+    expect(Math.ceil(total / pageSize)).toBeGreaterThanOrEqual(4);
 
     await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize });
     const again = await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize });
@@ -482,6 +513,7 @@ describe('WO-B13.1 — เตือนยอดค้างแบ่งหน้
 
   it('ไม่เปลี่ยน logic: จ่ายครบแล้ว/ยังไม่ถึงกำหนด ไม่ถูกเตือนแม้วนหลายหน้า', async () => {
     const paid = await endedSessionWithCharge('200.00');
+    const unpaid = await endedSessionWithCharge('130.00');
     await pool.query(`select public.add_payment_adjustment($1, 'credit', $2, $3, null, $4)`, [
       paid.chargeId,
       '-200.00',
@@ -490,11 +522,14 @@ describe('WO-B13.1 — เตือนยอดค้างแบ่งหน้
     ]);
 
     const total = await sessionChargeCount();
-    await sendPaymentReminders(crypto.randomUUID(), new Date(), {
-      pageSize: Math.max(1, Math.floor(total / 3)),
-    });
+    const pageSize = await boundedPageSize(total);
+    await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize });
 
     expect(await remindersOf(paid.gangId, 'payment.overdue')).toHaveLength(0);
+    // Positive control: a no-op/truncated scan must not make the negative assertion pass vacuously.
+    const unpaidRows = await remindersOf(unpaid.gangId, 'payment.overdue');
+    expect(unpaidRows).toHaveLength(1);
+    expect(unpaidRows[0].payload.outstanding).toBe('130.00');
   });
 });
 
