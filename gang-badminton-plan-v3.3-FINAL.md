@@ -425,3 +425,9 @@ Commit + push เป็นช่วงๆ ตามโมดูลไป `claude
 - VAPID: public = `NEXT_PUBLIC_VAPID_PUBLIC_KEY` · private + subject เป็น env server บน Vercel (เจ้าของงานสร้างเอง) · ไลบรารี `web-push` · ความหน่วง 5–10 นาที (cron */5) ยอมรับได้
 - ลำดับ: B15.0 spike S1–S9 (ต้องใช้มือถือจริง) → B15.1 DB (@gb-backend) → B15.2 ส่ง + B15.3 PWA/CSP (@gb-integrations) → B15.4 UI (@gb-frontend) · ทั้งหมดหลัง R3 / B5 / 6.3
 - **ADR-010 ภาคผนวก (29 ต.ค. 2026 · B5b · เจ้าของงานตัดสิน Q1–Q5 ตาม ★)**: โอนเกินต้องมี `payments.received_amount` (แอดมินกรอก) และ overpayment คำนวณใน DB · เครดิตคืนรายรายการผ่าน `credit_return_charge` (ไม่มี billing→cancelled) · แอดมิน/owner เติมเครดิตได้ (เหตุผล+audit, ไม่ใช่เงินสด) · รายงานแบบตรงบัญชีธนาคาร: โอนเกินนับตอนเงินเข้า, ใช้เครดิตไม่นับซ้ำ, จ่ายคืนเงินสด = "เงินคืนสมาชิก" · leave_gang หักเครดิตกับหนี้ก่อนออก แล้วคืนยอดสุทธิ · refund เงินสดได้ไม่เกินส่วนที่โอนจริง (source=transfer)
+
+### ADR-015 — (29 ต.ค. 2026 · WO-B13-ADR · ร่างเต็ม `docs/adr/ADR-015-custom-roles.md` @b2f2f66) — บทบาทกำหนดเอง: **กลับคำ** ADR "ไม่รับ RBAC" (v3.1) ตามคำตัดสินเจ้าของงาน 26 ต.ค. — 🟡 Proposed (Q1/Q3/Q5/Q7/Q8 planner รับตาม ★ · Q2/Q4/Q6 รอเจ้าของงาน)
+- ของจริง: role ถูกเช็ค 3 ชั้น (TS `can()` + loader roleInGang 7 สำเนา · RLS ~24 policy + 9 storage · DB function ~13 จุดใช้ `actor_is_gang_admin`) ไม่ใช่โมดูลเดียวตามที่ baseline คาด
+- โมเดล (ค): role พื้นฐาน owner/admin/member ไม่เปลี่ยน + ชุดสิทธิ์ซ้อน `gang_roles` / `gang_member_roles` (m:n · ให้เฉพาะ member) · DB ตัดสินด้วย `has_gang_permission(gang, action)` ⊇ is_gang_admin · DELEGABLE_ACTIONS แบบปิด (ห้าม delegate member.manage / ownership.transfer / gang.update / line.manage / join_request)
+- เฟส 1 = preset ระบบ 2 ชุด (เหรัญญิก / ผู้จัดคิว) ชื่อแสดงแก้ได้ต่อก๊วน · ไม่มี feature flag · UI สร้าง role เอง = เฟส 2
+- ลำดับ expand → migrate → contract (R-roles-0 golden matrix → 1 expand → 2 migrate policy ทีละกลุ่มใน txn เดียว → 3 TS context → 4 enable → 5 contract) ⇒ ไม่มีช่วงสิทธิ์หลวม/หาย
