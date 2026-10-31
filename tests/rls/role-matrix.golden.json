@@ -1,0 +1,1577 @@
+{
+ "can": {
+  "featuresOn": {
+   "owner": [
+    "announcement.manage",
+    "announcement.view",
+    "billing.close",
+    "credit.overpayment.record",
+    "credit.payout.record",
+    "credit.read.other",
+    "credit.read.self",
+    "credit.return_charge",
+    "credit.topup",
+    "game.manage",
+    "gang.finance.manage",
+    "gang.finance.view",
+    "gang.join_request.manage",
+    "gang.leave.self",
+    "gang.line.manage",
+    "gang.member.manage",
+    "gang.member.view",
+    "gang.ownership.transfer",
+    "gang.pricing.manage",
+    "gang.skill.manage",
+    "gang.update",
+    "gang.view",
+    "line.link.self",
+    "notification.view.self",
+    "payment.submit.self",
+    "payment.verify",
+    "registration.cancel.other",
+    "registration.cancel.self",
+    "registration.checkin",
+    "registration.create.guest",
+    "registration.create.other",
+    "registration.create.self",
+    "registration.no_show",
+    "registration.promote.other",
+    "session.create",
+    "session.invite.manage",
+    "session.transition",
+    "session.update",
+    "session.view",
+    "statistics.view"
+   ],
+   "admin": [
+    "announcement.manage",
+    "announcement.view",
+    "billing.close",
+    "credit.overpayment.record",
+    "credit.payout.record",
+    "credit.read.other",
+    "credit.read.self",
+    "credit.return_charge",
+    "credit.topup",
+    "game.manage",
+    "gang.finance.manage",
+    "gang.finance.view",
+    "gang.join_request.manage",
+    "gang.leave.self",
+    "gang.line.manage",
+    "gang.member.manage",
+    "gang.member.view",
+    "gang.pricing.manage",
+    "gang.skill.manage",
+    "gang.update",
+    "gang.view",
+    "line.link.self",
+    "notification.view.self",
+    "payment.submit.self",
+    "payment.verify",
+    "registration.cancel.other",
+    "registration.cancel.self",
+    "registration.checkin",
+    "registration.create.guest",
+    "registration.create.other",
+    "registration.create.self",
+    "registration.no_show",
+    "registration.promote.other",
+    "session.create",
+    "session.invite.manage",
+    "session.transition",
+    "session.update",
+    "session.view",
+    "statistics.view"
+   ],
+   "member": [
+    "announcement.view",
+    "credit.read.self",
+    "gang.leave.self",
+    "gang.member.view",
+    "gang.view",
+    "line.link.self",
+    "notification.view.self",
+    "payment.submit.self",
+    "registration.cancel.self",
+    "registration.create.self",
+    "session.view",
+    "statistics.view"
+   ],
+   "outsider": [],
+   "orgAdmin": [
+    "announcement.manage",
+    "announcement.view",
+    "billing.close",
+    "credit.overpayment.record",
+    "credit.payout.record",
+    "credit.read.other",
+    "credit.read.self",
+    "credit.return_charge",
+    "credit.topup",
+    "game.manage",
+    "gang.finance.manage",
+    "gang.finance.view",
+    "gang.join_request.manage",
+    "gang.leave.self",
+    "gang.line.manage",
+    "gang.member.manage",
+    "gang.member.view",
+    "gang.pricing.manage",
+    "gang.skill.manage",
+    "gang.update",
+    "gang.view",
+    "line.link.self",
+    "notification.view.self",
+    "payment.submit.self",
+    "payment.verify",
+    "registration.cancel.other",
+    "registration.cancel.self",
+    "registration.checkin",
+    "registration.create.guest",
+    "registration.create.other",
+    "registration.create.self",
+    "registration.no_show",
+    "registration.promote.other",
+    "session.create",
+    "session.invite.manage",
+    "session.transition",
+    "session.update",
+    "session.view",
+    "statistics.view"
+   ],
+   "orgOwner": [
+    "announcement.manage",
+    "announcement.view",
+    "billing.close",
+    "credit.overpayment.record",
+    "credit.payout.record",
+    "credit.read.other",
+    "credit.read.self",
+    "credit.return_charge",
+    "credit.topup",
+    "game.manage",
+    "gang.finance.manage",
+    "gang.finance.view",
+    "gang.join_request.manage",
+    "gang.leave.self",
+    "gang.line.manage",
+    "gang.member.manage",
+    "gang.member.view",
+    "gang.pricing.manage",
+    "gang.skill.manage",
+    "gang.update",
+    "gang.view",
+    "line.link.self",
+    "notification.view.self",
+    "payment.submit.self",
+    "payment.verify",
+    "registration.cancel.other",
+    "registration.cancel.self",
+    "registration.checkin",
+    "registration.create.guest",
+    "registration.create.other",
+    "registration.create.self",
+    "registration.no_show",
+    "registration.promote.other",
+    "session.create",
+    "session.invite.manage",
+    "session.transition",
+    "session.update",
+    "session.view",
+    "statistics.view"
+   ]
+  },
+  "featuresOff": {
+   "owner": [
+    "announcement.manage",
+    "announcement.view",
+    "billing.close",
+    "credit.overpayment.record",
+    "credit.payout.record",
+    "credit.read.other",
+    "credit.read.self",
+    "credit.return_charge",
+    "credit.topup",
+    "game.manage",
+    "gang.finance.manage",
+    "gang.finance.view",
+    "gang.leave.self",
+    "gang.line.manage",
+    "gang.member.manage",
+    "gang.member.view",
+    "gang.ownership.transfer",
+    "gang.pricing.manage",
+    "gang.skill.manage",
+    "gang.update",
+    "gang.view",
+    "notification.view.self",
+    "payment.submit.self",
+    "payment.verify",
+    "registration.cancel.other",
+    "registration.cancel.self",
+    "registration.checkin",
+    "registration.create.other",
+    "registration.create.self",
+    "registration.no_show",
+    "registration.promote.other",
+    "session.create",
+    "session.transition",
+    "session.update",
+    "session.view"
+   ],
+   "admin": [
+    "announcement.manage",
+    "announcement.view",
+    "billing.close",
+    "credit.overpayment.record",
+    "credit.payout.record",
+    "credit.read.other",
+    "credit.read.self",
+    "credit.return_charge",
+    "credit.topup",
+    "game.manage",
+    "gang.finance.manage",
+    "gang.finance.view",
+    "gang.leave.self",
+    "gang.line.manage",
+    "gang.member.manage",
+    "gang.member.view",
+    "gang.pricing.manage",
+    "gang.skill.manage",
+    "gang.update",
+    "gang.view",
+    "notification.view.self",
+    "payment.submit.self",
+    "payment.verify",
+    "registration.cancel.other",
+    "registration.cancel.self",
+    "registration.checkin",
+    "registration.create.other",
+    "registration.create.self",
+    "registration.no_show",
+    "registration.promote.other",
+    "session.create",
+    "session.transition",
+    "session.update",
+    "session.view"
+   ],
+   "member": [
+    "announcement.view",
+    "credit.read.self",
+    "gang.leave.self",
+    "gang.member.view",
+    "gang.view",
+    "notification.view.self",
+    "payment.submit.self",
+    "registration.cancel.self",
+    "registration.create.self",
+    "session.view"
+   ],
+   "outsider": [],
+   "orgAdmin": [
+    "announcement.manage",
+    "announcement.view",
+    "billing.close",
+    "credit.overpayment.record",
+    "credit.payout.record",
+    "credit.read.other",
+    "credit.read.self",
+    "credit.return_charge",
+    "credit.topup",
+    "game.manage",
+    "gang.finance.manage",
+    "gang.finance.view",
+    "gang.leave.self",
+    "gang.line.manage",
+    "gang.member.manage",
+    "gang.member.view",
+    "gang.pricing.manage",
+    "gang.skill.manage",
+    "gang.update",
+    "gang.view",
+    "notification.view.self",
+    "payment.submit.self",
+    "payment.verify",
+    "registration.cancel.other",
+    "registration.cancel.self",
+    "registration.checkin",
+    "registration.create.other",
+    "registration.create.self",
+    "registration.no_show",
+    "registration.promote.other",
+    "session.create",
+    "session.transition",
+    "session.update",
+    "session.view"
+   ],
+   "orgOwner": [
+    "announcement.manage",
+    "announcement.view",
+    "billing.close",
+    "credit.overpayment.record",
+    "credit.payout.record",
+    "credit.read.other",
+    "credit.read.self",
+    "credit.return_charge",
+    "credit.topup",
+    "game.manage",
+    "gang.finance.manage",
+    "gang.finance.view",
+    "gang.leave.self",
+    "gang.line.manage",
+    "gang.member.manage",
+    "gang.member.view",
+    "gang.pricing.manage",
+    "gang.skill.manage",
+    "gang.update",
+    "gang.view",
+    "notification.view.self",
+    "payment.submit.self",
+    "payment.verify",
+    "registration.cancel.other",
+    "registration.cancel.self",
+    "registration.checkin",
+    "registration.create.other",
+    "registration.create.self",
+    "registration.no_show",
+    "registration.promote.other",
+    "session.create",
+    "session.transition",
+    "session.update",
+    "session.view"
+   ]
+  }
+ },
+ "rls": {
+  "announcements.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "announcements.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "announcements.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:1",
+   "payer": "rows:1",
+   "admin": "rows:2",
+   "owner": "rows:2",
+   "orgAdmin": "rows:2"
+  },
+  "announcements.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "coupons.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "coupons.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "coupons.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:1",
+   "payer": "rows:1",
+   "admin": "rows:1",
+   "owner": "rows:1",
+   "orgAdmin": "rows:1"
+  },
+  "coupons.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "payer": "deny",
+   "member": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "credit_balances.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "credit_balances.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "credit_balances.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:1",
+   "payer": "rows:1",
+   "admin": "rows:2",
+   "owner": "rows:2",
+   "orgAdmin": "rows:2"
+  },
+  "credit_balances.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "credit_ledger.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "credit_ledger.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "credit_ledger.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:1",
+   "payer": "rows:2",
+   "admin": "rows:3",
+   "owner": "rows:3",
+   "orgAdmin": "rows:3"
+  },
+  "credit_ledger.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "event_logs.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "event_logs.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "event_logs.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:7",
+   "payer": "rows:7",
+   "admin": "rows:26",
+   "owner": "rows:26",
+   "orgAdmin": "rows:26"
+  },
+  "event_logs.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "games.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "payer": "deny",
+   "member": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "games.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "games.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:1",
+   "payer": "rows:1",
+   "admin": "rows:1",
+   "orgAdmin": "rows:1",
+   "owner": "rows:1"
+  },
+  "games.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "gang_expenses.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "gang_expenses.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "gang_expenses.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:0",
+   "payer": "rows:0",
+   "admin": "rows:1",
+   "owner": "rows:1",
+   "orgAdmin": "rows:1"
+  },
+  "gang_expenses.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "gang_incomes.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "gang_incomes.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "gang_incomes.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:0",
+   "payer": "rows:0",
+   "admin": "rows:1",
+   "owner": "rows:1",
+   "orgAdmin": "rows:1"
+  },
+  "gang_incomes.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "gang_members.delete": {
+   "anon": "deny",
+   "admin": "deny",
+   "outsider": "deny",
+   "owner": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "orgAdmin": "deny"
+  },
+  "gang_members.insert": {
+   "admin": "allow",
+   "anon": "deny",
+   "outsider": "deny",
+   "owner": "allow",
+   "member": "deny",
+   "payer": "deny",
+   "orgAdmin": "allow"
+  },
+  "gang_members.select": {
+   "admin": "rows:5",
+   "anon": "deny",
+   "outsider": "rows:0",
+   "owner": "rows:5",
+   "member": "rows:5",
+   "payer": "rows:5",
+   "orgAdmin": "rows:0"
+  },
+  "gang_members.update": {
+   "anon": "deny",
+   "admin": "allow",
+   "outsider": "deny",
+   "owner": "allow",
+   "member": "deny",
+   "payer": "deny",
+   "orgAdmin": "deny"
+  },
+  "gang_pricing_plans.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "admin": "allow",
+   "member": "deny",
+   "payer": "deny",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "gang_pricing_plans.insert": {
+   "anon": "deny",
+   "admin": "allow",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "gang_pricing_plans.select": {
+   "anon": "deny",
+   "admin": "rows:1",
+   "outsider": "rows:0",
+   "member": "rows:1",
+   "owner": "rows:1",
+   "payer": "rows:1",
+   "orgAdmin": "rows:1"
+  },
+  "gang_pricing_plans.update": {
+   "anon": "deny",
+   "admin": "allow",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "gangs.delete": {
+   "admin": "deny",
+   "anon": "deny",
+   "outsider": "deny",
+   "owner": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "orgAdmin": "deny"
+  },
+  "gangs.insert": {
+   "admin": "deny",
+   "anon": "deny",
+   "owner": "allow",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "orgAdmin": "allow"
+  },
+  "gang_skill_levels.delete": {
+   "anon": "deny",
+   "admin": "allow",
+   "outsider": "deny",
+   "member": "deny",
+   "owner": "allow",
+   "payer": "deny",
+   "orgAdmin": "allow"
+  },
+  "gang_skill_levels.insert": {
+   "anon": "deny",
+   "admin": "allow",
+   "outsider": "deny",
+   "owner": "allow",
+   "member": "deny",
+   "payer": "deny",
+   "orgAdmin": "allow"
+  },
+  "gang_skill_levels.select": {
+   "anon": "deny",
+   "admin": "rows:1",
+   "outsider": "rows:0",
+   "owner": "rows:1",
+   "member": "rows:1",
+   "payer": "rows:1",
+   "orgAdmin": "rows:1"
+  },
+  "gang_skill_levels.update": {
+   "anon": "deny",
+   "admin": "allow",
+   "outsider": "deny",
+   "member": "deny",
+   "owner": "allow",
+   "payer": "deny",
+   "orgAdmin": "allow"
+  },
+  "gangs.select": {
+   "owner": "rows:1",
+   "admin": "rows:1",
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:1",
+   "orgAdmin": "rows:0",
+   "payer": "rows:1"
+  },
+  "gangs.update": {
+   "admin": "allow",
+   "anon": "deny",
+   "outsider": "deny",
+   "owner": "allow",
+   "member": "deny",
+   "payer": "deny",
+   "orgAdmin": "deny"
+  },
+  "join_requests.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "owner": "deny",
+   "admin": "deny",
+   "orgAdmin": "deny"
+  },
+  "join_requests.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "owner": "deny",
+   "admin": "deny",
+   "orgAdmin": "deny"
+  },
+  "join_requests.select": {
+   "anon": "deny",
+   "outsider": "rows:1",
+   "member": "rows:0",
+   "payer": "rows:0",
+   "owner": "rows:1",
+   "admin": "rows:1",
+   "orgAdmin": "rows:1"
+  },
+  "join_requests.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "owner": "deny",
+   "admin": "deny",
+   "orgAdmin": "deny"
+  },
+  "member_line_links.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "owner": "deny",
+   "admin": "deny",
+   "orgAdmin": "deny"
+  },
+  "member_line_links.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "member_line_links.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:1",
+   "payer": "rows:0",
+   "admin": "rows:1",
+   "owner": "rows:1",
+   "orgAdmin": "rows:1"
+  },
+  "member_line_links.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "member_statistics.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "member_statistics.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "member_statistics.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:1",
+   "payer": "rows:1",
+   "admin": "rows:2",
+   "owner": "rows:2",
+   "orgAdmin": "rows:2"
+  },
+  "member_statistics.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "notification_logs.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "notification_logs.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "notification_logs.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:0",
+   "payer": "rows:0",
+   "admin": "rows:1",
+   "owner": "rows:1",
+   "orgAdmin": "rows:1"
+  },
+  "notification_logs.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "payment_adjustments.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "payment_adjustments.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "payment_adjustments.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:0",
+   "payer": "rows:1",
+   "admin": "rows:1",
+   "owner": "rows:1",
+   "orgAdmin": "rows:1"
+  },
+  "payment_adjustments.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "payment_allocations.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "payment_allocations.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "payment_allocations.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:1",
+   "payer": "rows:1",
+   "admin": "rows:2",
+   "owner": "rows:2",
+   "orgAdmin": "rows:2"
+  },
+  "payment_allocations.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "payments.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "payments.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "allow",
+   "payer": "allow",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "deny"
+  },
+  "payments.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:1",
+   "payer": "rows:5",
+   "owner": "rows:6",
+   "admin": "rows:6",
+   "orgAdmin": "rows:6"
+  },
+  "payments.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "allow",
+   "payer": "allow",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "session_charges.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "session_charges.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "session_charges.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:1",
+   "payer": "rows:2",
+   "admin": "rows:3",
+   "owner": "rows:3",
+   "orgAdmin": "rows:3"
+  },
+  "session_charges.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "owner": "deny",
+   "orgAdmin": "deny"
+  },
+  "session_invite_tokens.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "orgAdmin": "allow",
+   "owner": "allow"
+  },
+  "session_invite_tokens.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "orgAdmin": "allow",
+   "owner": "allow"
+  },
+  "session_invite_tokens.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:0",
+   "payer": "rows:0",
+   "admin": "rows:1",
+   "orgAdmin": "rows:1",
+   "owner": "rows:1"
+  },
+  "session_invite_tokens.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "orgAdmin": "allow",
+   "owner": "allow"
+  },
+  "sessions.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "deny",
+   "orgAdmin": "deny",
+   "owner": "deny"
+  },
+  "sessions.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "sessions.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "member": "rows:3",
+   "payer": "rows:3",
+   "admin": "rows:3",
+   "owner": "rows:3",
+   "orgAdmin": "rows:0"
+  },
+  "sessions.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "orgAdmin": "deny",
+   "owner": "allow"
+  },
+  "session_templates.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "session_templates.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "session_templates.select": {
+   "anon": "deny",
+   "outsider": "rows:0",
+   "admin": "rows:1",
+   "member": "rows:1",
+   "payer": "rows:1",
+   "owner": "rows:1",
+   "orgAdmin": "rows:1"
+  },
+  "session_templates.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "admin": "allow",
+   "owner": "allow",
+   "orgAdmin": "allow"
+  },
+  "storage.announcement-images.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "owner": "deny",
+   "admin": "deny",
+   "orgAdmin": "deny"
+  },
+  "storage.announcement-images.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "owner": "allow",
+   "admin": "allow",
+   "orgAdmin": "allow"
+  },
+  "storage.announcement-images.select": {
+   "anon": "rows:0",
+   "outsider": "rows:0",
+   "member": "rows:1",
+   "payer": "rows:1",
+   "owner": "rows:1",
+   "admin": "rows:1",
+   "orgAdmin": "rows:0"
+  },
+  "storage.announcement-images.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "owner": "allow",
+   "admin": "allow",
+   "orgAdmin": "deny"
+  },
+  "storage.gang-assets.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "owner": "deny",
+   "admin": "deny",
+   "orgAdmin": "deny"
+  },
+  "storage.gang-assets.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "owner": "allow",
+   "admin": "allow",
+   "orgAdmin": "allow"
+  },
+  "storage.gang-assets.select": {
+   "anon": "rows:1",
+   "outsider": "rows:1",
+   "member": "rows:1",
+   "payer": "rows:1",
+   "owner": "rows:1",
+   "admin": "rows:1",
+   "orgAdmin": "rows:1"
+  },
+  "storage.gang-assets.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "owner": "allow",
+   "admin": "allow",
+   "orgAdmin": "allow"
+  },
+  "storage.payment-slips.delete": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "owner": "deny",
+   "admin": "deny",
+   "orgAdmin": "deny"
+  },
+  "storage.payment-slips.insert": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "allow",
+   "payer": "allow",
+   "owner": "allow",
+   "admin": "allow",
+   "orgAdmin": "deny"
+  },
+  "storage.payment-slips.select": {
+   "anon": "rows:0",
+   "outsider": "rows:0",
+   "member": "rows:1",
+   "payer": "rows:1",
+   "owner": "rows:2",
+   "admin": "rows:2",
+   "orgAdmin": "rows:2"
+  },
+  "storage.payment-slips.update": {
+   "anon": "deny",
+   "outsider": "deny",
+   "member": "allow",
+   "payer": "allow",
+   "owner": "allow",
+   "admin": "allow",
+   "orgAdmin": "allow"
+  }
+ },
+ "helpers": {
+  "is_gang_admin": {
+   "owner": "true",
+   "admin": "true",
+   "member": "false",
+   "payer": "false",
+   "orgAdmin": "true",
+   "outsider": "false",
+   "anon": "false"
+  },
+  "is_gang_member": {
+   "owner": "true",
+   "admin": "true",
+   "member": "true",
+   "payer": "true",
+   "orgAdmin": "false",
+   "outsider": "false",
+   "anon": "false"
+  },
+  "is_session_admin": {
+   "owner": "true",
+   "admin": "true",
+   "member": "false",
+   "payer": "false",
+   "orgAdmin": "true",
+   "outsider": "false",
+   "anon": "false"
+  },
+  "is_payment_visible(payer)": {
+   "owner": "true",
+   "admin": "true",
+   "member": "false",
+   "payer": "true",
+   "orgAdmin": "true",
+   "outsider": "false",
+   "anon": "false"
+  },
+  "is_payment_visible(member)": {
+   "owner": "true",
+   "admin": "true",
+   "member": "true",
+   "payer": "false",
+   "orgAdmin": "true",
+   "outsider": "false",
+   "anon": "false"
+  }
+ },
+ "functions": {
+  "promote_waitlist(by admin pick)": {
+   "owner": "allow",
+   "admin": "allow",
+   "member": "deny",
+   "payer": "deny",
+   "orgAdmin": "allow",
+   "outsider": "deny",
+   "nobody": "deny"
+  },
+  "cancel_registration(waive penalty)": {
+   "owner": "allow",
+   "admin": "allow",
+   "member": "deny",
+   "payer": "deny",
+   "orgAdmin": "allow",
+   "outsider": "deny",
+   "nobody": "deny"
+  },
+  "preview_cancel_registration": {
+   "owner": "allow",
+   "admin": "allow",
+   "member": "allow",
+   "payer": "deny",
+   "orgAdmin": "allow",
+   "outsider": "deny",
+   "nobody": "deny"
+  },
+  "record_overpayment": {
+   "owner": "allow",
+   "admin": "allow",
+   "member": "deny",
+   "payer": "deny",
+   "orgAdmin": "allow",
+   "outsider": "deny",
+   "nobody": "deny"
+  },
+  "set_payment_received_amount": {
+   "owner": "allow",
+   "admin": "allow",
+   "member": "deny",
+   "payer": "deny",
+   "orgAdmin": "allow",
+   "outsider": "deny",
+   "nobody": "deny"
+  },
+  "credit_topup(to member)": {
+   "owner": "allow",
+   "admin": "allow",
+   "member": "deny",
+   "payer": "deny",
+   "orgAdmin": "allow",
+   "outsider": "deny",
+   "nobody": "deny"
+  },
+  "credit_topup(to self)": {
+   "owner": "deny",
+   "admin": "deny",
+   "member": "deny",
+   "payer": "deny",
+   "orgAdmin": "deny",
+   "outsider": "deny",
+   "nobody": "deny"
+  },
+  "credit_cash_payout": {
+   "owner": "allow",
+   "admin": "allow",
+   "member": "deny",
+   "payer": "deny",
+   "orgAdmin": "allow",
+   "outsider": "deny",
+   "nobody": "deny"
+  },
+  "credit_return_charge": {
+   "owner": "allow",
+   "admin": "allow",
+   "member": "deny",
+   "payer": "deny",
+   "orgAdmin": "allow",
+   "outsider": "deny",
+   "nobody": "deny"
+  },
+  "transfer_gang_ownership(to member)": {
+   "owner": "allow",
+   "admin": "deny",
+   "member": "err:VALIDATION_ERROR",
+   "payer": "deny",
+   "orgAdmin": "err:NOT_GANG_MEMBER",
+   "outsider": "err:NOT_GANG_MEMBER",
+   "nobody": "err:VALIDATION_ERROR"
+  },
+  "leave_gang": {
+   "owner": "err:VALIDATION_ERROR",
+   "admin": "allow",
+   "member": "allow",
+   "payer": "allow",
+   "orgAdmin": "err:NOT_GANG_MEMBER",
+   "outsider": "err:NOT_GANG_MEMBER",
+   "nobody": "err:VALIDATION_ERROR"
+  }
+ },
+ "grants": {
+  "actor_is_gang_admin(uuid,uuid)": {
+   "anon": false,
+   "authenticated": false,
+   "service_role": true
+  },
+  "cancel_registration(uuid,uuid,text,boolean,text,uuid)": {
+   "anon": false,
+   "authenticated": false,
+   "service_role": true
+  },
+  "create_gang(uuid,text,text,text,text,text)": {
+   "anon": false,
+   "authenticated": false,
+   "service_role": true
+  },
+  "credit_cash_payout(uuid,uuid,numeric,text,uuid,text)": {
+   "anon": false,
+   "authenticated": false,
+   "service_role": true
+  },
+  "credit_return_charge(uuid,numeric,text,uuid,text)": {
+   "anon": false,
+   "authenticated": false,
+   "service_role": true
+  },
+  "credit_topup(uuid,uuid,numeric,text,uuid,text)": {
+   "anon": false,
+   "authenticated": false,
+   "service_role": true
+  },
+  "is_gang_admin(uuid)": {
+   "anon": true,
+   "authenticated": true,
+   "service_role": true
+  },
+  "is_gang_member(uuid)": {
+   "anon": true,
+   "authenticated": true,
+   "service_role": true
+  },
+  "is_payment_visible(uuid)": {
+   "anon": true,
+   "authenticated": true,
+   "service_role": true
+  },
+  "is_session_admin(uuid)": {
+   "anon": true,
+   "authenticated": true,
+   "service_role": true
+  },
+  "leave_gang(uuid,uuid,text)": {
+   "anon": false,
+   "authenticated": false,
+   "service_role": true
+  },
+  "preview_cancel_registration(uuid,uuid)": {
+   "anon": false,
+   "authenticated": false,
+   "service_role": true
+  },
+  "promote_waitlist(uuid,integer,uuid,text,uuid)": {
+   "anon": false,
+   "authenticated": false,
+   "service_role": true
+  },
+  "record_overpayment(uuid,numeric,text,uuid,text)": {
+   "anon": false,
+   "authenticated": false,
+   "service_role": true
+  },
+  "request_to_join_gang(uuid,uuid,text,text)": {
+   "anon": false,
+   "authenticated": false,
+   "service_role": true
+  },
+  "set_payment_received_amount(uuid,numeric,uuid,text)": {
+   "anon": false,
+   "authenticated": false,
+   "service_role": true
+  },
+  "transfer_gang_ownership(uuid,uuid,uuid,text)": {
+   "anon": false,
+   "authenticated": false,
+   "service_role": true
+  }
+ },
+ "inventory": {
+  "policies": [
+   "public.announcements | announcements_select_member | SELECT",
+   "public.announcements | announcements_write_admin | ALL",
+   "public.coupons | coupons_write | ALL",
+   "public.credit_balances | credit_balances_select | SELECT",
+   "public.credit_ledger | credit_ledger_select | SELECT",
+   "public.event_logs | event_logs_select_member | SELECT",
+   "public.games | games_write_admin | ALL",
+   "public.gang_expenses | gang_expenses_admin | ALL",
+   "public.gang_incomes | gang_incomes_admin | ALL",
+   "public.gang_members | gang_members_insert_admin | INSERT",
+   "public.gang_members | gang_members_update_admin | UPDATE",
+   "public.gang_pricing_plans | gang_pricing_plans_write | ALL",
+   "public.gang_skill_levels | gang_skill_levels_write | ALL",
+   "public.gangs | gangs_update_admin | UPDATE",
+   "public.join_requests | join_requests_select | SELECT",
+   "public.member_line_links | member_line_links_select | SELECT",
+   "public.member_statistics | member_statistics_select | SELECT",
+   "public.notification_logs | notification_logs_admin | SELECT",
+   "public.payment_adjustments | payment_adjustments_select | SELECT",
+   "public.payment_allocations | payment_allocations_select | SELECT",
+   "public.payments | payments_select | SELECT",
+   "public.payments | payments_update | UPDATE",
+   "public.session_charges | session_charges_select | SELECT",
+   "public.session_invite_tokens | session_invite_tokens_admin | ALL",
+   "public.session_templates | session_templates_write | ALL",
+   "public.sessions | sessions_insert_admin_draft_only | INSERT",
+   "public.sessions | sessions_update_admin | UPDATE",
+   "storage.objects | announcement_images_delete_admin | DELETE",
+   "storage.objects | announcement_images_insert_admin | INSERT",
+   "storage.objects | announcement_images_update_admin | UPDATE",
+   "storage.objects | gang_assets_delete_admin | DELETE",
+   "storage.objects | gang_assets_update_admin | UPDATE",
+   "storage.objects | gang_assets_write_admin | INSERT",
+   "storage.objects | payment_slips_delete | DELETE",
+   "storage.objects | payment_slips_select | SELECT",
+   "storage.objects | payment_slips_update | UPDATE"
+  ],
+  "functions": [
+   "actor_is_gang_admin(uuid,uuid)",
+   "cancel_registration(uuid,uuid,text,boolean,text,uuid)",
+   "create_gang(uuid,text,text,text,text,text)",
+   "credit_cash_payout(uuid,uuid,numeric,text,uuid,text)",
+   "credit_return_charge(uuid,numeric,text,uuid,text)",
+   "credit_topup(uuid,uuid,numeric,text,uuid,text)",
+   "is_gang_admin(uuid)",
+   "is_payment_visible(uuid)",
+   "is_session_admin(uuid)",
+   "leave_gang(uuid,uuid,text)",
+   "preview_cancel_registration(uuid,uuid)",
+   "promote_waitlist(uuid,integer,uuid,text,uuid)",
+   "record_overpayment(uuid,numeric,text,uuid,text)",
+   "request_to_join_gang(uuid,uuid,text,text)",
+   "set_payment_received_amount(uuid,numeric,uuid,text)",
+   "transfer_gang_ownership(uuid,uuid,uuid,text)"
+  ]
+ }
+}
