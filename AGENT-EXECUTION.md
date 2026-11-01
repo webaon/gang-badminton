@@ -1725,8 +1725,8 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | 6.1a | App shell — tab bar มือถือ · sidebar แอดมิน · สลับก๊วน (plan §10) | @gb-frontend | ✅ `f042a50`+`0e0588f` QA ผ่าน |
 | 6.1b | global states g1–g4 + ErrorCode → ข้อความไทยกลาง + บั๊ก 390px (plan §10) | @gb-frontend | ✅ `2c82b89` QA ผ่าน |
 | 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) (plan §11.3) | @gb-frontend | ✅ `69533df`+`56798cc`+`cef63c0` QA ผ่าน |
-| 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) | @gb-frontend | 🔄 ส่วนไม่พึ่ง R3 `012cfc3` · รอ R3 → H29 แล้วส่ง QA ทั้งใบ |
-| R3 | loader อ่านอย่างเดียว: ยอดของฉันข้ามนัด + breakdown ของฉัน + payment ที่ผูกนัด (แก้บั๊ก limit 1) | @gb-integrations | ⏳ หลัง B15-ADR |
+| 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) | @gb-frontend | 🔄 QA ใบ 23 (012cfc3 + d26c239 · H29 /my-payments) |
+| R3 | loader อ่านอย่างเดียว: ยอดของฉันข้ามนัด + breakdown ของฉัน + payment ที่ผูกนัด (แก้บั๊ก limit 1) | @gb-integrations | 🔄 QA ใบ 21 (81abd7f) |
 | R4 | waitlist.promoted + payment.due ⇒ LINE (session.opened in_app เท่านั้น) — เจ้าของงานเลือก ก · `c9b2fe7` migration 0045 | @gb-backend | ✅ QA ใบ 15 ผ่าน · db push cloud ✅ (45/45 · EXECUTE anon/auth=false · ไม่มี overload) |
 | 6.4a | วันเล่น — เช็คอิน · กระดานคิวสด · จัดคู่ · เกม+ลูก · เวลาพัก (23–27) | @gb-frontend | ✅ `44fe570` QA ผ่าน |
 | 6.4b | ปิดรอบ → ตรวจยอด (28 + K28a · K28b → BACKLOG) | @gb-frontend | 🔄 |
@@ -1744,6 +1744,7 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | B13-ADR | ADR-015 บทบาทกำหนดเอง `b2f2f66` · Accepted `e64a1f2` | @gb-backend | ✅ (เอกสาร) |
 | R-roles-0 | golden role-matrix `146bf16` (เทสต์อย่างเดียว) | @gb-backend | 🔄 QA ใบ 20 |
 | R-roles-1 | expand: gang_roles + has_gang_permission + preset + assign (ไม่แก้ policy เดิม) | @gb-backend | 🔄 |
+| R2.2 | reminders test pageSize ≤ max_rows `b843adc` (test-only) | @gb-integrations | 🔄 QA ใบ 22 |
 | 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ |
 | 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
 | 6.7 | Auth + onboarding | @gb-frontend | ⏳ |
