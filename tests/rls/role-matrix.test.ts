@@ -787,18 +787,24 @@ describe('R-roles-0 — RLS probe ทุกตาราง/storage × select/ins
       'announcements', 'sessions', 'session_invite_tokens', 'games', 'gangs', 'notification_logs',
       'gang_roles', 'gang_member_roles',
     ];
+    // `member` ใน world = ผู้ถือชุดสิทธิ์ treasurer (R-roles-1) ⇒ ตั้งแต่ R-roles-2a เขียน expenses/incomes ได้ (gang.finance.manage)
+    //   `payer` = สมาชิกธรรมดาไม่ถือชุดใด ⇒ ต้องถูกปฏิเสธทุกช่องเสมอ (หลักฐานว่าชุดสิทธิ์ไม่รั่วไปคนอื่น)
+    const treasurerWrites = new Set(['gang_expenses', 'gang_incomes']);
     for (const t of adminOnlyWrites) {
       for (const kind of ['insert', 'update', 'delete']) {
         const row = sorted[`${t}.${kind}`];
         if (!row) continue;
         for (const id of ['member', 'payer'] as const) {
+          if (id === 'member' && treasurerWrites.has(t)) continue;
           expect(row[id], `${t}.${kind} ← ${id} ต้องถูกปฏิเสธ`).toBe('deny');
         }
       }
     }
-    // สมาชิกทั่วไปอ่านการเงินของคนอื่นไม่ได้: payer เห็นแค่ของตัวเอง, member ไม่เห็นของ payer
-    expect(sorted['gang_expenses.select'].member).toBe('rows:0');
-    expect(sorted['gang_incomes.select'].member).toBe('rows:0');
+    // การเงินของก๊วน: สมาชิกธรรมดา (payer) อ่านไม่ได้ · ผู้ถือ treasurer (member) อ่านได้ตาม gang.finance.view
+    expect(sorted['gang_expenses.select'].payer).toBe('rows:0');
+    expect(sorted['gang_incomes.select'].payer).toBe('rows:0');
+    expect(sorted['gang_expenses.select'].member).toBe('rows:1');
+    expect(sorted['gang_incomes.select'].member).toBe('rows:1');
     expect(sorted['credit_ledger.select'].owner).not.toBe('rows:0');
     expect(sorted['credit_ledger.select'].outsider).toBe('rows:0');
   }, 300_000);
@@ -851,6 +857,10 @@ describe('R-roles-0 — ตัวช่วย is_gang_admin / is_session_admin /
     expect(out['has_gang_permission(payment.verify)'].outsider).toBe('false');
     expect(out['has_gang_permission(payment.verify)'].anon).toBe('false');
 
+    // is_payment_visible: เจ้าของสลิป หรือผู้ถือ payment.verify (member=treasurer เห็นสลิปของ payer) · สมาชิกธรรมดา (payer) ไม่เห็นสลิปของ member
+    expect(out['is_payment_visible(payer)'].member).toBe('true');
+    expect(out['is_payment_visible(member)'].payer).toBe('false');
+
     expect(out.is_gang_admin.orgAdmin).toBe('true');
     expect(out.is_gang_admin.member).toBe('false');
     expect(out.is_gang_admin.outsider).toBe('false');
@@ -873,11 +883,17 @@ describe('R-roles-0 — DB function ที่เช็คแอดมิน/role
     check('functions', out);
 
     // invariants: สมาชิกทั่วไป/คนนอก/ไม่มี actor ทำฟังก์ชันของแอดมินไม่ได้
+    // `member` ถือ treasurer ⇒ (R-roles-2a) ทำฟังก์ชันการเงินที่ preset ให้ได้ · credit_topup ไม่อยู่ใน preset (Q2ก) ⇒ ยัง deny
+    const treasurerFns = new Set(['record_overpayment', 'set_payment_received_amount', 'credit_cash_payout', 'credit_return_charge']);
     for (const name of [
       'promote_waitlist(by admin pick)', 'cancel_registration(waive penalty)', 'record_overpayment',
       'set_payment_received_amount', 'credit_topup(to member)', 'credit_cash_payout', 'credit_return_charge',
     ]) {
-      for (const a of ['member', 'payer', 'outsider', 'nobody'] as const) expect(out[name][a], `${name} ← ${a}`).toBe('deny');
+      for (const a of ['member', 'payer', 'outsider', 'nobody'] as const) {
+        if (a === 'member' && treasurerFns.has(name)) continue;
+        expect(out[name][a], `${name} ← ${a}`).toBe('deny');
+      }
+      if (treasurerFns.has(name)) expect(out[name].member, `${name} ← member(treasurer)`).not.toBe('deny');
       expect(out[name].owner, `${name} ← owner`).not.toBe('deny');
       expect(out[name].admin, `${name} ← admin`).not.toBe('deny');
       expect(out[name].orgAdmin, `${name} ← orgAdmin`).not.toBe('deny');
@@ -927,7 +943,7 @@ describe('R-roles-0 — DB function ที่เช็คแอดมิน/role
 // ---------------------------------------------------------------------------
 
 const INVENTORY_FNS = [
-  'has_gang_permission', 'actor_has_permission', 'assign_gang_role', 'revoke_gang_role', 'is_delegable_action',
+  'has_gang_permission', 'actor_has_permission', 'assign_gang_role', 'revoke_gang_role', 'is_delegable_action', 'event_type_is_finance', 'gangs_with_permission',
   'add_gang_member_by_email', 'decide_join_request',
   'cancel_registration', 'create_gang', 'credit_cash_payout', 'credit_return_charge', 'credit_topup', 'is_gang_admin',
   'is_payment_visible', 'is_session_admin', 'leave_gang', 'preview_cancel_registration', 'promote_waitlist',
@@ -946,6 +962,7 @@ const INVENTORY_FNS = [
 const ROLE_TEXT_CLASS: Record<string, 'authz' | 'select' | 'assign' | 'grant' | 'guard'> = {
   // ADR-015 (R-roles-1)
   has_gang_permission: 'authz',
+  gangs_with_permission: 'authz', // รูปชุด (uuid[]) ของ has_gang_permission สำหรับ policy แบบ InitPlan — ต้องเท่ากันทุก action (เทสต์ treasurer-finance)
   actor_has_permission: 'authz',
   assign_gang_role: 'authz',
   revoke_gang_role: 'authz',
@@ -1010,6 +1027,15 @@ describe('R-roles-0 — EXECUTE grants + inventory', () => {
     );
     const names = roleText.map((r) => r.k);
     check('inventory', { policies: pol.map((r) => r.k), functions: fns.map((r) => r.k), roleText: names });
+
+    // 🔴 ประสิทธิภาพ (R-roles-2a): policy ห้ามเรียก has_gang_permission(gang_id, …) ต่อแถว — วัดแล้วช้ากว่า is_gang_admin ~19 เท่า
+    //    (payments 20k แถว: 0.29s → 5.5s) ทำให้ query ของสมาชิกธรรมดาข้ามก๊วนหมดเวลา · ใช้ InitPlan: gang_id = any ((select gangs_with_permission(..))::uuid[])
+    const { rows: perRow } = await pool.query<{ k: string }>(
+      `select schemaname||'.'||tablename||' | '||policyname k from pg_policies
+        where schemaname in ('public','storage') and (coalesce(qual,'') || coalesce(with_check,'')) ~ 'has_gang_permission'
+        order by 1`,
+    );
+    expect(perRow.map((r) => r.k), 'policy ที่ใช้ has_gang_permission ต่อแถว — เปลี่ยนเป็น gangs_with_permission InitPlan').toEqual([]);
 
     const unclassified = names.filter((n) => !(n in ROLE_TEXT_CLASS));
     expect(unclassified, 'ฟังก์ชันใหม่ที่เอ่ยถึง role ต้องจัดประเภทใน ROLE_TEXT_CLASS (และมีเคสใน matrix ถ้าเป็น authz)').toEqual([]);

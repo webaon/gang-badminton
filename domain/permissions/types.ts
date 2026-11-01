@@ -100,4 +100,10 @@ export type PermissionContext = {
   role: GangRole | null;
   orgRole?: OrgRole | null;
   features?: Partial<GangFeatures>;
+  /**
+   * [ADR-015] สิทธิ์จาก "ชุดสิทธิ์" ที่สมาชิกถืออยู่ (เช่น เหรัญญิก/ผู้จัดคิว) — ใช้เฉพาะ role='member'
+   * และนับเฉพาะ action ที่ delegate ได้ (`domain/permissions/delegable.ts`) · ไม่ส่ง = ไม่มีชุดสิทธิ์ (พฤติกรรมเดิมทุกประการ)
+   * 🔴 ต้องตรงกับ `public.has_gang_permission()` ใน DB (เทสต์ยิงเทียบทุก action)
+   */
+  extra?: readonly Action[];
 };

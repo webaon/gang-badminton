@@ -16,6 +16,7 @@
  */
 import type { Action, Feature, PermissionContext } from './types';
 import { ACTIONS } from './types';
+import { isDelegableAction } from './delegable';
 
 /**
  * สิทธิ์ของแต่ละ role — ประกาศเป็น `readonly Action[]` ต่อ role
@@ -126,7 +127,11 @@ export function can(ctx: PermissionContext, action: Action): boolean {
   const effectiveRole = ctx.role ?? (ctx.orgRole ? 'admin' : null);
   if (!effectiveRole) return false;
 
-  return ROLE_ACTIONS[effectiveRole].has(action);
+  if (ROLE_ACTIONS[effectiveRole].has(action)) return true;
+
+  // [ADR-015] ชุดสิทธิ์ซ้อนบน role — เฉพาะสมาชิกทั่วไป (admin/owner มีครบอยู่แล้ว · role=null ไม่เกี่ยว)
+  //   และเฉพาะ action ที่ delegate ได้ ⇒ ใส่ action อื่นมาใน extra ก็ไม่มีผล (ตรงกับ has_gang_permission ใน DB)
+  return effectiveRole === 'member' && isDelegableAction(action) && (ctx.extra?.includes(action) ?? false);
 }
 
 /** เวอร์ชันที่โยน error — ใช้ใน server action ที่อยากให้จบเลยถ้าไม่มีสิทธิ์ */

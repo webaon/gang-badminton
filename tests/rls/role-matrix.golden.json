@@ -415,7 +415,7 @@
   },
   "credit_cash_payout": {
    "admin": "allow",
-   "member": "deny",
+   "member": "allow",
    "nobody": "deny",
    "orgAdmin": "allow",
    "outsider": "deny",
@@ -424,7 +424,7 @@
   },
   "credit_return_charge": {
    "admin": "allow",
-   "member": "deny",
+   "member": "allow",
    "nobody": "deny",
    "orgAdmin": "allow",
    "outsider": "deny",
@@ -487,7 +487,7 @@
   },
   "record_overpayment": {
    "admin": "allow",
-   "member": "deny",
+   "member": "allow",
    "nobody": "deny",
    "orgAdmin": "allow",
    "outsider": "deny",
@@ -514,7 +514,7 @@
   },
   "set_payment_received_amount": {
    "admin": "allow",
-   "member": "deny",
+   "member": "allow",
    "nobody": "deny",
    "orgAdmin": "allow",
    "outsider": "deny",
@@ -580,6 +580,16 @@
   "decide_join_request(uuid,uuid,text,uuid,text)": {
    "anon": false,
    "authenticated": false,
+   "service_role": true
+  },
+  "event_type_is_finance(text)": {
+   "anon": true,
+   "authenticated": true,
+   "service_role": true
+  },
+  "gangs_with_permission(text)": {
+   "anon": true,
+   "authenticated": true,
    "service_role": true
   },
   "has_gang_permission(uuid,text)": {
@@ -711,7 +721,7 @@
   "is_payment_visible(payer)": {
    "admin": "true",
    "anon": "false",
-   "member": "false",
+   "member": "true",
    "orgAdmin": "true",
    "outsider": "false",
    "owner": "true",
@@ -734,32 +744,23 @@
    "assign_gang_role(uuid,uuid,text,uuid,text)",
    "cancel_registration(uuid,uuid,text,boolean,text,uuid)",
    "create_gang(uuid,text,text,text,text,text)",
-   "credit_cash_payout(uuid,uuid,numeric,text,uuid,text)",
-   "credit_return_charge(uuid,numeric,text,uuid,text)",
-   "credit_topup(uuid,uuid,numeric,text,uuid,text)",
+   "gangs_with_permission(text)",
    "has_gang_permission(uuid,text)",
    "is_gang_admin(uuid)",
-   "is_payment_visible(uuid)",
    "is_session_admin(uuid)",
    "leave_gang(uuid,uuid,text)",
    "preview_cancel_registration(uuid,uuid)",
    "promote_waitlist(uuid,integer,uuid,text,uuid)",
-   "record_overpayment(uuid,numeric,text,uuid,text)",
    "request_to_join_gang(uuid,uuid,text,text)",
    "revoke_gang_role(uuid,uuid,text,uuid,text)",
-   "set_payment_received_amount(uuid,numeric,uuid,text)",
    "transfer_gang_ownership(uuid,uuid,uuid,text)"
   ],
   "policies": [
    "public.announcements | announcements_select_member | SELECT",
    "public.announcements | announcements_write_admin | ALL",
    "public.coupons | coupons_write | ALL",
-   "public.credit_balances | credit_balances_select | SELECT",
-   "public.credit_ledger | credit_ledger_select | SELECT",
    "public.event_logs | event_logs_select_member | SELECT",
    "public.games | games_write_admin | ALL",
-   "public.gang_expenses | gang_expenses_admin | ALL",
-   "public.gang_incomes | gang_incomes_admin | ALL",
    "public.gang_member_roles | gang_member_roles_select | SELECT",
    "public.gang_members | gang_members_insert_admin | INSERT",
    "public.gang_members | gang_members_update_admin | UPDATE",
@@ -771,11 +772,6 @@
    "public.member_line_links | member_line_links_select | SELECT",
    "public.member_statistics | member_statistics_select | SELECT",
    "public.notification_logs | notification_logs_admin | SELECT",
-   "public.payment_adjustments | payment_adjustments_select | SELECT",
-   "public.payment_allocations | payment_allocations_select | SELECT",
-   "public.payments | payments_select | SELECT",
-   "public.payments | payments_update | UPDATE",
-   "public.session_charges | session_charges_select | SELECT",
    "public.session_invite_tokens | session_invite_tokens_admin | ALL",
    "public.session_templates | session_templates_write | ALL",
    "public.sessions | sessions_insert_admin_draft_only | INSERT",
@@ -785,10 +781,7 @@
    "storage.objects | announcement_images_update_admin | UPDATE",
    "storage.objects | gang_assets_delete_admin | DELETE",
    "storage.objects | gang_assets_update_admin | UPDATE",
-   "storage.objects | gang_assets_write_admin | INSERT",
-   "storage.objects | payment_slips_delete | DELETE",
-   "storage.objects | payment_slips_select | SELECT",
-   "storage.objects | payment_slips_update | UPDATE"
+   "storage.objects | gang_assets_write_admin | INSERT"
   ],
   "roleText": [
    "actor_has_permission",
@@ -799,6 +792,7 @@
    "decide_join_request",
    "gang_member_roles_guard",
    "gang_members_revoke_roles",
+   "gangs_with_permission",
    "has_gang_permission",
    "is_gang_admin",
    "leave_gang",
@@ -901,7 +895,7 @@
   "credit_balances.select": {
    "admin": "rows:2",
    "anon": "deny",
-   "member": "rows:1",
+   "member": "rows:2",
    "orgAdmin": "rows:2",
    "outsider": "rows:0",
    "owner": "rows:2",
@@ -937,7 +931,7 @@
   "credit_ledger.select": {
    "admin": "rows:3",
    "anon": "deny",
-   "member": "rows:1",
+   "member": "rows:3",
    "orgAdmin": "rows:3",
    "outsider": "rows:0",
    "owner": "rows:3",
@@ -973,7 +967,7 @@
   "event_logs.select": {
    "admin": "rows:27",
    "anon": "deny",
-   "member": "rows:8",
+   "member": "rows:25",
    "orgAdmin": "rows:27",
    "outsider": "rows:0",
    "owner": "rows:27",
@@ -1027,7 +1021,7 @@
   "gang_expenses.delete": {
    "admin": "allow",
    "anon": "deny",
-   "member": "deny",
+   "member": "allow",
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
@@ -1036,7 +1030,7 @@
   "gang_expenses.insert": {
    "admin": "allow",
    "anon": "deny",
-   "member": "deny",
+   "member": "allow",
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
@@ -1045,7 +1039,7 @@
   "gang_expenses.select": {
    "admin": "rows:1",
    "anon": "deny",
-   "member": "rows:0",
+   "member": "rows:1",
    "orgAdmin": "rows:1",
    "outsider": "rows:0",
    "owner": "rows:1",
@@ -1054,7 +1048,7 @@
   "gang_expenses.update": {
    "admin": "allow",
    "anon": "deny",
-   "member": "deny",
+   "member": "allow",
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
@@ -1063,7 +1057,7 @@
   "gang_incomes.delete": {
    "admin": "allow",
    "anon": "deny",
-   "member": "deny",
+   "member": "allow",
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
@@ -1072,7 +1066,7 @@
   "gang_incomes.insert": {
    "admin": "allow",
    "anon": "deny",
-   "member": "deny",
+   "member": "allow",
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
@@ -1081,7 +1075,7 @@
   "gang_incomes.select": {
    "admin": "rows:1",
    "anon": "deny",
-   "member": "rows:0",
+   "member": "rows:1",
    "orgAdmin": "rows:1",
    "outsider": "rows:0",
    "owner": "rows:1",
@@ -1090,7 +1084,7 @@
   "gang_incomes.update": {
    "admin": "allow",
    "anon": "deny",
-   "member": "deny",
+   "member": "allow",
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
@@ -1477,7 +1471,7 @@
   "payment_adjustments.select": {
    "admin": "rows:1",
    "anon": "deny",
-   "member": "rows:0",
+   "member": "rows:1",
    "orgAdmin": "rows:1",
    "outsider": "rows:0",
    "owner": "rows:1",
@@ -1513,7 +1507,7 @@
   "payment_allocations.select": {
    "admin": "rows:2",
    "anon": "deny",
-   "member": "rows:1",
+   "member": "rows:2",
    "orgAdmin": "rows:2",
    "outsider": "rows:0",
    "owner": "rows:2",
@@ -1549,7 +1543,7 @@
   "payments.select": {
    "admin": "rows:6",
    "anon": "deny",
-   "member": "rows:1",
+   "member": "rows:6",
    "orgAdmin": "rows:6",
    "outsider": "rows:0",
    "owner": "rows:6",
@@ -1585,7 +1579,7 @@
   "session_charges.select": {
    "admin": "rows:3",
    "anon": "deny",
-   "member": "rows:1",
+   "member": "rows:3",
    "orgAdmin": "rows:3",
    "outsider": "rows:0",
    "owner": "rows:3",
@@ -1801,7 +1795,7 @@
   "storage.payment-slips.select": {
    "admin": "rows:2",
    "anon": "rows:0",
-   "member": "rows:1",
+   "member": "rows:2",
    "orgAdmin": "rows:2",
    "outsider": "rows:0",
    "owner": "rows:2",
