@@ -25,7 +25,7 @@ vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => {
 } }));
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 import { adminPaymentList } from '@/server/actions/payment-list';
-import { adminLedger } from '@/server/actions/payment-admin';
+import { adminLedger, adminPaymentDetail, chargeHistory } from '@/server/actions/payment-admin';
 
 let owner: string, member: string, stranger: string, gang: string, sessionId: string, charge: string, gm: string;
 let submitted: string[];
@@ -110,6 +110,30 @@ describe('WO-6.5a adminPaymentList + displayName', () => {
     const list = await adminPaymentList(gang, { pageSize: 1 });
     expect(list.success && list.data.rows[0].payerDisplayName).toBe('ชื่อสมาชิกในก๊วน');
     h.hiddenProfile = '';
+  });
+
+  it('an administrator of another gang cannot obtain names using real foreign payment/charge/session IDs', async () => {
+    // stranger is now a real OWNER elsewhere, not merely a user with no membership.
+    const { rows: [other] } = await pool.query<{ id: string }>('select id from public.create_gang($1,$2)', [stranger, `other-queue-${crypto.randomUUID()}`]);
+    h.userId = stranger; h.hiddenProfile = member; h.adminCalls = 0;
+    try {
+      for (const result of [
+        await adminLedger(gang),
+        await adminPaymentList(gang, { filter: { sessionId } }),
+        await adminPaymentDetail(submitted[0]),
+        await chargeHistory(charge),
+      ]) {
+        expect(result.success).toBe(false);
+        if (!result.success) expect(result.error.code).toBe('FORBIDDEN');
+        expect(JSON.stringify(result)).not.toContain('ชื่อสมาชิกในก๊วน');
+        expect(JSON.stringify(result)).not.toContain('แขกทดสอบ');
+      }
+      // A valid permission in the attacker's own gang does not widen a foreign session filter.
+      const ownScope = await adminPaymentList(other.id, { filter: { sessionId } });
+      expect(ownScope.success && ownScope.data.rows).toEqual([]);
+      expect(JSON.stringify(ownScope)).not.toContain('ชื่อสมาชิกในก๊วน');
+      expect(h.adminCalls).toBe(0); // denied BEFORE the service-role name fallback
+    } finally { h.hiddenProfile = ''; }
   });
 
   it('denies member/outsider before name fallback; validates page/cursor and propagates DB errors', async () => {
