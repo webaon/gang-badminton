@@ -41,6 +41,8 @@ export const ACTIONS = [
   'gang.finance.view',
   'gang.finance.manage',
   'statistics.view',
+  // ADR-015 Q6: delegated gang-wide statistics, distinct from self-view.
+  'statistics.view.all',
   'gang.join_request.manage',
   'gang.line.manage',
   'line.link.self',

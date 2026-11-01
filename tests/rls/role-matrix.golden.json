@@ -221,7 +221,8 @@
     "session.transition",
     "session.update",
     "session.view",
-    "statistics.view"
+    "statistics.view",
+    "statistics.view.all"
    ],
    "member": [
     "announcement.view",
@@ -276,7 +277,8 @@
     "session.transition",
     "session.update",
     "session.view",
-    "statistics.view"
+    "statistics.view",
+    "statistics.view.all"
    ],
    "orgOwner": [
     "announcement.manage",
@@ -317,7 +319,8 @@
     "session.transition",
     "session.update",
     "session.view",
-    "statistics.view"
+    "statistics.view",
+    "statistics.view.all"
    ],
    "outsider": [],
    "owner": [
@@ -360,7 +363,8 @@
     "session.transition",
     "session.update",
     "session.view",
-    "statistics.view"
+    "statistics.view",
+    "statistics.view.all"
    ],
    "scheduler": [
     "announcement.view",
@@ -385,7 +389,8 @@
     "session.transition",
     "session.update",
     "session.view",
-    "statistics.view"
+    "statistics.view",
+    "statistics.view.all"
    ]
   }
  },
@@ -1569,7 +1574,7 @@
    "outsider": "rows:0",
    "owner": "rows:2",
    "payer": "rows:1",
-   "scheduler": "rows:0"
+   "scheduler": "rows:2"
   },
   "member_statistics.update": {
    "admin": "deny",

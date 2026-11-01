@@ -46,6 +46,7 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'announcement.view',
     'notification.view.self',
     'statistics.view',
+    'statistics.view.all',
     'line.link.self',
     'gang.leave.self',
     // [WO-B5a · ADR-010]

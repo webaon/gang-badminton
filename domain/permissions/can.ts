@@ -58,6 +58,7 @@ const ADMIN: readonly Action[] = [
   'gang.pricing.manage',
   'gang.finance.view',
   'gang.finance.manage',
+  'statistics.view.all',
   'session.create',
   'session.update',
   'session.transition',
@@ -102,6 +103,7 @@ const FEATURE_GATED: Partial<Record<Action, Feature>> = {
   'session.invite.manage': 'guests',
   // [WO-3.C] ก๊วนที่ปิดสถิติ = ปิดจริงทั้งหน้าและ action ไม่ใช่แค่ซ่อนลิงก์
   'statistics.view': 'statistics',
+  'statistics.view.all': 'statistics',
   // [WO-3.E] ก๊วนที่ปิด discovery ไม่มีคำขอเข้าก๊วนให้จัดการตั้งแต่ต้น
   //          (`request_to_join_gang()` ตอบ FEATURE_DISABLED อยู่แล้ว — สองที่ต้องตรงกัน)
   'gang.join_request.manage': 'discovery',

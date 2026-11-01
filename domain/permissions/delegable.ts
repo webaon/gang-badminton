@@ -12,8 +12,8 @@
  *  - ห้ามมีสิทธิ์ที่นำไปสู่ escalation: จัดการสมาชิก/ชุดสิทธิ์, โอนความเป็นเจ้าของ, แก้ก๊วน, ตั้งค่า LINE, อนุมัติคำขอเข้าก๊วน,
  *    เปลี่ยนสูตรราคา/ระดับฝีมือ (เปลี่ยนกติกาคิดเงิน)
  *
- * ⚠️ `statistics.view` ไม่อยู่ในรายการ: member มีอยู่แล้วในความหมาย "ดูของตัวเอง" (RLS ตัดสินว่าเห็นของใคร) —
- *    การมอบ "ดูทั้งก๊วน" ต้องเป็นสิทธิ์ชื่อใหม่ที่แยกความหมาย ⇒ รอเจ้าของงานตัดสิน (ADR-015 Q6)
+ * `statistics.view` keeps its self-view meaning; `statistics.view.all` is a separate
+ * delegable action accepted for scheduler in ADR-015 Q6 (R-roles-2c).
  */
 import type { Action } from './types';
 
@@ -41,6 +41,7 @@ export const DELEGABLE_ACTIONS = [
   'registration.no_show',
   'game.manage',
   // อื่นๆ
+  'statistics.view.all',
   'announcement.manage',
 ] as const satisfies readonly Action[];
 
@@ -82,6 +83,7 @@ export const ROLE_PRESETS = {
     'registration.checkin',
     'registration.no_show',
     'game.manage',
+    'statistics.view.all',
   ],
 } as const satisfies Record<string, readonly DelegableAction[]>;
 

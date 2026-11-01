@@ -740,7 +740,7 @@ describe('R-roles-0 — can() ทุก action × role', () => {
     const allOn = Object.fromEntries(FEATURES.map((f) => [f, true])) as GangFeatures;
     const allOff = Object.fromEntries(FEATURES.map((f) => [f, false])) as GangFeatures;
     const roles: Record<string, Pick<PermissionContext, 'role' | 'orgRole' | 'extra'>> = {
-      scheduler: { role: 'member', extra: ['session.create', 'session.update', 'session.transition', 'session.invite.manage', 'registration.create.other', 'registration.create.guest', 'registration.cancel.other', 'registration.promote.other', 'registration.checkin', 'registration.no_show', 'game.manage'] },
+      scheduler: { role: 'member', extra: ['session.create', 'session.update', 'session.transition', 'session.invite.manage', 'registration.create.other', 'registration.create.guest', 'registration.cancel.other', 'registration.promote.other', 'registration.checkin', 'registration.no_show', 'game.manage', 'statistics.view.all'] },
       owner: { role: 'owner' },
       admin: { role: 'admin' },
       member: { role: 'member' },
