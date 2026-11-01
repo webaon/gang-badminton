@@ -415,3 +415,23 @@ Forbidden: migration · แก้ domain/billing / server action payments เด
 | Q4 รายงาน | **ก** ตรงบัญชีธนาคาร: โอนเกินนับตอนเงินเข้า (บรรทัด "โอนเกินเข้าเครดิต") · allocation source=credit ไม่นับเป็นเงินสดซ้ำ · `cash_payout` = บรรทัด "เงินคืนสมาชิก" หัก netCash · **อนุญาตแตะ `domain/reports/finance.ts`** (สูตรรายงานเท่านั้น) |
 | Q5 ออกจากก๊วน | **ข** leave_gang หักเครดิตกับหนี้ค้างอัตโนมัติก่อนออก (apply_credit) แล้วคืนยอดเครดิตสุทธิ + ยอดค้างสุทธิใน result · แอดมินจ่ายคืนเอง |
 ใบย่อย: B5b-1 (N1 seq `cc8a14e` + type ใหม่ + N2/received_amount) → B5b-2 (topup / cash_payout / credit_return_charge + refund cap นับเฉพาะ transfer + finance.ts) → B5b-3 (leave_gang)
+
+### WO-6.5 แตก 3 ใบ (31 ต.ค. 2026 · จาก gap report ของ @gb-frontend @c2da90d · planner ตัดสินตาม ★)
+**คำตัดสิน planner** (ตัด = ลง BACKLOG ไม่ทำใน 6.5):
+| เรื่อง | ตัดสิน |
+|---|---|
+| ยืนยันสลิปทีละใบ | ทำ · ลำดับ: บันทึกยอดที่โอนจริง → verify → recordOverpayment(paymentId, null, reason) · แต่ละขั้น refresh สถานะจาก server · ล้มกลางทางกลับมาทำขั้นที่เหลือได้ |
+| "ยอดตรง/โอนเกินเท่าไร" | server คืน `comparison` + `overpaymentAmount` (คำนวณฝั่ง server จาก received − amount) · UI ห้ามลบเงิน |
+| สลิป PDF | มีปุ่มเปิด/ดาวน์โหลด fallback ไม่ใช่ img อย่างเดียว · ใช้ signed URL เดิม 5 นาที |
+| "ยืนยันทั้งหมดที่ยอดตรง" · "รับเงินสดแทน" | ❌ ตัด (เงินสดอยู่ BACKLOG 6.3 แล้ว · ห้ามใช้ payOutCredit แทนรับเงินสด) |
+| ปุ่มทวงรายคน/ที่เลือก · guest ทวงผ่านผู้เชิญ | ❌ ตัด · ซ่อนปุ่ม · ห้ามเรียก cron จากหน้า |
+| แก้ allocation หลัง verified ("เพิ่มคนที่จ่ายให้") | ❌ ไม่ทำ · จ่ายแทน = เลือกผู้จ่าย + หนี้ แล้วออกใบใหม่ (createPaymentForCharges เดิม) |
+| ค้างจ่าย aging | นับ "วันเริ่มค้าง" = วันของนัด (sessions.starts_at, เวลาไทย) · ค่ารายเดือน = วันที่สร้าง charge · bucket 0–7 / 8–30 / >30 วัน |
+| คืน charge เข้าเครดิต | 2 ขั้นตาม B5b-2: addChargeAdjustment(credit, −X) → returnChargeToCredit · UI มีสถานะ "ลดหนี้แล้ว / รอย้ายเข้าเครดิต" ที่ loader อ่านกลับมาได้ · ขั้น 2 ล้ม ⇒ ห้าม retry ขั้น 1 · label adjustment type credit ต้องไม่ใช้คำ "ให้เครดิต" (ชนกับเติมเครดิตกระเป๋า) ⇒ "ลดหนี้" |
+| เติม/จ่ายคืนเครดิต | กรอก → หน้ายืนยัน → ส่ง พร้อมเหตุผลบังคับ · ห้ามคิดเพดานใน UI (DB ปฏิเสธเอง) |
+| รายงาน | ตัวเลขทั้งหมดจาก loader (ย้าย actualCost ออกจากหน้า) · allocated ยังรวม verified ทุก source (ยอดค้างถูก) · creditAllocated = subset source credit · กระแสเงินสดจาก credit_ledger เฉพาะ overpayment (+) / cash_payout (−) ไม่รวม admin_topup/charge_return · เขตเวลา Asia/Bangkok · **ช่วงวันที่ของรายงาน: ⏳ รอเจ้าของงาน (Q-R1)** |
+| "กำไร" บน dashboard | ห้ามใช้ netCash เป็นกำไร (รวมเงินโอนเกินที่ยังเป็นของสมาชิก) · แสดง "เงินสดสุทธิ" + "เครดิตสมาชิกคงค้าง" แยก |
+
+**WO-6.5a (@gb-integrations · loaders อ่านอย่างเดียว ไม่มี UI/migration)**: `adminPaymentDetail(paymentId)` (สลิป meta, received_amount, comparison/overpaymentAmount, overpayment บันทึกแล้วหรือยัง, allocations, สิทธิ์ที่ทำได้) · `adminLedger(gangId, {cursor, filter: session|aging|status})` แบ่งหน้า keyset ≤500 + summary ทั้ง scope (ไม่ใช่แค่หน้า) แยก transfer/credit + จำนวนลูกหนี้ไม่ซ้ำ + aging · `chargeHistory(chargeId)` (allocations source/status, adjustments รวม credit_return, สถานะ "รอย้ายเข้าเครดิต") · `financeReport(gangId, range)` ใช้ domain/reports/finance.ts เดิม ส่ง creditAllocated/overpayments/memberPayouts + actualCost · `listGangCredits` แบ่งหน้าให้ครบก๊วน (ทั้ง balance > 0 และรายชื่อสมาชิกที่เติมได้) · error ต้องไม่ถูกกลืนเป็น [] · DoD: เทสต์จริงทุก loader (สิทธิ์ admin/member/คนนอก · ข้อมูล > 1000 แถว · ตัวเลขตรง ledger/finance) · ห้าม db reset
+**WO-6.5b (@gb-frontend · หลัง 6.5a)**: H32/K32 ตรวจสลิป · H33 ค้างจ่าย + aging · H34 จ่ายแทน/ลดหนี้/คืนเข้าเครดิต + กระเป๋าเครดิต (เติม/จ่ายคืน) · reports ใช้ financeReport + บรรทัด "โอนเกินเข้าเครดิต" / "เงินคืนสมาชิก" · แก้ LedgerPanel (ไม่ Number(), finally, ปุ่มแยก can) · build + Playwright ทั้งชุด + ภาพ light/dark 390/1280
+**WO-6.5c (@gb-backend loader + @gb-frontend UI · หลัง R-roles หรือเมื่อ backend ว่าง)**: H10 dashboard — aggregate loader (ใช้ finance semantics เดียวกับรายงาน, buildTimeline เดิม, can/flags) · ไม่มีกราฟ mock · ส่วนที่ไม่มีข้อมูลจริงให้ตัด scope ระบุชัด
