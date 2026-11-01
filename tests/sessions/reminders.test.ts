@@ -7,7 +7,7 @@
  *
  * เรียก **code path เดียวกับ route handler** (`runReminders`)
  */
-import { describe, it, expect, afterAll } from 'vitest';
+import { describe, it, expect, afterAll, vi } from 'vitest';
 import { pool, API_URL, SERVICE_ROLE_KEY } from '../helpers/db';
 
 process.env.SUPABASE_URL = API_URL;
@@ -422,52 +422,78 @@ describe('WO-2.5-G DoD — เตือนยอดค้างจ่าย', ()
 });
 
 describe('WO-B13.1 — เตือนยอดค้างแบ่งหน้า (ไม่ใช่ limit 500 ครั้งเดียว)', () => {
-  async function sessionChargeCount(): Promise<number> {
-    const {
-      rows: [row],
-    } = await pool.query<{ n: string }>(
-      `select count(*) as n from public.session_charges where type = 'session'`,
-    );
-    return Number(row.n);
-  }
+  type ObservedPage = { rows: { id: string; gang_id: string; created_at: string }[]; cursor: string | null };
 
-  /** Never let shared-DB growth turn a pagination test into a truncated single-page scan. */
-  async function boundedPageSize(total: number): Promise<number> {
+  /** WO-R2.3: scope the REAL HTTP request, never stub/slice response rows.
+   * Production joins, filters, ordering, cursor and enqueue remain unchanged. Only
+   * this test's gang_id IN predicate is added, so shared writers cannot grow the
+   * stream. Observe cloned REAL response pages before the production pager reads them.
+   * This proves the pager's fixture-stream boundary, not global rank/churn behavior.
+   */
+  async function observePaymentPages(gangIds: string[], pageSize: number, requestBudget: number) {
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const config = readFileSync(join(__dirname, '..', '..', 'supabase/config.toml'), 'utf8');
     const maxRows = Number(/^max_rows\s*=\s*(\d+)/m.exec(config)?.[1]);
     expect(maxRows).toBeGreaterThan(1);
-    const size = Math.max(1, Math.min(500, maxRows - 1, Math.floor(total / 4)));
-    expect(size).toBeLessThan(maxRows);
-    expect(size).toBeLessThanOrEqual(500);
-    expect(Math.ceil(total / size)).toBeGreaterThanOrEqual(4);
-    return size;
+    expect(pageSize).toBeGreaterThan(0);
+    expect(pageSize).toBeLessThan(maxRows);
+    expect(pageSize).toBeLessThanOrEqual(500);
+    const allowed = new Set(gangIds);
+    const pages: ObservedPage[] = [];
+    let requests = 0;
+    const realFetch = globalThis.fetch;
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      if (url.origin !== new URL(API_URL).origin || url.pathname !== '/rest/v1/session_charges') {
+        return realFetch(input, init);
+      }
+      requests += 1;
+      if (requests > requestBudget) throw new Error('fixture payment pager exceeded HTTP request budget');
+      expect(Number(url.searchParams.get('limit'))).toBe(pageSize);
+      url.searchParams.set('gang_id', `in.(${gangIds.join(',')})`);
+      const response = await realFetch(new Request(url, new Request(input, init)));
+      if (!response.ok) throw new Error(`fixture payment page HTTP ${response.status}`);
+      const rows = await response.clone().json() as ObservedPage['rows'];
+      expect(Array.isArray(rows)).toBe(true);
+      expect(rows.length).toBeLessThanOrEqual(pageSize);
+      expect(rows.every((row) => allowed.has(row.gang_id))).toBe(true);
+      pages.push({ rows, cursor: url.searchParams.get('or') });
+      return response;
+    });
+    return { pages, restore: () => spy.mockRestore() };
+  }
+
+  function assertCompletePages(pages: ObservedPage[], expectedIds: string[]) {
+    const ids = pages.flatMap((page) => page.rows.map((row) => row.id));
+    expect(ids).toHaveLength(expectedIds.length);
+    expect(new Set(ids).size).toBe(expectedIds.length);
+    expect([...ids].sort()).toEqual([...expectedIds].sort());
+    expect(pages.filter((page) => page.rows.length > 0).length).toBeGreaterThanOrEqual(4);
+    for (let i = 1; i < pages.length; i += 1) {
+      const last = pages[i - 1].rows.at(-1)!;
+      expect(pages[i].cursor).toContain(`id.lt.${last.id}`);
+      expect(pages[i].cursor).toContain(`created_at.eq.\"${last.created_at}\"`);
+    }
   }
 
   it('🔴 ยอดค้างที่เก่าสุด (ท้ายลำดับ created_at desc) ยังถูกเตือน เมื่อ pageSize เล็กจนต้องวนหลายหน้า', async () => {
-    // fixture ถูกสร้าง "ใหม่สุด" ⇒ อยู่หน้าแรก · ทำให้เป็น "เก่าสุด" ด้วยการย้อน created_at ไปก่อนทุกแถวใน DB
     const oldest = await endedSessionWithCharge('120.00');
     const newest = await endedSessionWithCharge('130.00');
-
-    await pool.query(
-      `update public.session_charges
-          set created_at = (select min(created_at) from public.session_charges where id <> $1) - interval '1 day'
-        where id = $1`,
-      [oldest.chargeId],
-    );
-
-    const total = await sessionChargeCount();
-    const pageSize = await boundedPageSize(total);
-    expect(total).toBeGreaterThanOrEqual(2);
-
-    await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize });
-
-    // ถ้าอ่านหน้าเดียว (หรือ limit ครั้งเดียว) แถวเก่าสุดจะไม่ถูกเห็น
-    const oldRows = await remindersOf(oldest.gangId, 'payment.overdue');
-    expect(oldRows).toHaveLength(1);
-    expect(oldRows[0].payload.outstanding).toBe('120.00');
-    expect(await remindersOf(newest.gangId, 'payment.overdue')).toHaveLength(1);
+    const padding = [await endedSessionWithCharge('1.00'), await endedSessionWithCharge('2.00')];
+    const fixtures = [oldest, newest, ...padding];
+    await pool.query(`update public.session_charges set created_at='1990-01-01T00:00:00Z' where id=$1`, [oldest.chargeId]);
+    const capture = await observePaymentPages(fixtures.map((f) => f.gangId), 1, 5);
+    try {
+      await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize: 1 });
+      const oldRows = await remindersOf(oldest.gangId, 'payment.overdue');
+      expect(oldRows).toHaveLength(1);
+      expect(oldRows[0].payload.outstanding).toBe('120.00');
+      expect(await remindersOf(newest.gangId, 'payment.overdue')).toHaveLength(1);
+      assertCompletePages(capture.pages, fixtures.map((f) => f.chargeId));
+      expect(capture.pages).toHaveLength(5); // four real rows + terminal empty page
+      expect(capture.pages[3].rows[0].id).toBe(oldest.chargeId);
+    } finally { capture.restore(); }
   });
 
   it('🔴 หลายหน้า + รันซ้ำ → ไม่เตือนซ้ำ (dedupe) และไม่ข้ามแม้ created_at ชนกัน', async () => {
@@ -481,34 +507,36 @@ describe('WO-B13.1 — เตือนยอดค้างแบ่งหน้
       [[a.chargeId, b.chargeId, c.chargeId], '2000-01-01T00:00:00.000001Z'],
     );
 
-    // Find the fixture's actual positions in the production ordering. Pick a bounded
-    // page size whose boundary is AFTER the first or second tied row, never after all three.
-    const total = await sessionChargeCount();
-    const limit = await boundedPageSize(total);
-    const { rows: positions } = await pool.query<{ id: string; position: string }>(
-      `select id, position from (
-         select id, row_number() over (order by created_at desc, id desc) as position
-           from public.session_charges where type = 'session'
-       ) ranked where id = any($1::uuid[]) order by position`,
-      [[a.chargeId, b.chargeId, c.chargeId]],
-    );
-    expect(positions).toHaveLength(3);
-    const ranks = positions.map((r) => Number(r.position));
-    expect(ranks).toEqual([ranks[0], ranks[0] + 1, ranks[0] + 2]);
-    let pageSize = limit;
-    while (pageSize > 1 && !ranks.slice(0, 2).some((rank) => rank % pageSize === 0)) pageSize -= 1;
-    expect(pageSize).toBeLessThanOrEqual(limit);
-    expect(ranks.slice(0, 2).some((rank) => rank % pageSize === 0)).toBe(true);
-    expect(Math.floor((ranks[0] - 1) / pageSize)).not.toBe(Math.floor((ranks[2] - 1) / pageSize));
-    expect(Math.ceil(total / pageSize)).toBeGreaterThanOrEqual(4);
-
-    await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize });
-    const again = await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize });
-
-    expect(again).toBe(0);
-    for (const ctx of [a, b, c]) {
-      expect(await remindersOf(ctx.gangId, 'payment.overdue')).toHaveLength(1);
-    }
+    const newer = [await endedSessionWithCharge('1.00'), await endedSessionWithCharge('2.00')];
+    const older = [await endedSessionWithCharge('3.00'), await endedSessionWithCharge('4.00'), await endedSessionWithCharge('5.00')];
+    const fixtures = [...newer, a, b, c, ...older];
+    await pool.query(`update public.session_charges set created_at='2001-01-01T00:00:00Z' where id=any($1::uuid[])`, [newer.map((f) => f.chargeId)]);
+    await pool.query(`update public.session_charges set created_at='1999-01-01T00:00:00Z' where id=any($1::uuid[])`, [older.map((f) => f.chargeId)]);
+    const capture = await observePaymentPages(fixtures.map((f) => f.gangId), 2, 10);
+    try {
+      await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize: 2 });
+      const first = capture.pages.slice();
+      const again = await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize: 2 });
+      expect(again).toBe(0);
+      for (const ctx of [a, b, c]) {
+        expect(await remindersOf(ctx.gangId, 'payment.overdue')).toHaveLength(1);
+      }
+      assertCompletePages(first, fixtures.map((f) => f.chargeId));
+      assertCompletePages(capture.pages.slice(first.length), fixtures.map((f) => f.chargeId));
+      const tiedIds = new Set([a.chargeId, b.chargeId, c.chargeId]);
+      const seen = first.flatMap((page, index) => page.rows.filter((r) => tiedIds.has(r.id)).map((r) => ({ ...r, page: index })));
+      expect(seen).toHaveLength(3);
+      expect(new Set(seen.map((r) => r.id)).size).toBe(3);
+      expect(new Set(seen.map((r) => r.created_at)).size).toBe(1);
+      expect(seen.every((r) => r.created_at.startsWith('2000-01-01T00:00:00.000001'))).toBe(true);
+      expect(new Set(seen.map((r) => r.page)).size).toBeGreaterThan(1); // ACTUAL HTTP pages, not SQL ranks
+      expect(first).toHaveLength(5);
+      expect(capture.pages).toHaveLength(10); // 2 scans * (4 populated + 1 terminal), independent of shared DB size
+      console.info('[WO-R2.3] observed real response boundary', {
+        tied: seen.map((row) => ({ id: row.id, timestamp: row.created_at, responsePage: row.page })),
+        requests: capture.pages.length,
+      });
+    } finally { capture.restore(); }
   });
 
   it('ไม่เปลี่ยน logic: จ่ายครบแล้ว/ยังไม่ถึงกำหนด ไม่ถูกเตือนแม้วนหลายหน้า', async () => {
@@ -521,15 +549,19 @@ describe('WO-B13.1 — เตือนยอดค้างแบ่งหน้
       paid.owner,
     ]);
 
-    const total = await sessionChargeCount();
-    const pageSize = await boundedPageSize(total);
-    await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize });
-
-    expect(await remindersOf(paid.gangId, 'payment.overdue')).toHaveLength(0);
-    // Positive control: a no-op/truncated scan must not make the negative assertion pass vacuously.
-    const unpaidRows = await remindersOf(unpaid.gangId, 'payment.overdue');
-    expect(unpaidRows).toHaveLength(1);
-    expect(unpaidRows[0].payload.outstanding).toBe('130.00');
+    const padding = [await endedSessionWithCharge('1.00'), await endedSessionWithCharge('2.00')];
+    const fixtures = [paid, unpaid, ...padding];
+    const capture = await observePaymentPages(fixtures.map((f) => f.gangId), 1, 5);
+    try {
+      await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize: 1 });
+      expect(await remindersOf(paid.gangId, 'payment.overdue')).toHaveLength(0);
+      // Positive control: a no-op/truncated scan must not make the negative assertion pass vacuously.
+      const unpaidRows = await remindersOf(unpaid.gangId, 'payment.overdue');
+      expect(unpaidRows).toHaveLength(1);
+      expect(unpaidRows[0].payload.outstanding).toBe('130.00');
+      assertCompletePages(capture.pages, fixtures.map((f) => f.chargeId));
+      expect(capture.pages).toHaveLength(5);
+    } finally { capture.restore(); }
   });
 });
 
