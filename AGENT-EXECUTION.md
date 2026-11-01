@@ -1746,6 +1746,8 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | R-roles-1 | expand: gang_roles + has_gang_permission + preset + assign (ไม่แก้ policy เดิม) `62405a8` (0050) | @gb-backend | 🔄 QA ใบ 26 |
 | R-roles-2a | migrate การเงิน → ผู้ถือชุดสิทธิ์ (InitPlan `gangs_with_permission` · ADR-015 amendment `e06304d`) `63239db` (0051) | @gb-backend | 🔄 QA ใบ 27 |
 | R-roles-2b | migrate จัดนัด + `sessions_with_permission` `7425aac` (0052) | @gb-backend | 🔄 QA ใบ 28 |
+| R-roles-2c | ประกาศ + statistics.view.all ให้ scheduler (flag gate ใน policy · helper กลางไม่รู้จัก feature) `b354a9b` (0053) | @gb-backend | 🔄 QA ใบ 29 |
+| R-roles-3 | server โหลดชุดสิทธิ์เข้า can() extra — แผน `docs/plans/r-roles-3-server-permission-context.md` `6e026a5` · template guards ใช้ action แยก ไม่ delegable (planner 1 พ.ย.) | @gb-backend | ⏸ พักรอคิว QA |
 | R2.2 + R2.3 | reminders test pageSize ≤ max_rows `b843adc` → แก้ F1/F2 ด้วย fixture-scoped real HTTP + งบ request คงที่ `eb1f043` `0cc41d4` (test-only · รวม B13 session :218) | @gb-integrations | ✅ QA ใบ 22 PASS (31 ต.ค. · ties ข้ามหน้าจริง [1,1,2] · mutation ปิด filter/เปลี่ยน path แดง · writers 47/47 ×3) · ข้อจำกัด: ไม่รับรอง global churn |
 | 6.5a | loaders แอดมินเงิน: adminPaymentDetail/adminLedger/chargeHistory `79844ca` · financeReport + listGangCredits 🔄 | @gb-integrations | 🔄 QA ใบ 24 (ชุดแรก) |
 | 6.5b | H32/33/34 + กระเป๋าเครดิต + reports | @gb-frontend | 🔄 |
