@@ -16,20 +16,20 @@ const ALL_OFF: GangFeatures = { line: false, discovery: false, guests: false, co
 const ids = (items: { id: string }[]) => items.map((i) => i.id);
 
 describe('buildGangMenu — member', () => {
-  it('statistics เปิด: แท็บ นัด · อันดับ · ฉัน (ยังไม่มี "ยอดเงิน" จนกว่า WO-6.3)', () => {
+  it('statistics เปิด: แท็บ นัด · ยอดเงิน · อันดับ · ฉัน (WO-6.3)', () => {
     const m = buildGangMenu({ role: 'member', features: { ...ALL_OFF, statistics: true } }, G);
-    expect(ids(m.tabs)).toEqual(['sessions', 'stats', 'profile']);
-    expect(ids(m.side)).toEqual(['sessions', 'members', 'announcements', 'stats', 'profile']);
+    expect(ids(m.tabs)).toEqual(['sessions', 'payments', 'stats', 'profile']);
+    expect(ids(m.side)).toEqual(['sessions', 'members', 'payments', 'announcements', 'stats', 'profile']);
   });
 
   it('statistics ปิด: เมนู/แท็บ "อันดับ/สถิติ" หายไปทั้งสองที่', () => {
     const m = buildGangMenu({ role: 'member', features: ALL_OFF }, G);
-    expect(ids(m.tabs)).toEqual(['sessions', 'profile']);
-    expect(ids(m.side)).toEqual(['sessions', 'members', 'announcements', 'profile']);
+    expect(ids(m.tabs)).toEqual(['sessions', 'payments', 'profile']);
+    expect(ids(m.side)).toEqual(['sessions', 'members', 'payments', 'announcements', 'profile']);
   });
 
   it('ไม่ส่ง features เลย = ถือว่าปิดหมด (fail-closed)', () => {
-    expect(ids(buildGangMenu({ role: 'member' }, G).tabs)).toEqual(['sessions', 'profile']);
+    expect(ids(buildGangMenu({ role: 'member' }, G).tabs)).toEqual(['sessions', 'payments', 'profile']);
   });
 
   it('LINE เปิด ⇒ สมาชิกเห็นเมนู LINE (ผูกบัญชีของตัวเอง) · ปิด ⇒ ไม่เห็น', () => {
@@ -38,12 +38,14 @@ describe('buildGangMenu — member', () => {
   });
 });
 
-describe('buildGangMenu — แท็บ "ยอดเงิน" (ผูก payment.verify จนกว่า WO-6.3)', () => {
-  it('member ไม่เห็นยอดเงิน ทั้งแท็บและ sidebar (ไม่ว่า flag ใด)', () => {
+describe('buildGangMenu — แท็บ "ยอดเงิน" (WO-6.3: self หรือ verify)', () => {
+  it('member เห็นยอดเงินของตัวเอง ทั้งแท็บและ sidebar (ไม่ว่า flag ใด)', () => {
     for (const statistics of [false, true]) {
       const m = buildGangMenu({ role: 'member', features: { ...ALL_OFF, statistics } }, G);
-      expect(ids(m.tabs)).not.toContain('payments');
-      expect(ids(m.side)).not.toContain('payments');
+      expect(m.tabs.find((item) => item.id === 'payments')).toMatchObject({ label: 'ยอดเงิน', href: '/gangs/g1/my-payments' });
+      expect(m.side.find((item) => item.id === 'payments')).toMatchObject({ label: 'ยอดเงิน', href: '/gangs/g1/my-payments' });
+      expect(m.side.some((item) => item.label === 'เก็บเงิน')).toBe(false);
+      expect(activeMenuId('/gangs/g1/my-payments', m.tabs)).toBe('payments');
     }
   });
 
@@ -113,7 +115,7 @@ describe('เมนูตรงกับ can() ทุก role × flag (ไม่
     templates: 'session.create',
     members: 'gang.member.view',
     'join-requests': 'gang.join_request.manage',
-    payments: 'payment.verify',
+    payments: ['payment.verify', 'payment.submit.self'],
     membership: 'gang.finance.view',
     reports: 'gang.finance.view',
     announcements: 'announcement.view',
@@ -124,7 +126,7 @@ describe('เมนูตรงกับ can() ทุก role × flag (ไม่
   };
   const TAB_ACTION: Record<string, Action | Action[] | null> = {
     sessions: 'session.view',
-    payments: 'payment.verify',
+    payments: ['payment.verify', 'payment.submit.self'],
     stats: 'statistics.view',
     profile: null,
   };

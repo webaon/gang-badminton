@@ -8,6 +8,7 @@ import { Text } from '@astryxdesign/core/Text';
 import { VStack } from '@astryxdesign/core/VStack';
 
 import { StatePanel } from '@/components/ui/StatePanel';
+import { baht } from '@/domain/sessions/close-view';
 import { CreateMyPaymentButton } from '@/features/payments/CreateMyPaymentButton';
 import { PayQr } from '@/features/payments/PayQr';
 import { PaySlipForm } from '@/features/payments/PaySlipForm';
@@ -27,12 +28,15 @@ export type PayViewProps = {
   sessionTitle: string;
   /** มี charge ของฉันในนัดนี้หรือไม่ */
   hasCharges: boolean;
+  hasOutstanding?: boolean;
+  breakdown?: { court: string; shuttle: string; penalty: string; rounding: string; amount: string } | null;
+  combinedPaymentText?: string | null;
   /** ข้อความเงินที่จัดรูปแล้วจาก server (เช่น "฿148.00") — view นี้ไม่คำนวณ/ไม่แปลงตัวเลข */
   outstandingText: string;
   allocatedText: string | null;
   /** "ก๊วนต้องคืนให้ ..." — null = ไม่มี */
   refundText: string | null;
-  /** เครดิตคงเหลือของสมาชิก (รอ WO-B5a) — null = ซ่อนบล็อก */
+  /** เครดิตคงเหลือของสมาชิกจาก getMyCredit — null = ซ่อนบล็อก */
   creditBalanceText?: string | null;
   payment: { id: string; amountText: string; status: string; rejectReason: string | null } | null;
   qr: string | null;
@@ -57,6 +61,7 @@ export function PayView(props: PayViewProps) {
           <Button size="sm" variant="ghost" label="กลับไปที่นัด" href={backHref} />
         </HStack>
         <Text type="supporting">{sessionTitle}</Text>
+        <Button variant="ghost" label="ยอดของฉันทั้งหมด" href={`/gangs/${gangId}/my-payments`} />
       </VStack>
 
       {!hasCharges ? (
@@ -86,15 +91,36 @@ export function PayView(props: PayViewProps) {
                 </Text>
               ) : null}
               {props.creditBalanceText ? (
-                <Text type="supporting" size="sm">
-                  เครดิตคงเหลือ {props.creditBalanceText}
-                </Text>
+                <VStack gap={1}>
+                  <Text weight="semibold">เครดิตคงเหลือ {props.creditBalanceText}</Text>
+                  <Text type="supporting" size="sm">ระบบจะหักเครดิตอัตโนมัติเมื่อมีหนี้ใหม่</Text>
+                </VStack>
               ) : null}
             </VStack>
           </Card>
 
+          {props.breakdown ? (
+            <Card padding={4}>
+              <VStack gap={2}>
+                <Heading level={2}>รายละเอียดยอดของฉัน</Heading>
+                {([
+                  ['court', 'ค่าคอร์ท'], ['shuttle', 'ค่าลูก'], ['penalty', 'ค่าปรับ'],
+                  ['rounding', 'ปัดเศษ'], ['amount', 'ยอดตั้งต้น'],
+                ] as const).map(([key, label]) => (
+                  <HStack key={key} justify="between" gap={2}>
+                    <Text>{label}</Text><Text hasTabularNumbers>{baht(props.breakdown![key])}</Text>
+                  </HStack>
+                ))}
+              </VStack>
+            </Card>
+          ) : null}
+
+          {props.combinedPaymentText ? <Banner status="info" title="ใบจ่ายรวมหลายรายการ" description={props.combinedPaymentText} /> : null}
+
           {!payment ? (
-            <CreateMyPaymentButton sessionId={sessionId} />
+            props.hasOutstanding === false
+              ? <Banner status="success" title="ไม่มียอดค้างในนัดนี้" />
+              : <CreateMyPaymentButton sessionId={sessionId} />
           ) : (
             <>
               <HStack gap={2} align="center" wrap="wrap">

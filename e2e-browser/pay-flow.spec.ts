@@ -4,7 +4,7 @@ import { createGang, signUp, uniqueSuffix, watchConsole } from './helpers';
 
 /**
  * WO-6.3 — หน้าจ่ายเงินฝั่งสมาชิก: ปิดรอบ → ขอ QR → ตรวจไฟล์สลิป → ส่งสลิป → แอดมินยืนยัน → verified
- * (เคส "2 นัดค้าง หน้าจ่ายนัดเก่าต้องโชว์ยอดนัดเก่า" + H29 รอ WO-R3)
+ * เคสสองนัดค้าง + H29 + wallet อยู่ใน my-balance.spec.ts
  */
 
 function localDateTime(hoursFromNow: number): string {

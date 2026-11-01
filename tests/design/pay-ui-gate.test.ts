@@ -1,7 +1,7 @@
 /**
  * WO-6.3 grep gate — หน้าจ่ายเงินฝั่งสมาชิก:
  *   1. UI ไม่คิดเงิน: ไม่มี Number()/parseFloat/toFixed/reduce/Intl กับยอด · ไม่มีเลขคณิตกับ amount
- *   2. component/page ไม่ import `domain/billing` ตรงๆ ยกเว้น page เดิมที่รอ loader ของ WO-R3 (ledger)
+ *   2. component/page ไม่ import `domain/billing` — รวมหน้า pay และ loader R3
  *   3. ไม่มี `<div` / `style={{` / hex ดิบ · ไม่ตัดสินสิทธิ์ด้วย role
  *   4. error ของ action แสดงผ่าน actionError() — ไม่เอา .message ตรงๆ
  *   5. ข้อความขนาดไฟล์ในหน้าจอตรงกับ bucket จริง (5MB)
@@ -14,6 +14,9 @@ import { describe, expect, it } from 'vitest';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
 const COMPONENTS = [
+  'features/payments/SessionPayPage.tsx',
+  'features/payments/MyBalancePage.tsx',
+  'app/gangs/[gangId]/my-payments/page.tsx',
   'features/payments/PayView.tsx',
   'features/payments/PayQr.tsx',
   'features/payments/PayStatusSteps.tsx',
@@ -40,7 +43,7 @@ describe('grep gate: หน้าจ่ายเงินสมาชิก (WO-
   });
 
   it('component ไม่ import domain/billing (เงินมาจาก server/loader เท่านั้น)', () => {
-    const offenders = COMPONENTS.filter((f) => /from '@\/domain\/billing/.test(code(f)));
+    const offenders = UI_FILES.filter((f) => /from ['"]@\/domain\/billing/.test(code(f)));
     expect(offenders).toEqual([]);
   });
 

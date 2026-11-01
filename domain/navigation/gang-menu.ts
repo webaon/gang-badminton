@@ -68,10 +68,7 @@ type Def = {
 /** tab bar มือถือ (hi-fi H17): นัด · ยอดเงิน · อันดับ · ฉัน */
 const TAB_DEFS: readonly Def[] = [
   { id: 'sessions', label: 'นัด', icon: 'calendar', action: 'session.view', path: 'sessions' },
-  // ⚠️ ผูก `payment.verify` เพราะหน้า payments ของวันนี้เป็นหน้าแอดมิน (redirect ถ้าไม่ใช่)
-  //    สมาชิกจึงเห็นแค่ 3 แท็บ (นัด/อันดับ/ฉัน)
-  //    WO-6.3 จะเปลี่ยนเป็นหน้ายอดของฉันสำหรับทุกคน — เปลี่ยน action บรรทัดนี้บรรทัดเดียว
-  { id: 'payments', label: 'ยอดเงิน', icon: 'wallet', action: 'payment.verify', path: 'payments' },
+  { id: 'payments', label: 'ยอดเงิน', icon: 'wallet', action: ['payment.verify', 'payment.submit.self'], path: 'payments' },
   { id: 'stats', label: 'อันดับ', icon: 'trophy', action: 'statistics.view', path: 'stats' },
   { id: 'profile', label: 'ฉัน', icon: 'user', action: null, path: '/profile', absolute: true },
 ];
@@ -96,7 +93,7 @@ const SIDE_DEFS: readonly Def[] = [
     action: 'gang.join_request.manage',
     path: 'join-requests',
   },
-  { id: 'payments', label: 'เก็บเงิน', icon: 'wallet', action: 'payment.verify', path: 'payments' },
+  { id: 'payments', label: 'เก็บเงิน', icon: 'wallet', action: ['payment.verify', 'payment.submit.self'], path: 'payments' },
   {
     id: 'membership',
     label: 'บิลรายเดือน',
@@ -142,8 +139,10 @@ function build(defs: readonly Def[], ctx: PermissionContext, gangId: string): Me
     .filter((d) => allowed(ctx, d.action))
     .map((d) => ({
       id: d.id,
-      label: d.label,
-      href: d.absolute ? d.path : `/gangs/${gangId}/${d.path}`,
+      label: d.id === 'payments' && !can(ctx, 'payment.verify') ? 'ยอดเงิน' : d.label,
+      href: d.id === 'payments' && !can(ctx, 'payment.verify')
+        ? `/gangs/${gangId}/my-payments`
+        : d.absolute ? d.path : `/gangs/${gangId}/${d.path}`,
       icon: d.icon,
       selectable: d.selectable ?? true,
     }));
