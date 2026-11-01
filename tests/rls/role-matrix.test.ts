@@ -33,8 +33,8 @@ const SETTLE_MS = Number(process.env.ROLE_MATRIX_SETTLE_MS ?? 0);
 const GOLDEN_PATH = join(__dirname, 'role-matrix.golden.json');
 const UPDATE = process.env.ROLE_MATRIX_UPDATE === '1';
 
-type Identity = 'owner' | 'admin' | 'member' | 'payer' | 'orgAdmin' | 'outsider' | 'anon';
-const IDENTITIES: Identity[] = ['owner', 'admin', 'member', 'payer', 'orgAdmin', 'outsider', 'anon'];
+type Identity = 'scheduler' | 'owner' | 'admin' | 'member' | 'payer' | 'orgAdmin' | 'outsider' | 'anon';
+const IDENTITIES: Identity[] = ['scheduler', 'owner', 'admin', 'member', 'payer', 'orgAdmin', 'outsider', 'anon'];
 
 type Golden = {
   can: Record<string, Record<string, string[]>>;
@@ -278,7 +278,7 @@ async function buildWorld(): Promise<World> {
   await obj('announcement-images', 'a.png', owner);
 
   return {
-    users: { owner, admin, member, payer, orgAdmin, outsider, extra, extra2 },
+    users: { owner, admin, member, payer, orgAdmin, outsider, extra, extra2, scheduler: extra2 },
     spareRegs,
     gang: g.id,
     org: org.org_id,
@@ -302,13 +302,32 @@ async function buildWorld(): Promise<World> {
 
 const uidOf = (id: Identity): string | null => (id === 'anon' ? null : W.users[id]);
 
+// Scheduler is the existing extra2 member, assigned ONLY in the probe transaction.
+// This avoids changing committed membership/assignment/event counts in old golden cells.
+async function schedulerAssignment(c: import('pg').PoolClient) {
+  await c.query(`insert into public.gang_member_roles(gang_id,user_id,gang_member_id,role_id)
+    select gm.gang_id,gm.user_id,gm.id,r.id from public.gang_members gm cross join public.gang_roles r
+    where gm.gang_id=$1 and gm.user_id=$2 and gm.deleted_at is null
+      and r.key='scheduler' and r.gang_id is null and r.deleted_at is null
+    on conflict (gang_member_id,role_id) where deleted_at is null do nothing`, [W.gang,W.users.scheduler]);
+}
+async function asMatrixRole<T>(id: Identity, fn: (c: import('pg').PoolClient) => Promise<T>) {
+  return asRole(id === 'anon' ? 'anon' : 'authenticated',uidOf(id),async c => {
+    if(id === 'scheduler') {
+      await c.query('reset role');
+      await schedulerAssignment(c);
+      await c.query('set local role authenticated');
+    }
+    return fn(c);
+  });
+}
+
 /** แทนที่ {uid} ด้วยผู้ใช้ของ identity (uuid เท่านั้น ไม่มีข้อมูลจากภายนอก) */
 const bind = (sql: string, id: Identity) => sql.replaceAll('{uid}', uidOf(id) ?? '00000000-0000-0000-0000-000000000000');
 
 async function probe(id: Identity, kind: 'select' | 'insert' | 'update' | 'delete', sql: string): Promise<string> {
-  const role = id === 'anon' ? 'anon' : 'authenticated';
   try {
-    return await asRole(role, uidOf(id), async (c) => {
+    return await asMatrixRole(id, async (c) => {
       if (kind === 'select') {
         const { rows } = await c.query<{ n: string }>(`select count(*)::text n from (${bind(sql, id)}) q`);
         return `rows:${rows[0].n}`;
@@ -537,7 +556,7 @@ function probes(): Probe[] {
 // ---------------------------------------------------------------------------
 
 type Actor = Identity | 'nobody';
-const ACTORS: Actor[] = ['owner', 'admin', 'member', 'payer', 'orgAdmin', 'outsider', 'nobody'];
+const ACTORS: Actor[] = ['scheduler', 'owner', 'admin', 'member', 'payer', 'orgAdmin', 'outsider', 'nobody'];
 const actorId = (a: Actor): string | null => (a === 'nobody' || a === 'anon' ? null : W.users[a]);
 
 type Step = { sql: string; params: unknown[] };
@@ -556,6 +575,7 @@ async function callFn(fc: FnCase, actor: string | null): Promise<string> {
   const c = await pool.connect();
   try {
     await c.query('begin');
+    if (actor === W.users.scheduler) await schedulerAssignment(c);
     for (const step of fc.pre ?? []) await c.query(step.sql, step.params);
     const r = await c.query(fc.sql, fc.params(actor));
     if (fc.kind === 'value') return String(Object.values(r.rows[0] ?? {})[0]);
@@ -719,7 +739,8 @@ describe('R-roles-0 — can() ทุก action × role', () => {
   it('🔴 allowedActions ของ owner/admin/member/คนนอก/แอดมินองค์กร (feature เปิดหมด และปิดหมด) ตรง golden', () => {
     const allOn = Object.fromEntries(FEATURES.map((f) => [f, true])) as GangFeatures;
     const allOff = Object.fromEntries(FEATURES.map((f) => [f, false])) as GangFeatures;
-    const roles: Record<string, Pick<PermissionContext, 'role' | 'orgRole'>> = {
+    const roles: Record<string, Pick<PermissionContext, 'role' | 'orgRole' | 'extra'>> = {
+      scheduler: { role: 'member', extra: ['session.create', 'session.update', 'session.transition', 'session.invite.manage', 'registration.create.other', 'registration.create.guest', 'registration.cancel.other', 'registration.promote.other', 'registration.checkin', 'registration.no_show', 'game.manage'] },
       owner: { role: 'owner' },
       admin: { role: 'admin' },
       member: { role: 'member' },
@@ -818,7 +839,7 @@ describe('R-roles-0 — ตัวช่วย is_gang_admin / is_session_admin /
   it('🔴 ผลต่อ identity ตรง golden (แอดมินองค์กรนับเป็นแอดมิน · เจ้าของสลิปเห็นสลิปตัวเอง)', async () => {
     const out: Golden['helpers'] = {};
     const run = async (id: Identity, sql: string) =>
-      asRole(id === 'anon' ? 'anon' : 'authenticated', uidOf(id), async (c) => {
+      asMatrixRole(id, async (c) => {
         try {
           const { rows } = await c.query<{ v: boolean | null }>(sql);
           return String(rows[0].v);
@@ -943,6 +964,7 @@ describe('R-roles-0 — DB function ที่เช็คแอดมิน/role
 // ---------------------------------------------------------------------------
 
 const INVENTORY_FNS = [
+  'sessions_with_permission',
   'has_gang_permission', 'actor_has_permission', 'assign_gang_role', 'revoke_gang_role', 'is_delegable_action', 'event_type_is_finance', 'gangs_with_permission',
   'add_gang_member_by_email', 'decide_join_request',
   'cancel_registration', 'create_gang', 'credit_cash_payout', 'credit_return_charge', 'credit_topup', 'is_gang_admin',
@@ -1003,8 +1025,8 @@ describe('R-roles-0 — EXECUTE grants + inventory', () => {
   });
 
   // ⚠️ inventory เป็น HEURISTIC (regex บนข้อความ) ไม่ใช่การพิสูจน์ว่าครอบคลุมทุกด่านสิทธิ์:
-  //   - policy:   pg_policies (public+storage) ที่ qual/with_check ตรง /is_gang_admin|is_session_admin|is_payment_visible|actor_is_gang_admin|role/
-  //   - function: pg_proc (public) ที่ prosrc ตรง /is_gang_admin|is_session_admin|is_payment_visible|actor_is_gang_admin/ หรือ /role *= *'owner'|role *in *('owner'/
+  //   - policy:   pg_policies (public+storage) ที่ qual/with_check ตรง /is_gang_admin|is_session_admin|is_payment_visible|actor_is_gang_admin|actor_has_permission|has_gang_permission|gangs_with_permission|sessions_with_permission|role/
+  //   - function: pg_proc (public) ที่ prosrc ตรง /is_gang_admin|is_session_admin|is_payment_visible|actor_is_gang_admin|actor_has_permission|has_gang_permission|gangs_with_permission|sessions_with_permission/ หรือ /role *= *'owner'|role *in *('owner'/
   //   - roleText: pg_proc (public) ที่ prosrc ตรง /role/i (กว้างสุด) → ต้องจัดประเภทใน ROLE_TEXT_CLASS ทุกตัว
   //   ไม่ครอบคลุม: ตารางนอกรายการ probe (organizations, organization_members, profiles, notifications, session_registrations,
   //   avatar storage) · ตรรกะสิทธิ์ที่ไม่มีคำว่า role/ตัวช่วยข้างบน · ฟังก์ชันใน schema อื่น
@@ -1012,12 +1034,12 @@ describe('R-roles-0 — EXECUTE grants + inventory', () => {
     const { rows: pol } = await pool.query<{ k: string }>(
       `select schemaname||'.'||tablename||' | '||policyname||' | '||cmd k from pg_policies
         where schemaname in ('public','storage')
-          and (coalesce(qual,'') || coalesce(with_check,'')) ~ 'is_gang_admin|is_session_admin|is_payment_visible|actor_is_gang_admin|role'
+          and (coalesce(qual,'') || coalesce(with_check,'')) ~ 'is_gang_admin|is_session_admin|is_payment_visible|actor_is_gang_admin|actor_has_permission|has_gang_permission|gangs_with_permission|sessions_with_permission|role'
         order by 1`,
     );
     const { rows: fns } = await pool.query<{ k: string }>(
       `select p.oid::regprocedure::text k from pg_proc p where p.pronamespace = 'public'::regnamespace
-          and (p.prosrc ~ 'is_gang_admin|is_session_admin|is_payment_visible|actor_is_gang_admin'
+          and (p.prosrc ~ 'is_gang_admin|is_session_admin|is_payment_visible|actor_is_gang_admin|actor_has_permission|has_gang_permission|gangs_with_permission|sessions_with_permission'
                or p.prosrc ~ 'role *= *''owner''|role *in *\\(''owner''')
         order by 1`,
     );

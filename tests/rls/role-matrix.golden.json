@@ -158,6 +158,27 @@
     "session.transition",
     "session.update",
     "session.view"
+   ],
+   "scheduler": [
+    "announcement.view",
+    "credit.read.self",
+    "game.manage",
+    "gang.leave.self",
+    "gang.member.view",
+    "gang.view",
+    "notification.view.self",
+    "payment.submit.self",
+    "registration.cancel.other",
+    "registration.cancel.self",
+    "registration.checkin",
+    "registration.create.other",
+    "registration.create.self",
+    "registration.no_show",
+    "registration.promote.other",
+    "session.create",
+    "session.transition",
+    "session.update",
+    "session.view"
    ]
   },
   "featuresOn": {
@@ -340,6 +361,31 @@
     "session.update",
     "session.view",
     "statistics.view"
+   ],
+   "scheduler": [
+    "announcement.view",
+    "credit.read.self",
+    "game.manage",
+    "gang.leave.self",
+    "gang.member.view",
+    "gang.view",
+    "line.link.self",
+    "notification.view.self",
+    "payment.submit.self",
+    "registration.cancel.other",
+    "registration.cancel.self",
+    "registration.checkin",
+    "registration.create.guest",
+    "registration.create.other",
+    "registration.create.self",
+    "registration.no_show",
+    "registration.promote.other",
+    "session.create",
+    "session.invite.manage",
+    "session.transition",
+    "session.update",
+    "session.view",
+    "statistics.view"
    ]
   }
  },
@@ -357,7 +403,8 @@
    "orgAdmin": "true",
    "outsider": "false",
    "owner": "true",
-   "payer": "false"
+   "payer": "false",
+   "scheduler": "false"
   },
   "actor_has_permission(payment.verify)": {
    "admin": "true",
@@ -366,7 +413,8 @@
    "orgAdmin": "true",
    "outsider": "false",
    "owner": "true",
-   "payer": "false"
+   "payer": "false",
+   "scheduler": "false"
   },
   "actor_is_gang_admin": {
    "admin": "true",
@@ -375,7 +423,8 @@
    "orgAdmin": "true",
    "outsider": "false",
    "owner": "true",
-   "payer": "false"
+   "payer": "false",
+   "scheduler": "false"
   },
   "add_gang_member_by_email(role=member)": {
    "admin": "allow",
@@ -384,7 +433,8 @@
    "orgAdmin": "allow",
    "outsider": "allow",
    "owner": "allow",
-   "payer": "allow"
+   "payer": "allow",
+   "scheduler": "allow"
   },
   "add_gang_member_by_email(role=owner)": {
    "admin": "allow",
@@ -393,7 +443,8 @@
    "orgAdmin": "allow",
    "outsider": "allow",
    "owner": "allow",
-   "payer": "allow"
+   "payer": "allow",
+   "scheduler": "allow"
   },
   "assign_gang_role(scheduler→member)": {
    "admin": "allow",
@@ -402,7 +453,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "cancel_registration(waive penalty)": {
    "admin": "allow",
@@ -411,7 +463,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "allow"
   },
   "credit_cash_payout": {
    "admin": "allow",
@@ -420,7 +473,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "credit_return_charge": {
    "admin": "allow",
@@ -429,7 +483,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "credit_topup(to member)": {
    "admin": "allow",
@@ -438,7 +493,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "credit_topup(to self)": {
    "admin": "deny",
@@ -447,7 +503,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "decide_join_request(approve)": {
    "admin": "allow",
@@ -456,7 +513,8 @@
    "orgAdmin": "allow",
    "outsider": "allow",
    "owner": "allow",
-   "payer": "allow"
+   "payer": "allow",
+   "scheduler": "allow"
   },
   "leave_gang": {
    "admin": "allow",
@@ -465,7 +523,8 @@
    "orgAdmin": "err:NOT_GANG_MEMBER",
    "outsider": "err:NOT_GANG_MEMBER",
    "owner": "err:VALIDATION_ERROR",
-   "payer": "allow"
+   "payer": "allow",
+   "scheduler": "allow"
   },
   "preview_cancel_registration": {
    "admin": "allow",
@@ -474,7 +533,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "allow"
   },
   "promote_waitlist(by admin pick)": {
    "admin": "allow",
@@ -483,7 +543,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "allow"
   },
   "record_overpayment": {
    "admin": "allow",
@@ -492,7 +553,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "request_to_join_gang(p_user_id=actor)": {
    "admin": "err:ALREADY_REGISTERED",
@@ -501,7 +563,8 @@
    "orgAdmin": "allow",
    "outsider": "allow",
    "owner": "err:ALREADY_REGISTERED",
-   "payer": "err:ALREADY_REGISTERED"
+   "payer": "err:ALREADY_REGISTERED",
+   "scheduler": "err:ALREADY_REGISTERED"
   },
   "revoke_gang_role(treasurer←member)": {
    "admin": "allow",
@@ -510,7 +573,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "set_payment_received_amount": {
    "admin": "allow",
@@ -519,7 +583,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "transfer_gang_ownership(to member)": {
    "admin": "deny",
@@ -528,7 +593,8 @@
    "orgAdmin": "err:NOT_GANG_MEMBER",
    "outsider": "err:NOT_GANG_MEMBER",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   }
  },
  "grants": {
@@ -652,6 +718,11 @@
    "authenticated": false,
    "service_role": true
   },
+  "sessions_with_permission(text)": {
+   "anon": true,
+   "authenticated": true,
+   "service_role": true
+  },
   "set_payment_received_amount(uuid,numeric,uuid,text)": {
    "anon": false,
    "authenticated": false,
@@ -671,7 +742,8 @@
    "orgAdmin": "true",
    "outsider": "false",
    "owner": "true",
-   "payer": "false"
+   "payer": "false",
+   "scheduler": "false"
   },
   "has_gang_permission(payment.verify)": {
    "admin": "true",
@@ -680,7 +752,8 @@
    "orgAdmin": "true",
    "outsider": "false",
    "owner": "true",
-   "payer": "false"
+   "payer": "false",
+   "scheduler": "false"
   },
   "has_gang_permission(session.create)": {
    "admin": "true",
@@ -689,7 +762,8 @@
    "orgAdmin": "true",
    "outsider": "false",
    "owner": "true",
-   "payer": "false"
+   "payer": "false",
+   "scheduler": "true"
   },
   "is_gang_admin": {
    "admin": "true",
@@ -698,7 +772,8 @@
    "orgAdmin": "true",
    "outsider": "false",
    "owner": "true",
-   "payer": "false"
+   "payer": "false",
+   "scheduler": "false"
   },
   "is_gang_member": {
    "admin": "true",
@@ -707,7 +782,8 @@
    "orgAdmin": "false",
    "outsider": "false",
    "owner": "true",
-   "payer": "true"
+   "payer": "true",
+   "scheduler": "true"
   },
   "is_payment_visible(member)": {
    "admin": "true",
@@ -716,7 +792,8 @@
    "orgAdmin": "true",
    "outsider": "false",
    "owner": "true",
-   "payer": "false"
+   "payer": "false",
+   "scheduler": "false"
   },
   "is_payment_visible(payer)": {
    "admin": "true",
@@ -725,7 +802,8 @@
    "orgAdmin": "true",
    "outsider": "false",
    "owner": "true",
-   "payer": "true"
+   "payer": "true",
+   "scheduler": "false"
   },
   "is_session_admin": {
    "admin": "true",
@@ -734,7 +812,8 @@
    "orgAdmin": "true",
    "outsider": "false",
    "owner": "true",
-   "payer": "false"
+   "payer": "false",
+   "scheduler": "false"
   }
  },
  "inventory": {
@@ -744,23 +823,36 @@
    "assign_gang_role(uuid,uuid,text,uuid,text)",
    "cancel_registration(uuid,uuid,text,boolean,text,uuid)",
    "create_gang(uuid,text,text,text,text,text)",
+   "credit_cash_payout(uuid,uuid,numeric,text,uuid,text)",
+   "credit_return_charge(uuid,numeric,text,uuid,text)",
+   "credit_topup(uuid,uuid,numeric,text,uuid,text)",
    "gangs_with_permission(text)",
    "has_gang_permission(uuid,text)",
    "is_gang_admin(uuid)",
+   "is_payment_visible(uuid)",
    "is_session_admin(uuid)",
    "leave_gang(uuid,uuid,text)",
    "preview_cancel_registration(uuid,uuid)",
    "promote_waitlist(uuid,integer,uuid,text,uuid)",
+   "record_overpayment(uuid,numeric,text,uuid,text)",
    "request_to_join_gang(uuid,uuid,text,text)",
    "revoke_gang_role(uuid,uuid,text,uuid,text)",
+   "sessions_with_permission(text)",
+   "set_payment_received_amount(uuid,numeric,uuid,text)",
    "transfer_gang_ownership(uuid,uuid,uuid,text)"
   ],
   "policies": [
    "public.announcements | announcements_select_member | SELECT",
    "public.announcements | announcements_write_admin | ALL",
    "public.coupons | coupons_write | ALL",
+   "public.credit_balances | credit_balances_select | SELECT",
+   "public.credit_ledger | credit_ledger_select | SELECT",
    "public.event_logs | event_logs_select_member | SELECT",
    "public.games | games_write_admin | ALL",
+   "public.gang_expenses | gang_expenses_manage | ALL",
+   "public.gang_expenses | gang_expenses_select | SELECT",
+   "public.gang_incomes | gang_incomes_manage | ALL",
+   "public.gang_incomes | gang_incomes_select | SELECT",
    "public.gang_member_roles | gang_member_roles_select | SELECT",
    "public.gang_members | gang_members_insert_admin | INSERT",
    "public.gang_members | gang_members_update_admin | UPDATE",
@@ -772,6 +864,10 @@
    "public.member_line_links | member_line_links_select | SELECT",
    "public.member_statistics | member_statistics_select | SELECT",
    "public.notification_logs | notification_logs_admin | SELECT",
+   "public.payment_adjustments | payment_adjustments_select | SELECT",
+   "public.payments | payments_select | SELECT",
+   "public.payments | payments_update | UPDATE",
+   "public.session_charges | session_charges_select | SELECT",
    "public.session_invite_tokens | session_invite_tokens_admin | ALL",
    "public.session_templates | session_templates_write | ALL",
    "public.sessions | sessions_insert_admin_draft_only | INSERT",
@@ -781,7 +877,10 @@
    "storage.objects | announcement_images_update_admin | UPDATE",
    "storage.objects | gang_assets_delete_admin | DELETE",
    "storage.objects | gang_assets_update_admin | UPDATE",
-   "storage.objects | gang_assets_write_admin | INSERT"
+   "storage.objects | gang_assets_write_admin | INSERT",
+   "storage.objects | payment_slips_delete | DELETE",
+   "storage.objects | payment_slips_select | SELECT",
+   "storage.objects | payment_slips_update | UPDATE"
   ],
   "roleText": [
    "actor_has_permission",
@@ -809,7 +908,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "announcements.insert": {
    "admin": "allow",
@@ -818,7 +918,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "announcements.select": {
    "admin": "rows:2",
@@ -827,7 +928,8 @@
    "orgAdmin": "rows:2",
    "outsider": "rows:0",
    "owner": "rows:2",
-   "payer": "rows:1"
+   "payer": "rows:1",
+   "scheduler": "rows:1"
   },
   "announcements.update": {
    "admin": "allow",
@@ -836,7 +938,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "coupons.delete": {
    "admin": "allow",
@@ -845,7 +948,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "coupons.insert": {
    "admin": "allow",
@@ -854,7 +958,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "coupons.select": {
    "admin": "rows:1",
@@ -863,7 +968,8 @@
    "orgAdmin": "rows:1",
    "outsider": "rows:0",
    "owner": "rows:1",
-   "payer": "rows:1"
+   "payer": "rows:1",
+   "scheduler": "rows:1"
   },
   "coupons.update": {
    "admin": "allow",
@@ -872,7 +978,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "credit_balances.delete": {
    "admin": "deny",
@@ -881,7 +988,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "credit_balances.insert": {
    "admin": "deny",
@@ -890,7 +998,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "credit_balances.select": {
    "admin": "rows:2",
@@ -899,7 +1008,8 @@
    "orgAdmin": "rows:2",
    "outsider": "rows:0",
    "owner": "rows:2",
-   "payer": "rows:1"
+   "payer": "rows:1",
+   "scheduler": "rows:0"
   },
   "credit_balances.update": {
    "admin": "deny",
@@ -908,7 +1018,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "credit_ledger.delete": {
    "admin": "deny",
@@ -917,7 +1028,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "credit_ledger.insert": {
    "admin": "deny",
@@ -926,7 +1038,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "credit_ledger.select": {
    "admin": "rows:3",
@@ -935,7 +1048,8 @@
    "orgAdmin": "rows:3",
    "outsider": "rows:0",
    "owner": "rows:3",
-   "payer": "rows:2"
+   "payer": "rows:2",
+   "scheduler": "rows:0"
   },
   "credit_ledger.update": {
    "admin": "deny",
@@ -944,7 +1058,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "event_logs.delete": {
    "admin": "deny",
@@ -953,7 +1068,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "event_logs.insert": {
    "admin": "deny",
@@ -962,7 +1078,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "event_logs.select": {
    "admin": "rows:27",
@@ -971,7 +1088,8 @@
    "orgAdmin": "rows:27",
    "outsider": "rows:0",
    "owner": "rows:27",
-   "payer": "rows:8"
+   "payer": "rows:8",
+   "scheduler": "rows:8"
   },
   "event_logs.update": {
    "admin": "deny",
@@ -980,7 +1098,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "games.delete": {
    "admin": "allow",
@@ -989,7 +1108,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "allow"
   },
   "games.insert": {
    "admin": "allow",
@@ -998,7 +1118,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "allow"
   },
   "games.select": {
    "admin": "rows:1",
@@ -1007,7 +1128,8 @@
    "orgAdmin": "rows:1",
    "outsider": "rows:0",
    "owner": "rows:1",
-   "payer": "rows:1"
+   "payer": "rows:1",
+   "scheduler": "rows:1"
   },
   "games.update": {
    "admin": "allow",
@@ -1016,7 +1138,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "allow"
   },
   "gang_expenses.delete": {
    "admin": "allow",
@@ -1025,7 +1148,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_expenses.insert": {
    "admin": "allow",
@@ -1034,7 +1158,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_expenses.select": {
    "admin": "rows:1",
@@ -1043,7 +1168,8 @@
    "orgAdmin": "rows:1",
    "outsider": "rows:0",
    "owner": "rows:1",
-   "payer": "rows:0"
+   "payer": "rows:0",
+   "scheduler": "rows:0"
   },
   "gang_expenses.update": {
    "admin": "allow",
@@ -1052,7 +1178,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_incomes.delete": {
    "admin": "allow",
@@ -1061,7 +1188,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_incomes.insert": {
    "admin": "allow",
@@ -1070,7 +1198,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_incomes.select": {
    "admin": "rows:1",
@@ -1079,7 +1208,8 @@
    "orgAdmin": "rows:1",
    "outsider": "rows:0",
    "owner": "rows:1",
-   "payer": "rows:0"
+   "payer": "rows:0",
+   "scheduler": "rows:0"
   },
   "gang_incomes.update": {
    "admin": "allow",
@@ -1088,7 +1218,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_member_roles.delete": {
    "admin": "deny",
@@ -1097,7 +1228,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_member_roles.insert": {
    "admin": "deny",
@@ -1106,7 +1238,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_member_roles.select": {
    "admin": "rows:1",
@@ -1115,7 +1248,8 @@
    "orgAdmin": "rows:1",
    "outsider": "rows:0",
    "owner": "rows:1",
-   "payer": "rows:0"
+   "payer": "rows:0",
+   "scheduler": "rows:1"
   },
   "gang_member_roles.update": {
    "admin": "deny",
@@ -1124,7 +1258,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_members.delete": {
    "admin": "deny",
@@ -1133,7 +1268,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_members.insert": {
    "admin": "allow",
@@ -1142,7 +1278,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_members.select": {
    "admin": "rows:5",
@@ -1151,7 +1288,8 @@
    "orgAdmin": "rows:0",
    "outsider": "rows:0",
    "owner": "rows:5",
-   "payer": "rows:5"
+   "payer": "rows:5",
+   "scheduler": "rows:5"
   },
   "gang_members.update": {
    "admin": "allow",
@@ -1160,7 +1298,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_pricing_plans.delete": {
    "admin": "allow",
@@ -1169,7 +1308,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_pricing_plans.insert": {
    "admin": "allow",
@@ -1178,7 +1318,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_pricing_plans.select": {
    "admin": "rows:1",
@@ -1187,7 +1328,8 @@
    "orgAdmin": "rows:1",
    "outsider": "rows:0",
    "owner": "rows:1",
-   "payer": "rows:1"
+   "payer": "rows:1",
+   "scheduler": "rows:1"
   },
   "gang_pricing_plans.update": {
    "admin": "allow",
@@ -1196,7 +1338,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_roles.delete": {
    "admin": "deny",
@@ -1205,7 +1348,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_roles.insert": {
    "admin": "deny",
@@ -1214,7 +1358,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_roles.select": {
    "admin": "rows:2",
@@ -1223,7 +1368,8 @@
    "orgAdmin": "rows:2",
    "outsider": "rows:2",
    "owner": "rows:2",
-   "payer": "rows:2"
+   "payer": "rows:2",
+   "scheduler": "rows:2"
   },
   "gang_roles.update": {
    "admin": "deny",
@@ -1232,7 +1378,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gangs.delete": {
    "admin": "deny",
@@ -1241,7 +1388,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gangs.insert": {
    "admin": "deny",
@@ -1250,7 +1398,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_skill_levels.delete": {
    "admin": "allow",
@@ -1259,7 +1408,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_skill_levels.insert": {
    "admin": "allow",
@@ -1268,7 +1418,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gang_skill_levels.select": {
    "admin": "rows:1",
@@ -1277,7 +1428,8 @@
    "orgAdmin": "rows:1",
    "outsider": "rows:0",
    "owner": "rows:1",
-   "payer": "rows:1"
+   "payer": "rows:1",
+   "scheduler": "rows:1"
   },
   "gang_skill_levels.update": {
    "admin": "allow",
@@ -1286,7 +1438,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "gangs.select": {
    "admin": "rows:1",
@@ -1295,7 +1448,8 @@
    "orgAdmin": "rows:0",
    "outsider": "rows:0",
    "owner": "rows:1",
-   "payer": "rows:1"
+   "payer": "rows:1",
+   "scheduler": "rows:1"
   },
   "gangs.update": {
    "admin": "allow",
@@ -1304,7 +1458,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "join_requests.delete": {
    "admin": "deny",
@@ -1313,7 +1468,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "join_requests.insert": {
    "admin": "deny",
@@ -1322,7 +1478,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "join_requests.select": {
    "admin": "rows:1",
@@ -1331,7 +1488,8 @@
    "orgAdmin": "rows:1",
    "outsider": "rows:1",
    "owner": "rows:1",
-   "payer": "rows:0"
+   "payer": "rows:0",
+   "scheduler": "rows:0"
   },
   "join_requests.update": {
    "admin": "deny",
@@ -1340,7 +1498,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "member_line_links.delete": {
    "admin": "deny",
@@ -1349,7 +1508,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "member_line_links.insert": {
    "admin": "deny",
@@ -1358,7 +1518,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "member_line_links.select": {
    "admin": "rows:1",
@@ -1367,7 +1528,8 @@
    "orgAdmin": "rows:1",
    "outsider": "rows:0",
    "owner": "rows:1",
-   "payer": "rows:0"
+   "payer": "rows:0",
+   "scheduler": "rows:0"
   },
   "member_line_links.update": {
    "admin": "deny",
@@ -1376,7 +1538,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "member_statistics.delete": {
    "admin": "deny",
@@ -1385,7 +1548,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "member_statistics.insert": {
    "admin": "deny",
@@ -1394,7 +1558,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "member_statistics.select": {
    "admin": "rows:2",
@@ -1403,7 +1568,8 @@
    "orgAdmin": "rows:2",
    "outsider": "rows:0",
    "owner": "rows:2",
-   "payer": "rows:1"
+   "payer": "rows:1",
+   "scheduler": "rows:0"
   },
   "member_statistics.update": {
    "admin": "deny",
@@ -1412,7 +1578,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "notification_logs.delete": {
    "admin": "deny",
@@ -1421,7 +1588,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "notification_logs.insert": {
    "admin": "deny",
@@ -1430,7 +1598,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "notification_logs.select": {
    "admin": "rows:1",
@@ -1439,7 +1608,8 @@
    "orgAdmin": "rows:1",
    "outsider": "rows:0",
    "owner": "rows:1",
-   "payer": "rows:0"
+   "payer": "rows:0",
+   "scheduler": "rows:0"
   },
   "notification_logs.update": {
    "admin": "deny",
@@ -1448,7 +1618,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "payment_adjustments.delete": {
    "admin": "deny",
@@ -1457,7 +1628,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "payment_adjustments.insert": {
    "admin": "deny",
@@ -1466,7 +1638,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "payment_adjustments.select": {
    "admin": "rows:1",
@@ -1475,7 +1648,8 @@
    "orgAdmin": "rows:1",
    "outsider": "rows:0",
    "owner": "rows:1",
-   "payer": "rows:1"
+   "payer": "rows:1",
+   "scheduler": "rows:0"
   },
   "payment_adjustments.update": {
    "admin": "deny",
@@ -1484,7 +1658,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "payment_allocations.delete": {
    "admin": "deny",
@@ -1493,7 +1668,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "payment_allocations.insert": {
    "admin": "deny",
@@ -1502,7 +1678,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "payment_allocations.select": {
    "admin": "rows:2",
@@ -1511,7 +1688,8 @@
    "orgAdmin": "rows:2",
    "outsider": "rows:0",
    "owner": "rows:2",
-   "payer": "rows:1"
+   "payer": "rows:1",
+   "scheduler": "rows:0"
   },
   "payment_allocations.update": {
    "admin": "deny",
@@ -1520,7 +1698,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "payments.delete": {
    "admin": "deny",
@@ -1529,7 +1708,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "payments.insert": {
    "admin": "allow",
@@ -1538,7 +1718,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "allow"
+   "payer": "allow",
+   "scheduler": "allow"
   },
   "payments.select": {
    "admin": "rows:6",
@@ -1547,7 +1728,8 @@
    "orgAdmin": "rows:6",
    "outsider": "rows:0",
    "owner": "rows:6",
-   "payer": "rows:5"
+   "payer": "rows:5",
+   "scheduler": "rows:0"
   },
   "payments.update": {
    "admin": "allow",
@@ -1556,7 +1738,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "allow"
+   "payer": "allow",
+   "scheduler": "deny"
   },
   "session_charges.delete": {
    "admin": "deny",
@@ -1565,7 +1748,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "session_charges.insert": {
    "admin": "deny",
@@ -1574,7 +1758,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "session_charges.select": {
    "admin": "rows:3",
@@ -1583,7 +1768,8 @@
    "orgAdmin": "rows:3",
    "outsider": "rows:0",
    "owner": "rows:3",
-   "payer": "rows:2"
+   "payer": "rows:2",
+   "scheduler": "rows:0"
   },
   "session_charges.update": {
    "admin": "deny",
@@ -1592,7 +1778,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "session_invite_tokens.delete": {
    "admin": "allow",
@@ -1601,7 +1788,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "allow"
   },
   "session_invite_tokens.insert": {
    "admin": "allow",
@@ -1610,7 +1798,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "allow"
   },
   "session_invite_tokens.select": {
    "admin": "rows:1",
@@ -1619,7 +1808,8 @@
    "orgAdmin": "rows:1",
    "outsider": "rows:0",
    "owner": "rows:1",
-   "payer": "rows:0"
+   "payer": "rows:0",
+   "scheduler": "rows:1"
   },
   "session_invite_tokens.update": {
    "admin": "allow",
@@ -1628,7 +1818,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "allow"
   },
   "sessions.delete": {
    "admin": "deny",
@@ -1637,7 +1828,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "sessions.insert": {
    "admin": "allow",
@@ -1646,7 +1838,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "allow"
   },
   "sessions.select": {
    "admin": "rows:3",
@@ -1655,7 +1848,8 @@
    "orgAdmin": "rows:0",
    "outsider": "rows:0",
    "owner": "rows:3",
-   "payer": "rows:3"
+   "payer": "rows:3",
+   "scheduler": "rows:3"
   },
   "sessions.update": {
    "admin": "allow",
@@ -1664,7 +1858,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "allow"
   },
   "session_templates.delete": {
    "admin": "allow",
@@ -1673,7 +1868,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "session_templates.insert": {
    "admin": "allow",
@@ -1682,7 +1878,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "session_templates.select": {
    "admin": "rows:1",
@@ -1691,7 +1888,8 @@
    "orgAdmin": "rows:1",
    "outsider": "rows:0",
    "owner": "rows:1",
-   "payer": "rows:1"
+   "payer": "rows:1",
+   "scheduler": "rows:1"
   },
   "session_templates.update": {
    "admin": "allow",
@@ -1700,7 +1898,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "storage.announcement-images.delete": {
    "admin": "deny",
@@ -1709,7 +1908,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "storage.announcement-images.insert": {
    "admin": "allow",
@@ -1718,7 +1918,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "storage.announcement-images.select": {
    "admin": "rows:1",
@@ -1727,7 +1928,8 @@
    "orgAdmin": "rows:0",
    "outsider": "rows:0",
    "owner": "rows:1",
-   "payer": "rows:1"
+   "payer": "rows:1",
+   "scheduler": "rows:1"
   },
   "storage.announcement-images.update": {
    "admin": "allow",
@@ -1736,7 +1938,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "storage.gang-assets.delete": {
    "admin": "deny",
@@ -1745,7 +1948,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "storage.gang-assets.insert": {
    "admin": "allow",
@@ -1754,7 +1958,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "storage.gang-assets.select": {
    "admin": "rows:1",
@@ -1763,7 +1968,8 @@
    "orgAdmin": "rows:1",
    "outsider": "rows:1",
    "owner": "rows:1",
-   "payer": "rows:1"
+   "payer": "rows:1",
+   "scheduler": "rows:1"
   },
   "storage.gang-assets.update": {
    "admin": "allow",
@@ -1772,7 +1978,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "storage.payment-slips.delete": {
    "admin": "deny",
@@ -1781,7 +1988,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "deny",
-   "payer": "deny"
+   "payer": "deny",
+   "scheduler": "deny"
   },
   "storage.payment-slips.insert": {
    "admin": "allow",
@@ -1790,7 +1998,8 @@
    "orgAdmin": "deny",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "allow"
+   "payer": "allow",
+   "scheduler": "allow"
   },
   "storage.payment-slips.select": {
    "admin": "rows:2",
@@ -1799,7 +2008,8 @@
    "orgAdmin": "rows:2",
    "outsider": "rows:0",
    "owner": "rows:2",
-   "payer": "rows:1"
+   "payer": "rows:1",
+   "scheduler": "rows:0"
   },
   "storage.payment-slips.update": {
    "admin": "allow",
@@ -1808,7 +2018,8 @@
    "orgAdmin": "allow",
    "outsider": "deny",
    "owner": "allow",
-   "payer": "allow"
+   "payer": "allow",
+   "scheduler": "deny"
   }
  }
 }
