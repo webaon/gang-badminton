@@ -10,7 +10,7 @@ import { ledgerLineOf, summarize, type LedgerEntry } from '@/domain/billing/ledg
 import { fromSatang, sumSatang, toSatang } from '@/domain/billing/money';
 import { AppError, runAction } from '@/shared/action';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
-import { ADMIN_READ_PAGE, allById, financeReader, relatedRows, uuid, type ReadClient } from '@/server/payments/admin-read';
+import { ADMIN_READ_PAGE, allById, financeReader, relatedRows, scopedFinanceNames, uuid, type ReadClient } from '@/server/payments/admin-read';
 
 const sum = (values: string[]) => fromSatang(sumSatang(values.map(toSatang)));
 type PaymentJoin = { id: string; status: string; deleted_at: string | null } | null;
@@ -118,7 +118,7 @@ export type Aging = '0-7' | '8-30' | '>30';
 export type LedgerFilter = { sessionId?: string; aging?: Aging; status?: 'outstanding' | 'settled' | 'credit' };
 export type AdminLedgerRow = {
   id: string; sessionId: string | null; sessionTitle: string | null; type: string; date: string;
-  userId: string | null; guestName: string | null; debtorKey: string;
+  userId: string | null; guestName: string | null; displayName: string; debtorKey: string;
   amount: string; paid: string; transferPaid: string; creditPaid: string; adjusted: string;
   outstanding: string; daysOutstanding: number; aging: Aging; status: 'outstanding' | 'settled' | 'credit';
 };
@@ -144,6 +144,10 @@ export async function adminLedger(gangId: string, options: { cursor?: string; pa
       return q;
     });
     const { allocations, adjustments } = await chargeRelations(db, charges.map((c) => c.id));
+    const names = await scopedFinanceNames(db, charges.flatMap((c) => {
+      const id = c.session_registrations?.user_id ?? c.gang_members?.user_id;
+      return id ? [id] : [];
+    }));
     const today = thaiDay(new Date().toISOString());
     const rows: AdminLedgerRow[] = charges.map((c) => {
       const line = ledgerLineOf(entry(c, allocations, adjustments));
@@ -155,6 +159,7 @@ export async function adminLedger(gangId: string, options: { cursor?: string; pa
       return {
         id: c.id, type: c.type, sessionId: c.session_id, sessionTitle: c.sessions?.title ?? null,
         date, userId, guestName: c.session_registrations?.guest_name ?? null,
+        displayName: userId ? names.get(userId) ?? 'ไม่ทราบชื่อ' : c.session_registrations?.guest_name ?? 'ไม่ทราบชื่อ',
         debtorKey: userId ? `user:${userId}` : `guest:${c.registration_id ?? c.id}`,
         amount: line.charge, paid: line.allocated, adjusted: line.adjusted, outstanding: line.outstanding,
         transferPaid: sum(paid.filter((a) => a.source === 'transfer').map((a) => moneyFromDb(a.amount))),

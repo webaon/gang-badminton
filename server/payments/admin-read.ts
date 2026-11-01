@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { supabaseServer } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { requireUser } from '@/lib/supabase/auth';
 import { assertCan } from '@/domain/permissions/can';
 import type { Action, GangRole } from '@/domain/permissions/types';
@@ -58,4 +59,21 @@ export async function relatedRows<T extends { id: string }>(
     }));
   }
   return rows;
+}
+
+/** Internal only, after financeReader authorizes. IDs MUST come from that gang's
+ * authorized charge/payment rows, never client input. Profile RLS hides former
+ * gangmates; fallback reads only id/display_name for missing scoped identities.
+ */
+export async function scopedFinanceNames(db: ReadClient, scopedIds: readonly string[]) {
+  type Profile = { id: string; display_name: string };
+  const ids = [...new Set(scopedIds)];
+  const visible = await relatedRows<Profile>(db, 'profiles', 'id', ids, 'id,display_name');
+  const names = new Map(visible.map((p) => [p.id, p.display_name]));
+  const missing = ids.filter((id) => !names.has(id));
+  if (missing.length) {
+    const former = await relatedRows<Profile>(supabaseAdmin(), 'profiles', 'id', missing, 'id,display_name');
+    for (const p of former) names.set(p.id, p.display_name);
+  }
+  return names;
 }
