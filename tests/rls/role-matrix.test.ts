@@ -225,6 +225,14 @@ async function buildWorld(): Promise<World> {
     [g.id, session, owner],
   );
 
+  // ชุดสิทธิ์ (ADR-015): member ถือ 'treasurer' — ใส่ด้วย SQL ตรง (ไม่ผ่าน assign_gang_role เพื่อไม่เพิ่ม event_logs ที่ขยับช่องเดิมของ golden)
+  //   ยังไม่มี policy/function เดิมเรียก has_gang_permission ⇒ ช่องเดิมต้องไม่เปลี่ยน (นี่คือหลักฐานของขั้น expand)
+  await pool.query(
+    `insert into public.gang_member_roles (gang_id, user_id, gang_member_id, role_id)
+     select $1, $2, $3, id from public.gang_roles where key = 'treasurer' and gang_id is null`,
+    [g.id, member, memberRowId],
+  );
+
   // หนี้ + สลิป: payer มีหนี้ผูก registration (type session) และ monthly_fee; member มีหนี้ monthly_fee
   const chargePayer = (
     await one<{ id: string }>(
@@ -485,6 +493,20 @@ function probes(): Probe[] {
       upd: `update public.credit_balances set balance = balance where gang_id = '${g}'`,
       del: `delete from public.credit_balances where gang_id = '${g}'`,
     },
+    {
+      key: 'gang_roles',
+      sel: `select 1 from public.gang_roles where key in ('treasurer', 'scheduler') and gang_id is null`,
+      ins: `insert into public.gang_roles (gang_id, key, name, permissions, is_system) values ('${g}', 'probe', 'x', array['payment.verify']::text[], false)`,
+      upd: `update public.gang_roles set name = name where key in ('treasurer', 'scheduler')`,
+      del: `delete from public.gang_roles where key in ('treasurer', 'scheduler')`,
+    },
+    {
+      key: 'gang_member_roles',
+      sel: `select 1 from public.gang_member_roles where gang_id = '${g}'`,
+      ins: `insert into public.gang_member_roles (gang_id, user_id, gang_member_id, role_id) values ('${g}', '${u.payer}', '${W.payerMemberRowId}', (select id from public.gang_roles where key = 'scheduler' and gang_id is null))`,
+      upd: `update public.gang_member_roles set assigned_by = assigned_by where gang_id = '${g}'`,
+      del: `delete from public.gang_member_roles where gang_id = '${g}'`,
+    },
     // storage.objects — เลือกด้วย prefix `<gang_id>/` (policy ใช้ storage.foldername(name)[1])
     {
       key: 'storage.payment-slips',
@@ -637,6 +659,11 @@ async function buildFnCases(): Promise<void> {
       params: (a) => [g, `${u.extra}@rm.test`, a],
       pre: [{ sql: `update auth.users set email = $2 where id = $1`, params: [u.extra, `${u.extra}@rm.test`] }],
     },
+    // ---- ADR-015 (R-roles-1): ชุดสิทธิ์ ----
+    { name: 'actor_has_permission(payment.verify)', kind: 'value', sql: `select public.actor_has_permission($1, $2, 'payment.verify')`, params: (a) => [g, a] },
+    { name: 'actor_has_permission(gang.member.manage)', kind: 'value', sql: `select public.actor_has_permission($1, $2, 'gang.member.manage')`, params: (a) => [g, a] },
+    { name: 'assign_gang_role(scheduler→member)', sql: `select public.assign_gang_role($1, $2, 'scheduler', $3, 'cid')`, params: (a) => [g, u.extra2, a] },
+    { name: 'revoke_gang_role(treasurer←member)', sql: `select public.revoke_gang_role($1, $2, 'treasurer', $3, 'cid')`, params: (a) => [g, u.member, a] },
     {
       // ผู้ขอ = p_user_id (ไม่ใช่ actor ที่ตรวจสิทธิ์) — ก๊วนต้องเปิดสาธารณะ + feature discovery
       name: 'request_to_join_gang(p_user_id=actor)',
@@ -758,6 +785,7 @@ describe('R-roles-0 — RLS probe ทุกตาราง/storage × select/ins
     const adminOnlyWrites = [
       'gang_skill_levels', 'gang_pricing_plans', 'session_templates', 'coupons', 'gang_expenses', 'gang_incomes',
       'announcements', 'sessions', 'session_invite_tokens', 'games', 'gangs', 'notification_logs',
+      'gang_roles', 'gang_member_roles',
     ];
     for (const t of adminOnlyWrites) {
       for (const kind of ['insert', 'update', 'delete']) {
@@ -798,12 +826,30 @@ describe('R-roles-0 — ตัวช่วย is_gang_admin / is_session_admin /
       ['is_session_admin', `select public.is_session_admin('${W.session}') v`],
       ['is_payment_visible(payer)', `select public.is_payment_visible('${W.payPayer}') v`],
       ['is_payment_visible(member)', `select public.is_payment_visible('${W.payMember}') v`],
+      // ADR-015: ⊇ is_gang_admin เสมอ · member ถือ treasurer ⇒ ได้เฉพาะ action ที่ delegate ได้ในชุดนั้น
+      ['has_gang_permission(payment.verify)', `select public.has_gang_permission('${W.gang}', 'payment.verify') v`],
+      ['has_gang_permission(session.create)', `select public.has_gang_permission('${W.gang}', 'session.create') v`],
+      ['has_gang_permission(gang.member.manage)', `select public.has_gang_permission('${W.gang}', 'gang.member.manage') v`],
     ];
     for (const [name, sql] of defs) {
       out[name] = {} as Record<Identity, string>;
       for (const id of IDENTITIES) out[name][id] = await run(id, sql);
     }
     check('helpers', out);
+
+    // ⊇ is_gang_admin: ทุกคนที่ is_gang_admin=true ต้อง has_gang_permission=true ทุก action (รวม non-delegable)
+    for (const k of ['payment.verify', 'session.create', 'gang.member.manage']) {
+      for (const id of IDENTITIES) {
+        if (out.is_gang_admin[id] === 'true') expect(out[`has_gang_permission(${k})`][id], `${k} ← ${id}`).toBe('true');
+      }
+    }
+    // member ถือ treasurer: ตรวจสลิปได้ แต่จัดนัดไม่ได้ และ gang.member.manage (ห้าม delegate) ไม่ได้
+    expect(out['has_gang_permission(payment.verify)'].member).toBe('true');
+    expect(out['has_gang_permission(session.create)'].member).toBe('false');
+    expect(out['has_gang_permission(gang.member.manage)'].member).toBe('false');
+    expect(out['has_gang_permission(payment.verify)'].payer).toBe('false');
+    expect(out['has_gang_permission(payment.verify)'].outsider).toBe('false');
+    expect(out['has_gang_permission(payment.verify)'].anon).toBe('false');
 
     expect(out.is_gang_admin.orgAdmin).toBe('true');
     expect(out.is_gang_admin.member).toBe('false');
@@ -881,6 +927,7 @@ describe('R-roles-0 — DB function ที่เช็คแอดมิน/role
 // ---------------------------------------------------------------------------
 
 const INVENTORY_FNS = [
+  'has_gang_permission', 'actor_has_permission', 'assign_gang_role', 'revoke_gang_role', 'is_delegable_action',
   'add_gang_member_by_email', 'decide_join_request',
   'cancel_registration', 'create_gang', 'credit_cash_payout', 'credit_return_charge', 'credit_topup', 'is_gang_admin',
   'is_payment_visible', 'is_session_admin', 'leave_gang', 'preview_cancel_registration', 'promote_waitlist',
@@ -894,8 +941,16 @@ const INVENTORY_FNS = [
  *  - select  = ใช้ role เลือก "ผู้รับ/ข้อมูล" ไม่ใช่ด่านสิทธิ์ (มีเคส extras)
  *  - assign  = เขียนค่า role ลงข้อมูล โดย *ไม่ตรวจ actor ใน DB* (EXECUTE เฉพาะ service_role · ด่านจริง = can() ฝั่ง TS)
  *  - grant   = ให้ role แรกเริ่ม (create_gang → owner)
+ *  - guard   = trigger ที่คุมความสอดคล้องของ role กับชุดสิทธิ์ (ไม่ใช่ด่านสิทธิ์ของผู้ใช้)
  */
-const ROLE_TEXT_CLASS: Record<string, 'authz' | 'select' | 'assign' | 'grant'> = {
+const ROLE_TEXT_CLASS: Record<string, 'authz' | 'select' | 'assign' | 'grant' | 'guard'> = {
+  // ADR-015 (R-roles-1)
+  has_gang_permission: 'authz',
+  actor_has_permission: 'authz',
+  assign_gang_role: 'authz',
+  revoke_gang_role: 'authz',
+  gang_member_roles_guard: 'guard', // มอบได้เฉพาะ role=member ที่ยังอยู่ (ด่านชั้นตาราง)
+  gang_members_revoke_roles: 'guard', // ถอนชุดสิทธิ์เมื่อออกก๊วน/ถูกเลื่อนเป็น admin|owner
   actor_is_gang_admin: 'authz',
   is_gang_admin: 'authz',
   leave_gang: 'authz', // กติกา owner คนสุดท้าย

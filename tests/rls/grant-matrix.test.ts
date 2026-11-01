@@ -27,6 +27,9 @@ const EXPECTED: Record<string, { anon: string[]; authenticated: string[] }> = {
   // [WO-B5a · ADR-010] เครดิตสมาชิก — อ่านผ่าน RLS เท่านั้น เขียนผ่าน DB function (service_role)
   credit_ledger: { anon: [], authenticated: ['SELECT'] },
   credit_balances: { anon: [], authenticated: ['SELECT'] },
+  // [WO-R-roles-1 · ADR-015] ชุดสิทธิ์ — อ่านผ่าน RLS เท่านั้น เขียนผ่าน assign_gang_role/revoke_gang_role (service_role)
+  gang_roles: { anon: [], authenticated: ['SELECT'] },
+  gang_member_roles: { anon: [], authenticated: ['SELECT'] },
   // [WO-3.E] 0033 ถอน INSERT/UPDATE ออก — ขอ/ยกเลิก/อนุมัติผ่าน DB function เท่านั้น
   join_requests: { anon: [], authenticated: ['SELECT'] },
 
