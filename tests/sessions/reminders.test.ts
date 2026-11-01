@@ -185,17 +185,70 @@ describe('WO-2.5-G DoD — เตือนก่อนถึงนัด', () =>
 });
 
 describe('WO-B13 — แบ่งหน้า ไม่ให้ PostgREST ตัดผลเงียบๆ (max_rows)', () => {
-  /** นัดเปิดที่อยู่ในช่วงที่ query ดึง (now, now+14d] — DB local มีนัดค้างจากเทสต์อื่นเป็นพัน */
-  async function openSessionsInWindow(): Promise<number> {
-    const {
-      rows: [row],
-    } = await pool.query<{ n: string }>(
-      `select count(*) as n from public.sessions
-        where status = 'open' and deleted_at is null
-          and starts_at > now() and starts_at <= now() + interval '336 hours'`,
-    );
-    return Number(row.n);
+  /** Real fixture-scoped session/registration HTTP pages; proves cursors inside
+   * the fixture stream, not global concurrency. Never synthesize response rows. */
+  type RealRow = { id: string; starts_at?: string; session_id?: string; user_id?: string };
+  type RealPage = { rows: RealRow[]; cursor: string | null };
+  async function observeSessionPages(fixtures: { gangId: string; sessionId: string }[], pageSize: number, registrationPageSize: number, budget: number) {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const maxRows = Number(/^max_rows\s*=\s*(\d+)/m.exec(readFileSync(join(__dirname, '../../supabase/config.toml'), 'utf8'))?.[1]);
+    for (const size of [pageSize, registrationPageSize]) {
+      expect(size).toBeGreaterThan(0);
+      expect(size).toBeLessThan(maxRows);
+      expect(size).toBeLessThanOrEqual(500);
+    }
+    const sessions: RealPage[] = [], registrations: RealPage[] = [];
+    const fixtureIds = new Set(fixtures.map((f) => f.sessionId));
+    const realFetch = globalThis.fetch;
+    let requests = 0;
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      const isSession = url.pathname === '/rest/v1/sessions';
+      if (url.origin !== new URL(API_URL).origin) throw new Error('unexpected reminder HTTP origin');
+      if (url.pathname === '/rest/v1/rpc/enqueue_notifications') return realFetch(input, init);
+      if (!isSession && url.pathname !== '/rest/v1/session_registrations') throw new Error('unscoped reminder HTTP path');
+      expect(url.searchParams.get('select')).toContain(isSession ? 'starts_at' : 'session_id');
+      requests += 1;
+      if (requests > budget) throw new Error('fixture session pager exceeded HTTP request budget');
+      expect(Number(url.searchParams.get('limit'))).toBe(isSession ? pageSize : registrationPageSize);
+      // Scope only the real session request; production derives registration IN ids itself.
+      if (isSession) url.searchParams.set('gang_id', `in.(${fixtures.map((f) => f.gangId).join(',')})`);
+      const request = new Request(url, new Request(input, init));
+      if (isSession) expect(new URL(request.url).searchParams.get('gang_id')).toBe(`in.(${fixtures.map((f) => f.gangId).join(',')})`);
+      else {
+        const requested = url.searchParams.get('session_id')?.match(/[0-9a-f-]{36}/g) ?? [];
+        expect(requested.length).toBeGreaterThan(0);
+        expect(requested.every((id) => fixtureIds.has(id))).toBe(true);
+      }
+      const response = await realFetch(request);
+      if (!response.ok) throw new Error(`fixture session page HTTP ${response.status}`);
+      const rows = await response.clone().json() as RealRow[];
+      expect(Array.isArray(rows)).toBe(true);
+      expect(rows.length).toBeLessThanOrEqual(isSession ? pageSize : registrationPageSize);
+      expect(rows.every((r) => fixtureIds.has(isSession ? r.id : r.session_id!))).toBe(true);
+      (isSession ? sessions : registrations).push({ rows, cursor: url.searchParams.get(isSession ? 'or' : 'id') });
+      return response;
+    });
+    return { sessions, registrations, restore: () => {
+      spy.mockRestore();
+      expect(requests).toBeGreaterThan(0);
+      expect(requests).toBe(sessions.length + registrations.length);
+    } };
   }
+  function assertSessionStream(pages: RealPage[], expected: string[]) {
+    const ids = pages.flatMap((p) => p.rows.map((r) => r.id));
+    expect(ids).toHaveLength(expected.length);
+    expect(new Set(ids).size).toBe(expected.length);
+    expect([...ids].sort()).toEqual([...expected].sort());
+    expect(pages.filter((p) => p.rows.length).length).toBeGreaterThanOrEqual(4);
+    for (let i = 1; i < pages.length; i += 1) {
+      const last = pages[i - 1].rows.at(-1)!;
+      expect(pages[i].cursor).toContain(`id.gt.${last.id}`);
+      expect(pages[i].cursor).toContain(`starts_at.eq.\"${last.starts_at}\"`);
+    }
+  }
+
 
   /** นัดที่ "ท้ายสุด" ของลำดับ starts_at: ห่างอีก 13 วัน + ก๊วนตั้งเตือน 336 ชม. (14 วัน) */
   async function lateSession() {
@@ -206,30 +259,36 @@ describe('WO-B13 — แบ่งหน้า ไม่ให้ PostgREST ต�
     const early = await openSessionIn(1);
     const late = await lateSession();
 
-    const total = await openSessionsInWindow();
-    const pageSize = Math.max(1, Math.floor(total / 4));
-    expect(total).toBeGreaterThanOrEqual(2);
-
-    await sendSessionReminders(crypto.randomUUID(), new Date(), { pageSize });
-
-    // นัดท้ายสุดต้องไปไกลกว่าหน้าแรกอย่างน้อย 3 หน้า — ถ้าโค้ดอ่านหน้าเดียว จะไม่เห็นนัดนี้
-    expect(await remindersOf(early.gangId, 'session.reminder')).toHaveLength(1);
-    const rows = await remindersOf(late.gangId, 'session.reminder');
-    expect(rows).toHaveLength(1);
-    expect(rows[0].recipient_id).toBe(late.player);
+    const fixtures = [early, await openSessionIn(2), await openSessionIn(3), late];
+    const capture = await observeSessionPages(fixtures, 1, 500, 9);
+    try {
+      await sendSessionReminders(crypto.randomUUID(), new Date(), { pageSize: 1 });
+      expect(await remindersOf(early.gangId, 'session.reminder')).toHaveLength(1);
+      const rows = await remindersOf(late.gangId, 'session.reminder');
+      expect(rows).toHaveLength(1);
+      expect(rows[0].recipient_id).toBe(late.player);
+      assertSessionStream(capture.sessions, fixtures.map((f) => f.sessionId));
+      expect(capture.sessions).toHaveLength(5);
+      expect(capture.sessions[3].rows[0].id).toBe(late.sessionId);
+      console.info('[R2.3 session boundary]', { sessionPages: capture.sessions.map((p) => p.rows.map((r) => ({ id: r.id, startsAt: r.starts_at }))), registrationRequests: capture.registrations.length });
+    } finally { capture.restore(); }
   });
 
   it('🔴 pageSize = 1 (ขอบเขตสุด) ก็ยังเตือนถูก และรันซ้ำไม่เตือนซ้ำ', async () => {
-    // ลดงานให้พอดี: ใช้ pageSize 1 กับ DB ที่มีนัดเปิดน้อยพอเท่านั้น ไม่งั้นวนนานเกินจำเป็น
     const ctx = await openSessionIn(12);
-    const total = await openSessionsInWindow();
-    const pageSize = total > 300 ? Math.ceil(total / 5) : 1;
-
-    await sendSessionReminders(crypto.randomUUID(), new Date(), { pageSize });
-    const again = await sendSessionReminders(crypto.randomUUID(), new Date(), { pageSize });
-
-    expect(again).toBe(0);
-    expect(await remindersOf(ctx.gangId, 'session.reminder')).toHaveLength(1);
+    const fixtures = [ctx, await openSessionIn(1), await openSessionIn(2), await openSessionIn(3)];
+    const capture = await observeSessionPages(fixtures, 1, 500, 18);
+    try {
+      await sendSessionReminders(crypto.randomUUID(), new Date(), { pageSize: 1 });
+      const first = capture.sessions.length;
+      const again = await sendSessionReminders(crypto.randomUUID(), new Date(), { pageSize: 1 });
+      expect(again).toBe(0);
+      expect(await remindersOf(ctx.gangId, 'session.reminder')).toHaveLength(1);
+      expect(first).toBe(5);
+      expect(capture.sessions).toHaveLength(10);
+      assertSessionStream(capture.sessions.slice(0, first), fixtures.map((f) => f.sessionId));
+      assertSessionStream(capture.sessions.slice(first), fixtures.map((f) => f.sessionId));
+    } finally { capture.restore(); }
   });
 
   it('🔴 ผู้เล่นในนัดเดียวเกินหน้า (registrationPageSize เล็ก) ถูกเตือนครบทุกคน ไม่ขาดไม่ซ้ำ', async () => {
@@ -247,12 +306,23 @@ describe('WO-B13 — แบ่งหน้า ไม่ให้ PostgREST ต�
       players.push(p);
     }
 
-    await sendSessionReminders(crypto.randomUUID(), new Date(), { registrationPageSize: 2 });
-
-    const rows = await remindersOf(ctx.gangId, 'session.reminder');
-    expect(rows).toHaveLength(7);
-    expect(new Set(rows.map((r) => r.recipient_id))).toEqual(new Set(players));
-    expect(new Set(rows.map((r) => r.dedupe_key)).size).toBe(7);
+    const capture = await observeSessionPages([ctx], 1, 2, 6);
+    try {
+      await sendSessionReminders(crypto.randomUUID(), new Date(), { pageSize: 1, registrationPageSize: 2 });
+      const rows = await remindersOf(ctx.gangId, 'session.reminder');
+      expect(rows).toHaveLength(7);
+      expect(new Set(rows.map((r) => r.recipient_id))).toEqual(new Set(players));
+      expect(new Set(rows.map((r) => r.dedupe_key)).size).toBe(7);
+      expect(capture.sessions).toHaveLength(2);
+      expect(capture.registrations).toHaveLength(4);
+      expect(capture.registrations.map((p) => p.rows.length)).toEqual([2, 2, 2, 1]);
+      const observed = capture.registrations.flatMap((p) => p.rows);
+      expect(new Set(observed.map((r) => r.id)).size).toBe(7);
+      expect(new Set(observed.map((r) => r.user_id))).toEqual(new Set(players));
+      for (let i = 1; i < capture.registrations.length; i += 1) {
+        expect(capture.registrations[i].cursor).toBe(`gt.${capture.registrations[i - 1].rows.at(-1)!.id}`);
+      }
+    } finally { capture.restore(); }
   });
 
   it('ค่าเริ่มต้นของหน้า (production) ต้องน้อยกว่า max_rows ของ PostgREST (1000)', async () => {
@@ -273,8 +343,15 @@ describe('WO-B13 — แบ่งหน้า ไม่ให้ PostgREST ต�
 
   it('ไม่เปลี่ยน logic ว่าใครได้เตือน: นัดไกล (ก๊วนตั้ง 24 ชม.) ยังไม่เตือน แม้อยู่ในช่วง 14 วัน', async () => {
     const far = await openSessionIn(5 * 24); // ก๊วนตั้งเตือน 24 ชม.
-    await sendSessionReminders(crypto.randomUUID(), new Date(), { pageSize: 50 });
-    expect(await remindersOf(far.gangId, 'session.reminder')).toHaveLength(0);
+    const positive = await openSessionIn(1);
+    const capture = await observeSessionPages([far, positive], 50, 500, 2);
+    try {
+      await sendSessionReminders(crypto.randomUUID(), new Date(), { pageSize: 50 });
+      expect(await remindersOf(far.gangId, 'session.reminder')).toHaveLength(0);
+      expect(await remindersOf(positive.gangId, 'session.reminder')).toHaveLength(1);
+      expect(capture.sessions).toHaveLength(1);
+      expect(new Set(capture.sessions[0].rows.map((r) => r.id))).toEqual(new Set([far.sessionId, positive.sessionId]));
+    } finally { capture.restore(); }
   });
 });
 
@@ -430,7 +507,7 @@ describe('WO-B13.1 — เตือนยอดค้างแบ่งหน้
    * stream. Observe cloned REAL response pages before the production pager reads them.
    * This proves the pager's fixture-stream boundary, not global rank/churn behavior.
    */
-  async function observePaymentPages(gangIds: string[], pageSize: number, requestBudget: number) {
+  async function observePaymentPages(gangIds: string[], pageSize: number, requestBudget: number, afterPage?: (page: number) => Promise<void>) {
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const config = readFileSync(join(__dirname, '..', '..', 'supabase/config.toml'), 'utf8');
@@ -445,23 +522,33 @@ describe('WO-B13.1 — เตือนยอดค้างแบ่งหน้
     const realFetch = globalThis.fetch;
     const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       const url = new URL(input instanceof Request ? input.url : String(input));
-      if (url.origin !== new URL(API_URL).origin || url.pathname !== '/rest/v1/session_charges') {
-        return realFetch(input, init);
-      }
+      if (url.origin !== new URL(API_URL).origin) throw new Error('unexpected reminder HTTP origin');
+      if (url.pathname === '/rest/v1/rpc/enqueue_notifications') return realFetch(input, init);
+      if (url.pathname !== '/rest/v1/session_charges') throw new Error('unscoped reminder HTTP path');
+      expect(url.searchParams.get('select')).toContain('sessions!inner');
+      expect(url.searchParams.get('select')).toContain('session_registrations!inner');
+      expect(url.searchParams.get('type')).toBe('eq.session');
       requests += 1;
       if (requests > requestBudget) throw new Error('fixture payment pager exceeded HTTP request budget');
       expect(Number(url.searchParams.get('limit'))).toBe(pageSize);
       url.searchParams.set('gang_id', `in.(${gangIds.join(',')})`);
-      const response = await realFetch(new Request(url, new Request(input, init)));
+      const request = new Request(url, new Request(input, init));
+      expect(new URL(request.url).searchParams.get('gang_id')).toBe(`in.(${gangIds.join(',')})`);
+      const response = await realFetch(request);
       if (!response.ok) throw new Error(`fixture payment page HTTP ${response.status}`);
       const rows = await response.clone().json() as ObservedPage['rows'];
       expect(Array.isArray(rows)).toBe(true);
       expect(rows.length).toBeLessThanOrEqual(pageSize);
       expect(rows.every((row) => allowed.has(row.gang_id))).toBe(true);
       pages.push({ rows, cursor: url.searchParams.get('or') });
+      await afterPage?.(pages.length);
       return response;
     });
-    return { pages, restore: () => spy.mockRestore() };
+    return { pages, restore: () => {
+      spy.mockRestore();
+      expect(requests).toBeGreaterThan(0);
+      expect(requests).toBe(pages.length);
+    } };
   }
 
   function assertCompletePages(pages: ObservedPage[], expectedIds: string[]) {
@@ -537,6 +624,51 @@ describe('WO-B13.1 — เตือนยอดค้างแบ่งหน้
         requests: capture.pages.length,
       });
     } finally { capture.restore(); }
+  });
+
+  it('fixture insert/delete ระหว่างหน้าไม่ข้ามหรือซ้ำ charge ที่มีอยู่ตลอดช่วง', async () => {
+    // A separate controlled fixture-stream churn case, NOT global concurrency coverage.
+    const stable = [];
+    for (let i = 0; i < 6; i += 1) stable.push(await endedSessionWithCharge('20.00'));
+    const removed = await endedSessionWithCharge('30.00');
+    const fixtures = [...stable, removed];
+    await pool.query(`update public.session_charges set created_at='2000-01-01T00:00:00Z' where id=any($1::uuid[])`, [stable.map((f) => f.chargeId)]);
+    await pool.query(`update public.session_charges set created_at='2002-01-01T00:00:00Z' where id=$1 and gang_id=$2`, [removed.chargeId, removed.gangId]);
+    const inserted = crypto.randomUUID();
+    let interleavings = 0;
+    const capture = await observePaymentPages(fixtures.map((f) => f.gangId), 2, 4, async (page) => {
+      if (page !== 1) return;
+      const deleted = await pool.query<{ row: Record<string, unknown> }>(
+        `delete from public.session_charges where id=$1 and gang_id=$2 returning to_jsonb(session_charges) as row`,
+        [removed.chargeId, removed.gangId],
+      );
+      expect(deleted.rows).toHaveLength(1);
+      const absent = await pool.query(`select id from public.session_charges where id=$1 and gang_id=$2`, [removed.chargeId, removed.gangId]);
+      expect(absent.rows).toHaveLength(0);
+      // Insert ahead of the cursor; it is intentionally deferred to the next scan.
+      const created = await pool.query(`insert into public.session_charges select (jsonb_populate_record(null::public.session_charges,$1::jsonb)).* returning id`,
+        [JSON.stringify({ ...deleted.rows[0].row, id: inserted, amount: 0, created_at: '2003-01-01T00:00:00Z' })]);
+      expect(created.rows).toEqual([{ id: inserted }]);
+      interleavings += 1;
+    });
+    try {
+      await sendPaymentReminders(crypto.randomUUID(), new Date(), { pageSize: 2 });
+      expect(interleavings).toBe(1);
+      assertCompletePages(capture.pages, fixtures.map((f) => f.chargeId));
+      expect(capture.pages).toHaveLength(4);
+      const observed = capture.pages.flatMap((p) => p.rows.map((r) => r.id));
+      expect(observed).not.toContain(inserted);
+      for (const fixture of stable) {
+        expect(observed.filter((id) => id === fixture.chargeId)).toHaveLength(1);
+        expect(await remindersOf(fixture.gangId, 'payment.overdue')).toHaveLength(1);
+      }
+    } finally {
+      try {
+        await pool.query(`delete from public.session_charges where id=$1 and gang_id=$2`, [inserted, removed.gangId]);
+        const absent = await pool.query(`select id from public.session_charges where id=$1 and gang_id=$2`, [inserted, removed.gangId]);
+        expect(absent.rows).toHaveLength(0);
+      } finally { capture.restore(); }
+    }
   });
 
   it('ไม่เปลี่ยน logic: จ่ายครบแล้ว/ยังไม่ถึงกำหนด ไม่ถูกเตือนแม้วนหลายหน้า', async () => {
