@@ -12,6 +12,7 @@ import { fromSatang, sumSatang, toSatang } from '@/domain/billing/money';
 import type { GangRole } from '@/domain/permissions/types';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { AppError, runAction } from '@/shared/action';
+import { ADMIN_READ_PAGE, allById, financeReader } from '@/server/payments/admin-read';
 
 /**
  * เครดิตสมาชิก **[WO-B5a · ADR-010]**
@@ -131,6 +132,8 @@ export type GangCreditSummary = {
   /** เงินที่ก๊วนติดสมาชิกทั้งหมด = Σ ยอดคงเหลือ (ไม่ใช่เงินสดเข้า) */
   totalOwed: string;
   members: { userId: string; displayName: string; balance: string }[];
+  /** Active members eligible for top-up, including zero/no-wallet members. Not part of totalOwed. */
+  eligibleMembers: { userId: string; displayName: string; balance: string }[];
 };
 
 /** สรุปเครดิตทั้งก๊วน (เฉพาะคนที่ยังมียอด > 0) — แอดมินเท่านั้น */
@@ -138,34 +141,42 @@ export async function listGangCredits(gangId: string): Promise<ApiResponse<GangC
   const correlationId = await cid();
 
   return runAction(correlationId, async () => {
-    const user = await requireUser();
-    assertCan({ role: await roleInGang(gangId, user.id) }, 'credit.read.other');
-
-    const supabase = await supabaseServer();
-    const { data, error } = await supabase
-      .from('credit_balances')
-      // 🔴 ระบุ FK เสมอ (CLAUDE.md) — credit_balances มี FK ไป profiles ตัวเดียว แต่ระบุไว้กัน embed คลุมเครือในอนาคต
-      .select('user_id, balance, profiles!credit_balances_user_id_fkey(display_name)')
-      .eq('gang_id', gangId)
-      .gt('balance', 0)
-      .order('balance', { ascending: false });
-    if (error) throw error;
-
+    const { db: supabase } = await financeReader(gangId, 'credit.read.other');
     type Row = {
       user_id: string;
       balance: string | number;
       profiles: { display_name: string | null } | null;
     };
-    const members = ((data ?? []) as unknown as Row[]).map((r) => ({
-      userId: r.user_id,
-      displayName: r.profiles?.display_name ?? 'ไม่ทราบชื่อ',
-      balance: moneyFromDb(r.balance),
-    }));
-
-    // ผลรวมเป็นสตางค์จำนวนเต็มผ่าน helper ของเงิน (ไม่มี float)
+    // Composite PK (gang_id,user_id): keyset by user_id inside this gang.
+    const balances: Row[] = [];
+    let after: string | null = null;
+    for (;;) {
+      let q = supabase.from('credit_balances')
+        .select('user_id,balance,profiles!credit_balances_user_id_fkey(display_name)')
+        .eq('gang_id', gangId).gt('balance', 0).order('user_id').limit(ADMIN_READ_PAGE);
+      if (after) q = q.gt('user_id', after);
+      const { data, error } = await q;
+      if (error) throw error;
+      const page = (data ?? []) as unknown as Row[];
+      balances.push(...page);
+      if (page.length < ADMIN_READ_PAGE) break;
+      after = page[page.length - 1].user_id;
+    }
+    const members = balances.map((r) => ({
+      userId: r.user_id, displayName: r.profiles?.display_name ?? 'ไม่ทราบชื่อ', balance: moneyFromDb(r.balance),
+    })).sort((a, b) => toSatang(b.balance) - toSatang(a.balance) || a.userId.localeCompare(b.userId));
+    const balanceByUser = new Map(members.map((m) => [m.userId, m.balance]));
+    const active = await allById<{ id: string; user_id: string; profiles: { display_name: string | null } | null }>((cursor) => {
+      let q = supabase.from('gang_members')
+        .select('id,user_id,profiles!gang_members_user_id_fkey(display_name)')
+        .eq('gang_id', gangId).is('deleted_at', null).order('id').limit(ADMIN_READ_PAGE);
+      if (cursor) q = q.gt('id', cursor);
+      return q;
+    });
     return {
       totalOwed: fromSatang(sumSatang(members.map((m) => toSatang(m.balance)))),
       members,
+      eligibleMembers: active.map((m) => ({ userId: m.user_id, displayName: m.profiles?.display_name ?? 'ไม่ทราบชื่อ', balance: balanceByUser.get(m.user_id) ?? '0.00' })),
     };
   });
 }
