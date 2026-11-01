@@ -523,3 +523,4 @@
 
 - **[perf] event_logs RLS เรียก `is_gang_member` ต่อแถว** (พบใน R-roles-2a, 31 ต.ค. 2026): local 155k แถว query ของสมาชิกทั่วไป ~3.5s (มีอยู่ก่อน R-roles) · แก้แบบ InitPlan เดียวกับ `gangs_with_permission` (เช่น `gang_id = any((select my_gang_ids())::uuid[])`) · วัด row count ของ event_logs บน cloud ก่อนจัดลำดับ
 - **[test infra] Windows EADDRINUSE 127.0.0.1:54329** เมื่อรัน vitest ทั้งชุดติดกันหลายรอบ (ephemeral port หมด) ⇒ ไฟล์สุ่มล้ม · รันเดี่ยวผ่าน · พิจารณา pool reuse / เว้นช่วงระหว่างรอบ
+- **[test infra] template-generate "แก้จำนวนคน→นัดเดิมคงเดิม" timeout 30s ในชุดเต็ม** (พบ R-roles-2b, 31 ต.ค. 2026): job สแกน template ทั้ง shared DB (log invalid/missing pricing จำนวนมาก) · รันเดี่ยวผ่าน · ให้เทสต์ scope fixture gang แบบ R2.3 หรือ job รับ filter gang สำหรับเทสต์ (ต้องเสนอก่อนถ้าแตะ production)
