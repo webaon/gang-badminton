@@ -15,7 +15,7 @@ export async function ChargeHistoryPage({ params }: { params: Promise<{ gangId: 
     description={actionError(result.error)} actions={[{ label: 'กลับหน้าเก็บเงิน', href: `/gangs/${gangId}/payments` }]} />;
   if (result.data.gangId !== gangId) notFound();
   return <VStack gap={4} className="mx-auto w-full max-w-3xl p-4">
-    <Button variant="ghost" label="กลับหน้าเก็บเงิน" href={`/gangs/${gangId}/payments`} />
+    <Button variant="ghost" label="กลับยอดค้างจ่าย" href={`/gangs/${gangId}/payments/outstanding`} />
     <ChargeHistory key={result.data.chargeId} initial={result.data} />
   </VStack>;
 }

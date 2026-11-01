@@ -5,6 +5,7 @@ import { POOLED_URL, serviceClient } from '../tests/helpers/db';
 // Own the pool lifecycle: Playwright reuses workers across spec files.
 const pool = new Pool({ connectionString: POOLED_URL });
 import { paymentSlipPath } from '../lib/storage/paths';
+import { mkdir } from 'node:fs/promises';
 import { signUp, uniqueSuffix, watchConsole } from './helpers';
 
 test.afterAll(async () => { await pool.end(); });
@@ -93,4 +94,51 @@ test('H32/H34: actual received → verify → overpayment; aborted request recov
     await expect(other.getByRole('heading', { name: 'เปิดรายการจ่ายไม่ได้' })).toBeVisible();
     await expect(other.getByRole('img', { name: 'สลิปการโอน' })).toHaveCount(0);
   } finally { await stranger.close(); }
+});
+
+async function listEvidence(page: Page, screen: string) {
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const colorScheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      if (process.env.SHOT_DIR) {
+        await mkdir(process.env.SHOT_DIR, { recursive: true });
+        await page.screenshot({ path: `${process.env.SHOT_DIR}/${screen}-${width}-${colorScheme}.png` });
+      }
+    }
+  }
+}
+
+test('H32 queue/H33: server counts across pages, opaque cursor, filters, history navigation and responsive lists', async ({ page }) => {
+  test.setTimeout(180_000);
+  const f = await fixture(page);
+  for (let i = 0; i < 26; i++) {
+    const { rows: [payment] } = await pool.query('insert into public.payments(gang_id,payer_user_id,amount,created_by) values($1,$2,150,$2) returning id', [f.gangId, f.ownerId]);
+    await pool.query('insert into public.payment_allocations(payment_id,session_charge_id,amount) values($1,$2,150)', [payment.id, f.chargeId]);
+    await pool.query("select public.transition_payment($1,'submitted',$2)", [payment.id, f.ownerId]);
+  }
+  const queue = `/gangs/${f.gangId}/payments/review`;
+  await page.goto(queue);
+  await expect(page.getByRole('link', { name: 'รอตรวจ (27)', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'เปิดตรวจสลิป', exact: true })).toHaveCount(25);
+  await expect(page.getByRole('link', { name: 'เปิดตรวจสลิป', exact: true }).first()).toHaveAttribute('href', f.path);
+  await listEvidence(page, 'h32-queue');
+  await page.getByRole('link', { name: 'หน้าถัดไป', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'เปิดตรวจสลิป', exact: true })).toHaveCount(2);
+  await expect(page.getByRole('link', { name: 'รอตรวจ (27)', exact: true })).toBeVisible();
+  expect(new URL(page.url()).searchParams.get('cursor')).toBeTruthy();
+  await page.getByRole('link', { name: 'รอโอน (0)', exact: true }).click();
+  await expect(page.getByText('ไม่มีรายการในหน้านี้')).toBeVisible();
+  expect(new URL(page.url()).searchParams.get('cursor')).toBeNull();
+
+  await page.getByRole('link', { name: 'ยอดค้างจ่าย', exact: true }).click();
+  await expect(page.getByText('ค้างเก็บ ฿150.00 · ลูกหนี้ 1 คน')).toBeVisible();
+  await expect(page.getByText('รับชำระด้วยเงินโอน ฿0.00')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'ดูประวัติรายการหนี้', exact: true })).toHaveCount(1);
+  await listEvidence(page, 'h33-outstanding');
+  await page.getByRole('link', { name: '0–7 วัน · 1 คน · ฿150.00', exact: true }).click();
+  await expect(page.getByText('ค้างเก็บ ฿150.00 · ลูกหนี้ 1 คน')).toBeVisible();
+  await page.getByRole('link', { name: 'ดูประวัติรายการหนี้', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'ประวัติรายการหนี้', exact: true })).toBeVisible();
 });

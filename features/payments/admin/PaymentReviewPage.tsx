@@ -15,7 +15,7 @@ export async function PaymentReviewPage({ params }: { params: Promise<{ gangId: 
     description={actionError(result.error)} actions={[{ label: 'กลับหน้าเก็บเงิน', href: `/gangs/${gangId}/payments` }]} />;
   if (result.data.gangId !== gangId) notFound();
   return <VStack gap={4} className="mx-auto w-full max-w-3xl p-4">
-    <Button variant="ghost" label="กลับหน้าเก็บเงิน" href={`/gangs/${gangId}/payments`} />
+    <Button variant="ghost" label="กลับคิวตรวจสลิป" href={`/gangs/${gangId}/payments/review`} />
     <PaymentReview key={result.data.id} initial={result.data} />
   </VStack>;
 }

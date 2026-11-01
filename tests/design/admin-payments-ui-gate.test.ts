@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const root = resolve('features/payments/admin');
 const read = (file: string) => readFileSync(resolve(root, file), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
-const files = ['PaymentReview.tsx', 'PaymentReviewPage.tsx', 'ChargeHistory.tsx', 'ChargeHistoryPage.tsx'];
+const files = ['AdminListsPage.tsx', 'PaymentReview.tsx', 'PaymentReviewPage.tsx', 'ChargeHistory.tsx', 'ChargeHistoryPage.tsx'];
 
 describe('WO-6.5b payment detail/history UI contract', () => {
   it.each(files)('%s uses server money and Astryx layout without direct DB queries', (file) => {
