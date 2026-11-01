@@ -28,6 +28,8 @@ import { pool, asRole, createUser, reloadPostgrestSchema } from '../helpers/db';
 import { allowedActions } from '@/domain/permissions/can';
 import { FEATURES, type GangFeatures, type PermissionContext } from '@/domain/permissions/types';
 
+/** หน่วงหลังสร้าง world ก่อนเริ่ม probe (ms) — ใช้พิสูจน์ว่า fixture ทนต่อ cron ทุก 5 นาที: ROLE_MATRIX_SETTLE_MS=330000 */
+const SETTLE_MS = Number(process.env.ROLE_MATRIX_SETTLE_MS ?? 0);
 const GOLDEN_PATH = join(__dirname, 'role-matrix.golden.json');
 const UPDATE = process.env.ROLE_MATRIX_UPDATE === '1';
 
@@ -40,10 +42,24 @@ type Golden = {
   helpers: Record<string, Record<Identity, string>>;
   functions: Record<string, Record<string, string>>;
   grants: Record<string, Record<string, boolean>>;
-  inventory: { policies: string[]; functions: string[] };
+  inventory: { policies: string[]; functions: string[]; roleText: string[] };
+  extras: Record<string, unknown>;
 };
 
-const observed: Golden = { can: {}, rls: {}, helpers: {}, functions: {}, grants: {}, inventory: { policies: [], functions: [] } };
+/** เรียง key ทุกชั้นเพื่อให้ไฟล์ golden คงที่ (ลำดับ key จาก Promise.all ไม่แน่นอน ⇒ diff ใน git รกถ้าไม่เรียง) */
+function sortKeys(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(sortKeys);
+  if (v && typeof v === 'object') {
+    return Object.fromEntries(
+      Object.entries(v as Record<string, unknown>)
+        .sort(([x], [y]) => x.localeCompare(y))
+        .map(([k, val]) => [k, sortKeys(val)]),
+    );
+  }
+  return v;
+}
+
+const observed: Golden = { can: {}, rls: {}, helpers: {}, functions: {}, grants: {}, inventory: { policies: [], functions: [], roleText: [] }, extras: {} };
 
 // ---------------------------------------------------------------------------
 // world
@@ -502,29 +518,40 @@ type Actor = Identity | 'nobody';
 const ACTORS: Actor[] = ['owner', 'admin', 'member', 'payer', 'orgAdmin', 'outsider', 'nobody'];
 const actorId = (a: Actor): string | null => (a === 'nobody' || a === 'anon' ? null : W.users[a]);
 
-async function callFn(sql: string, params: unknown[], pre?: { sql: string; params: unknown[] }): Promise<string> {
+type Step = { sql: string; params: unknown[] };
+
+type FnCase = {
+  name: string;
+  sql: string;
+  params: (actor: string | null) => unknown[];
+  /** เตรียมสถานะใน txn เดียวกับการเรียก (rollback ทิ้งทั้งหมด) */
+  pre?: Step[];
+  /** 'value' = บันทึกค่าคอลัมน์แรกของผลลัพธ์ (ใช้กับฟังก์ชันที่ตอบ boolean) · ค่าเริ่มต้น = allow/deny/err */
+  kind?: 'value';
+};
+
+async function callFn(fc: FnCase, actor: string | null): Promise<string> {
   const c = await pool.connect();
   try {
     await c.query('begin');
-    if (pre) await c.query(pre.sql, pre.params); // เตรียมสถานะใน txn เดียวกัน (rollback ทิ้งทั้งหมด)
-    await c.query(sql, params);
+    for (const step of fc.pre ?? []) await c.query(step.sql, step.params);
+    const r = await c.query(fc.sql, fc.params(actor));
+    if (fc.kind === 'value') return String(Object.values(r.rows[0] ?? {})[0]);
     return 'allow';
   } catch (err) {
-    const e = err as { message?: string };
-    return e.message === 'FORBIDDEN' ? 'deny' : `err:${e.message}`;
+    // P0001 = RAISE ของฟังก์ชัน (message = รหัสใน docs/errors.md) · อื่นๆ บันทึกเป็น SQLSTATE (ไม่ผูกกับถ้อยคำของ Postgres)
+    const e = err as { message?: string; code?: string };
+    if (e.code === 'P0001') return e.message === 'FORBIDDEN' ? 'deny' : `err:${e.message}`;
+    return `sqlstate:${e.code ?? 'unknown'}`;
   } finally {
     await c.query('rollback').catch(() => {});
     c.release();
   }
 }
 
-type FnCase = {
-  name: string;
-  sql: string;
-  params: (actor: string | null) => unknown[];
-  pre?: { sql: string; params: unknown[] };
-};
 let fnCases: FnCase[] = [];
+
+const PUBLIC_DISCOVERY_SQL = `update public.gangs set is_public = true, features = features || '{"discovery": true}'::jsonb where id = $1`;
 
 async function buildFnCases(): Promise<void> {
   const g = W.gang;
@@ -539,6 +566,13 @@ async function buildFnCases(): Promise<void> {
       [s2, u.owner],
     )
   ).id;
+
+  // 🔴 แยก fixture ออกจาก cron `sweep_waitlist` (*/5 นาที, WO R-roles-0.1 จาก QA ใบ 20):
+  //    sweep เลือกเฉพาะนัด status='open' ที่มีคิวสำรองและยังมีที่ว่าง ⇒ นัดคิวนี้ (ว่าง 2 ที่ + คิวสำรอง 1)
+  //    ถ้าค้างเป็น 'open' จะถูกเลื่อนคิวเองเมื่อรันช้า (event_logs เพิ่ม waitlist.promoted + precondition ของ
+  //    promote_waitlist เปลี่ยน). promote_waitlist แบบแอดมินเลือกรับ status ∈ (open, in_play)
+  //    ⇒ ย้ายไป 'in_play' ที่ sweep ไม่แตะ ผลของฟังก์ชันที่ probe ยังเหมือนเดิมทุกช่อง
+  await pool.query(`select public.transition_session($1, 'in_play', $2)`, [s2, u.owner]);
 
   // สลิป verified ที่กรอกยอดโอนจริงแล้ว (ให้ record_overpayment คำนวณได้) / สลิป submitted (ให้กรอกยอด)
   const mkVerified = async () => {
@@ -579,11 +613,44 @@ async function buildFnCases(): Promise<void> {
       name: 'credit_cash_payout',
       sql: `select public.credit_cash_payout($1, $2, 1, 'ทดสอบ', $3)`,
       params: (a) => [g, u.extra2, a],
-      pre: { sql: `select public.credit_topup($1, $2, 50, 'เตรียม', $3)`, params: [g, u.extra2, u.owner] },
+      pre: [{ sql: `select public.credit_topup($1, $2, 50, 'เตรียม', $3)`, params: [g, u.extra2, u.owner] }],
     },
     { name: 'credit_return_charge', sql: `select public.credit_return_charge($1, null, 'ทดสอบ', $2)`, params: (a) => [chRet, a] },
     { name: 'transfer_gang_ownership(to member)', sql: `select public.transfer_gang_ownership($1, $2, $3, 'cid')`, params: (a) => [g, a, u.member] },
     { name: 'leave_gang', sql: `select public.leave_gang($1, $2, 'cid')`, params: (a) => [g, a] },
+
+    // ---- เพิ่มใน R-roles-0.1 (QA ใบ 20): ฟังก์ชันที่อ้าง role/แอดมินแต่เดิมไม่มีเคส ----
+    // ตัวช่วยตรวจแอดมินด้วย actor (ใช้โดยฟังก์ชันแอดมินทั้งหมดข้างบน) — ตอบ boolean ตรงๆ
+    { name: 'actor_is_gang_admin', kind: 'value', sql: `select public.actor_is_gang_admin($1, $2)`, params: (a) => [g, a] },
+    // 🔴 ไม่มีด่านสิทธิ์ใน DB: ฟังก์ชันเชื่อ p_actor_id และเข้าถึงได้เฉพาะ service_role (ด่านจริง = can() ฝั่ง TS)
+    //    golden บันทึก "allow ทุก actor" ไว้ตามจริง — ถ้ามีใครเพิ่มด่านใน DB ภายหลัง (ADR-015 migrate) golden จะเปลี่ยนและต้องอธิบาย
+    //    ⚠️ ข้อสังเกต: เรียกด้วย p_role='owner' ได้โดยไม่ตรวจว่า actor เป็นใคร (ปลอดภัยเพราะ EXECUTE เฉพาะ service_role · ดู grants)
+    {
+      name: 'add_gang_member_by_email(role=member)',
+      sql: `select public.add_gang_member_by_email($1, $2, 'member', $3, 'cid')`,
+      params: (a) => [g, `${u.extra}@rm.test`, a],
+      pre: [{ sql: `update auth.users set email = $2 where id = $1`, params: [u.extra, `${u.extra}@rm.test`] }],
+    },
+    {
+      name: 'add_gang_member_by_email(role=owner)',
+      sql: `select public.add_gang_member_by_email($1, $2, 'owner', $3, 'cid')`,
+      params: (a) => [g, `${u.extra}@rm.test`, a],
+      pre: [{ sql: `update auth.users set email = $2 where id = $1`, params: [u.extra, `${u.extra}@rm.test`] }],
+    },
+    {
+      // ผู้ขอ = p_user_id (ไม่ใช่ actor ที่ตรวจสิทธิ์) — ก๊วนต้องเปิดสาธารณะ + feature discovery
+      name: 'request_to_join_gang(p_user_id=actor)',
+      sql: `select public.request_to_join_gang($1, $2, 'สนใจ', 'cid')`,
+      params: (a) => [g, a],
+      pre: [{ sql: PUBLIC_DISCOVERY_SQL, params: [g] }],
+    },
+    {
+      name: 'decide_join_request(approve)',
+      sql: `select public.decide_join_request(
+               (select id from public.join_requests where gang_id = $1 and user_id = $2 and status = 'pending'), $1, 'approved', $3, 'cid')`,
+      params: (a) => [g, u.extra, a],
+      pre: [{ sql: `insert into public.join_requests (gang_id, user_id) values ($1, $2)`, params: [g, u.extra] }],
+    },
   ];
 }
 
@@ -595,11 +662,12 @@ beforeAll(async () => {
   await reloadPostgrestSchema();
   W = await buildWorld();
   await buildFnCases();
-}, 120_000);
+  if (SETTLE_MS > 0) await new Promise((r) => setTimeout(r, SETTLE_MS));
+}, 120_000 + SETTLE_MS);
 
 afterAll(async () => {
   if (UPDATE) {
-    writeFileSync(GOLDEN_PATH, JSON.stringify(observed, null, 1) + '\n', 'utf8');
+    writeFileSync(GOLDEN_PATH, JSON.stringify(sortKeys(observed), null, 1) + '\n', 'utf8');
   }
   await pool.end();
 });
@@ -754,7 +822,7 @@ describe('R-roles-0 — DB function ที่เช็คแอดมิน/role
     const out: Golden['functions'] = {};
     for (const fc of fnCases) {
       out[fc.name] = {};
-      for (const actor of ACTORS) out[fc.name][actor] = await callFn(fc.sql, fc.params(actorId(actor)), fc.pre);
+      for (const actor of ACTORS) out[fc.name][actor] = await callFn(fc, actorId(actor));
     }
     check('functions', out);
 
@@ -773,7 +841,39 @@ describe('R-roles-0 — DB function ที่เช็คแอดมิน/role
     expect(out['credit_cash_payout'].owner).toBe('allow');
     expect(out['transfer_gang_ownership(to member)'].admin).toBe('deny'); // admin โอนความเป็นเจ้าของไม่ได้
     expect(out['transfer_gang_ownership(to member)'].owner).toBe('allow');
+
+    // actor_is_gang_admin: owner/admin/แอดมินองค์กร = true · member/คนนอก/ไม่มี actor = false (ต้องไม่เป็น null เพราะ `if not null` จะหลุดด่าน)
+    const aiga = out['actor_is_gang_admin'];
+    expect([aiga.owner, aiga.admin, aiga.orgAdmin]).toEqual(['true', 'true', 'true']);
+    expect([aiga.member, aiga.payer, aiga.outsider, aiga.nobody]).toEqual(['false', 'false', 'false', 'false']);
   }, 120_000);
+
+  it('🔴 request_to_join_gang แจ้งเตือนเฉพาะ role owner/admin (m.role in (owner, admin)) — ตัวเลือกผู้รับ ไม่ใช่ด่านสิทธิ์', async () => {
+    // role ถูกใช้เลือก "ใครได้รับแจ้ง" — ถ้า ADR-015 เพิ่มผู้ถือชุดสิทธิ์ ผู้รับต้องเปลี่ยนโดยตั้งใจ (golden จะเตือน)
+    const c = await pool.connect();
+    let recipients: string[];
+    try {
+      await c.query('begin');
+      await c.query(PUBLIC_DISCOVERY_SQL, [W.gang]);
+      await c.query(`select public.request_to_join_gang($1, $2, 'สนใจ', 'cid')`, [W.gang, W.users.extra]);
+      const { rows } = await c.query<{ role: string; channel: string }>(
+        `select m.role, n.channel from public.notifications n
+           join public.gang_members m on m.gang_id = n.gang_id and m.user_id = n.recipient_id and m.deleted_at is null
+          where n.gang_id = $1 and n.event_type = 'gang.join_requested'
+          order by 1, 2`,
+        [W.gang],
+      );
+      recipients = rows.map((r) => `${r.role}:${r.channel}`);
+    } finally {
+      await c.query('rollback').catch(() => {});
+      c.release();
+    }
+    observed.extras['join_requested_recipients'] = recipients;
+    if (!UPDATE) expect(recipients).toEqual(golden().extras['join_requested_recipients']);
+    expect(recipients.some((r) => r.startsWith('member:'))).toBe(false);
+    expect(recipients.some((r) => r.startsWith('owner:'))).toBe(true);
+    expect(recipients.some((r) => r.startsWith('admin:'))).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -781,11 +881,30 @@ describe('R-roles-0 — DB function ที่เช็คแอดมิน/role
 // ---------------------------------------------------------------------------
 
 const INVENTORY_FNS = [
+  'add_gang_member_by_email', 'decide_join_request',
   'cancel_registration', 'create_gang', 'credit_cash_payout', 'credit_return_charge', 'credit_topup', 'is_gang_admin',
   'is_payment_visible', 'is_session_admin', 'leave_gang', 'preview_cancel_registration', 'promote_waitlist',
   'record_overpayment', 'request_to_join_gang', 'set_payment_received_amount', 'transfer_gang_ownership',
   'actor_is_gang_admin', 'is_gang_member',
 ];
+
+/**
+ * การจัดประเภทฟังก์ชันที่เอ่ยถึง role (ด้วยมือ — ตรวจโค้ดแล้ว ณ 0049):
+ *  - authz   = ใช้ role/แอดมินตัดสินว่า "ทำได้หรือไม่" ⇒ ต้องมีเคสใน matrix ข้อ 3/4
+ *  - select  = ใช้ role เลือก "ผู้รับ/ข้อมูล" ไม่ใช่ด่านสิทธิ์ (มีเคส extras)
+ *  - assign  = เขียนค่า role ลงข้อมูล โดย *ไม่ตรวจ actor ใน DB* (EXECUTE เฉพาะ service_role · ด่านจริง = can() ฝั่ง TS)
+ *  - grant   = ให้ role แรกเริ่ม (create_gang → owner)
+ */
+const ROLE_TEXT_CLASS: Record<string, 'authz' | 'select' | 'assign' | 'grant'> = {
+  actor_is_gang_admin: 'authz',
+  is_gang_admin: 'authz',
+  leave_gang: 'authz', // กติกา owner คนสุดท้าย
+  transfer_gang_ownership: 'authz', // ผู้โอนต้องเป็น owner
+  request_to_join_gang: 'select',
+  add_gang_member_by_email: 'assign',
+  decide_join_request: 'assign',
+  create_gang: 'grant',
+};
 
 describe('R-roles-0 — EXECUTE grants + inventory', () => {
   it('🔴 EXECUTE ของฟังก์ชันที่เกี่ยวกับ role ตรง golden (ฟังก์ชันของแอดมินผ่าน service_role เท่านั้น)', async () => {
@@ -811,6 +930,12 @@ describe('R-roles-0 — EXECUTE grants + inventory', () => {
     }
   });
 
+  // ⚠️ inventory เป็น HEURISTIC (regex บนข้อความ) ไม่ใช่การพิสูจน์ว่าครอบคลุมทุกด่านสิทธิ์:
+  //   - policy:   pg_policies (public+storage) ที่ qual/with_check ตรง /is_gang_admin|is_session_admin|is_payment_visible|actor_is_gang_admin|role/
+  //   - function: pg_proc (public) ที่ prosrc ตรง /is_gang_admin|is_session_admin|is_payment_visible|actor_is_gang_admin/ หรือ /role *= *'owner'|role *in *('owner'/
+  //   - roleText: pg_proc (public) ที่ prosrc ตรง /role/i (กว้างสุด) → ต้องจัดประเภทใน ROLE_TEXT_CLASS ทุกตัว
+  //   ไม่ครอบคลุม: ตารางนอกรายการ probe (organizations, organization_members, profiles, notifications, session_registrations,
+  //   avatar storage) · ตรรกะสิทธิ์ที่ไม่มีคำว่า role/ตัวช่วยข้างบน · ฟังก์ชันใน schema อื่น
   it('🔴 inventory: policy + function ที่อ้างตัวช่วยแอดมิน/เช็ค role ตรง golden — มีตัวใหม่เพิ่มต้องเข้า matrix ก่อน', async () => {
     const { rows: pol } = await pool.query<{ k: string }>(
       `select schemaname||'.'||tablename||' | '||policyname||' | '||cmd k from pg_policies
@@ -824,6 +949,14 @@ describe('R-roles-0 — EXECUTE grants + inventory', () => {
                or p.prosrc ~ 'role *= *''owner''|role *in *\\(''owner''')
         order by 1`,
     );
-    check('inventory', { policies: pol.map((r) => r.k), functions: fns.map((r) => r.k) });
+    // ---- รายชื่อฟังก์ชันที่ "เอ่ยถึง role" ใดๆ (กว้างกว่า regex ข้างบน) + ต้องถูกจัดประเภทครบ ----
+    const { rows: roleText } = await pool.query<{ k: string }>(
+      `select p.proname k from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosrc ~* 'role' order by 1`,
+    );
+    const names = roleText.map((r) => r.k);
+    check('inventory', { policies: pol.map((r) => r.k), functions: fns.map((r) => r.k), roleText: names });
+
+    const unclassified = names.filter((n) => !(n in ROLE_TEXT_CLASS));
+    expect(unclassified, 'ฟังก์ชันใหม่ที่เอ่ยถึง role ต้องจัดประเภทใน ROLE_TEXT_CLASS (และมีเคสใน matrix ถ้าเป็น authz)').toEqual([]);
   });
 });
