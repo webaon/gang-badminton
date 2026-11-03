@@ -39,11 +39,11 @@ function Write-PrivateRecord {
     if($full -ne $required -or $Leaf -notmatch '^[a-z][a-z0-9-]{0,40}\.json$' -or -not $Data -or $Data.Length -gt 65536){throw 'WRITER_DENIED'}
     # F3: Owned-root pre-check must prove ownership and all required rights before mutation
     $user=[Security.Principal.WindowsIdentity]::GetCurrent().User
-    try {ensureOwnedStore $full $user; # F3: Validates existing root is owned+protected, or creates+secures new one
-        $parent=[IO.Path]::GetDirectoryName($full)
-        [void](Assert-PrivateAcl $parent $user)
-        $cursor=$parent; while($cursor){if(([IO.File]::GetAttributes($cursor) -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'REPARSE_DENIED'};$cursor=[IO.Path]::GetDirectoryName($cursor)}
+    try {Ensure-OwnedStore -Root $full -User $user; # F3: Validates existing root is owned+protected, or creates+secures new one
         $stream=$null;$temp=$null;$created=$false;$published=$false
+        $parent=[IO.Path]::GetDirectoryName($full)
+        [void](Assert-PrivateAcl $full $user)
+        $cursor=$parent; while($cursor){if(([IO.File]::GetAttributes($cursor) -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'REPARSE_DENIED'};$cursor=[IO.Path]::GetDirectoryName($cursor)}
         $final=[IO.Path]::Combine($full,$Leaf);$temp=$final+'.pending'
         if([IO.File]::Exists($final)){throw 'ALREADY_EXISTS'}
         $stream=[IO.FileStream]::new($temp,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);$created=$true
