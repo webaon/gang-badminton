@@ -1763,7 +1763,8 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | B1-ADR | ร่าง ADR-013 LINE Login เป็นทางเข้าหลัก (plan §11) | @gb-integrations | ✅ `927afee` → Accepted `4b61d1c` |
 | B1.a+c | ปุ่ม LINE Login + ผูก/ถอด LINE ในโปรไฟล์ (หลัง flag `LINE_PLATFORM_LOGIN_ENABLED`) | @gb-integrations | ✅ `217ad60` QA ผ่าน · ⚠️ `b48bd1a..1967be2` build ไม่ผ่าน ห้าม cherry-pick แยก · รอเจ้าของงานตั้งค่า LINE (`docs/ops/line-login-setup.md`) แล้วค่อย spike S1–S5 |
 | hotfix | open redirect `/sign-in?next=` → `7e90739` QA ผ่าน → PR #15 เข้า main | @gb-planner | ⏳ รอเจ้าของงาน OK merge |
-| Task04-commit | Task04 preparation (offline/source) — `c8a4478` tools/test-env + tsconfig/eslint exclude · `be0592a` ADR-016 ต่อท้าย baseline | @gb-integrations | ✅ QA PASS (node --test 18/18 · tsc/eslint exit 0 · secret scan clean) · runtime V0–V6 ⏸ NOT RUN/HOLD · credential incident OPEN · card20 paused |
+| Task04-V0 | Task04 V0 preflight (read-only) — evidence `tools/test-env/v0-evidence/` · V1–V6 ยังไม่รัน รอ authorize แยกต่อหน่วย | @gb-integrations (runner @gb-planner) | ✅ QA PASS · no side-effects (docker ps -a count=0 gb-env-proof-01) |
+| Task04-commit | Task04 preparation (offline/source) — `c8a4478` tools/test-env + tsconfig/eslint exclude · `be0592a` ADR-016 ต่อท้าย baseline | @gb-integrations | ✅ QA PASS (node --test 18/18 · tsc/eslint exit 0 · secret scan clean) · credential incident OPEN · card20 paused |
 
 - **Forbidden ร่วมทุกใบใน Track A**: ห้ามมี migration · ห้ามแตะ DB function / state machine / `domain/billing` ·
   ห้าม copy CSS ของ hi-fi (`.btn` `.chip` …) เข้า repo — ประกอบจาก Astryx + theme เท่านั้น ·

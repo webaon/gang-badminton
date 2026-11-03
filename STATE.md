@@ -309,7 +309,9 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 **Production**: hotfix open-redirect ที่ `/sign-in?next=` merge เข้า `main` ผ่าน **PR #15 → `71d62ed`** แล้ว deploy แล้ว (`main` remote = `71d62ed`)
 
 **Task04 (test-env preparation)** — ✅ offline/source **CLOSED** (`c8a4478` tools/test-env + tsconfig/eslint exclude · `be0592a` ADR-016 ต่อท้าย baseline) · QA: `node --test` 18/18 · tsc/eslint exit 0 · secret scan clean · owner @gb-integrations
-- ⏸ runtime V0–V6 ยัง **NOT RUN / HOLD**
+- ✅ **V0 preflight: DONE** (read-only, PASS) — evidence ที่ `tools/test-env/v0-evidence/` · no side-effects ยืนยันแล้วโดย planner + QA (`docker ps -a` count=0 ของ `gb-env-proof-01`)
+- ⏸ **V1–V6: ยังไม่รัน** รอ authorize แยกต่อหน่วย
+- ⏸ card20 / shared-local resources **ไม่ถูกแตะ** (ยืนยัน 2 ทาง)
 - 🔴 shared-local credential incident ยัง **OPEN**
 - ⏸ card20 **paused**
 
