@@ -1,0 +1,61 @@
+{
+  "service_set": {
+    "rotating_primary": 13,
+    "outside_sentinel": 1
+  },
+  "V3": {
+    "primary_create": 13,
+    "sentinel_create": 1,
+    "new_network_create": 2,
+    "image_pull_commands_max": 13
+  },
+  "V4_cutover": {
+    "primary_stop": 13,
+    "primary_remove": 13,
+    "primary_create_start": 13,
+    "credential_rotations": 1
+  },
+  "V4_persistence": {
+    "primary_restart": 13,
+    "restart_waves": 1
+  },
+  "V5": {
+    "primary_stop": 13,
+    "primary_remove": 13,
+    "primary_create_start": 13,
+    "restore_runs": 1,
+    "private_dump_runs": 1,
+    "object_snapshot_runs": 1,
+    "new_restore_DB_config_volume": 1
+  },
+  "V6": {
+    "primary_stop_remove": 13,
+    "sentinel_stop_remove": 1,
+    "network_remove_max": 2,
+    "owned_named_volume_remove_max": 3
+  },
+  "fail_stop": {
+    "max_waves": 1,
+    "only_current_exact_owned_container_ids": true,
+    "container_stop_max": 14,
+    "no_recreate_or_restart_after_failure": true
+  },
+  "totals_normal": {
+    "container_create": 40,
+    "container_remove": 40,
+    "explicit_container_stop_excluding_restart": 40,
+    "container_restart": 13,
+    "credential_rotations": 1,
+    "restore_runs": 1,
+    "new_networks": 2,
+    "new_named_volumes_max": 3,
+    "anonymous_volumes": 0,
+    "helper_new_containers": 0,
+    "test_object_bytes_max": 65536,
+    "SMTP_messages_max": 8,
+    "internal_HTTP_delivery_messages_max": 12,
+    "probe_requests_max": 300,
+    "negative_external_network_TCP_attempts_max": 12
+  },
+  "classification": "finite proposed design ceilings,not operations performed or consent"
+}

@@ -1,0 +1,59 @@
+# Bounded validation proposal — NOT AUTHORIZED / NOT COMMAND-READY
+
+R1 precedence:READINESS-AMENDMENT.md,CANDIDATE-MANIFEST-SPEC.json,EGRESS-ALLOWLIST-SPEC.json and OPERATION-BUDGET.json explicitly amend this original envelope:14services/13digests,two internal networks,three loopback endpoints56321/56329/56325,resource/pull/time ceilings,concrete sinks and separately counted V4cutover+V4restart+V5restore operations. Older single-network/two-port descriptions below are historical proposal text,NOT the current candidate. No readiness/architecture/runtime consent inferred. ADR-016/user approval now permits preparation source and offline dummy/no-network checks only;source exists but QA status is CHANGES REQUIRED/final gates TOOL-BLOCKED. Earlier no-implementation/docs-only wording is historical,not current preparation authority. No V0–V6 or real private writer/credential/DB/container/network consent.
+
+This is a future planner-review boundary,not permission or a runnable stub. Current preparation WO permits source plus offline synthetic/no-network fixtures under ADR-016;the final offline batch remains tool-approval BLOCKED and is not retried. No validation stage has run. User/planner must approve an exact implemented manifest after QA review;missing executables are not represented as commands.
+
+## 1. Exact proposed scope envelope
+
+-One new project:gb-env-proof-01. Two dedicated internal bridges:gb-env-proof-01-net(main13services) and gb-env-proof-01-deny-net(one inert sentinel). No shared,old isolated,n8n,cloud,host network,daemon/firewall change or external account.
+-Image/service set:CANDIDATE-MANIFEST-SPEC.json R1 enumerates14services/13distinct immutable linux/amd64 image manifests,including pinned Mailpit and Node base reused for probe/sentinel. Source template is official commit831d6302c7361c0a5115a91e953bdf084eb85330. No additional helper containers. Candidate registry digests resolved publicly;effective runtime names/DNS/tenant/mount/private-render proof remains OPEN. No latest tag use or matrix substitution on failure.
+-Fixed upstream global container names must be checked as a complete set;project-name labels alone do not isolate container_name. Never remove/rename a conflicting pre-existing container. Global-name/tenant/DNS changes require reviewed manifest revision and resubmission,not improvisation.
+-Published endpoints only127.0.0.1:56321(API),127.0.0.1:56329(transaction pooler) and127.0.0.1:56325(inert deny-sentinel positive control on separate owned internal network). No direct DB,metrics/admin/Studio/Functions/SMTP publication. Ports are proposed,not checked/reserved. Reject wildcard,empty host_ip,IPv6 wildcard and any other effective publish BEFORE create. No fallback554xx/543xx/cloud. Sentinel is not an independent external-host proof.
+-Proposed NEW private root:C:/Users/peepe/gb-test-env-private/gb-env-proof-01. Proposed NEW data root:C:/Users/peepe/gb-test-env-data/gb-env-proof-01. These are specifications only,not existing/created directories or ACL proofs. Refuse existing nonempty targets,UNC/reparse roots or scope escape. Final runtime private store must not depend on24-hour scratch pruning.
+-Public spec/source artifacts remain under scratch/test-environment-proposal/. Evidence output:its validation-evidence/ subdirectory after later approval,metadata/booleans only. No raw configs,logs,secret values/credential hashes/decoded tokens/restore dumps in tool output.
+-Credential generations A and B belong ONLY to the new canary. Fresh random JWT secret,S3 pair and derived anon/service role/API mappings;no incident/shared/source-fallback values read or reused. New-project DB/admin/encryption credentials must be explicit fresh inputs rather than example defaults,but must NOT rotate any existing DB/LINE/Vault credentials.
+-Data:one synthetic gang/member/user namespace and one small owned non-personal Storage object,with a defined test-local sink for delivery. No real LINE/OAuth/email/push/cloud effects. No existing helper import until fail-closed target guard;no broad test suite/card20 fixtures in this validation.
+
+## 2. Stages, side effects and DoD
+
+| Stage | Target / explicit side effects,only after future consent | DoD / stop gate |
+|---|---|---|
+| V0 metadata/resource preflight | Read installed tool versions,available resources,exact live name/port/network/mount identity and BOTH-family listener/excluded ranges;no Env/secret/log inspection | No collisions;full candidate names/paths/digests and resource ceiling frozen. Current historical readbacks are not a new reservation. Unresolved identity or any approval block→STOP/no retry/bypass. |
+| V1 private writer canary | Create only NEW private root and nonsecret canary files;change ACL only there;exercise exclusive-write/atomic-publication/failure path | Protected DACL for approved user+SYSTEM,owner/inheritance verified;no broad ACEs/reparse scope escape;no partial publication;fixed boolean failure output. Installed PS/filesystem behavior proven separately from source. No real key generation before pass. |
+| V2 render/guard | Generate only NEW canary credential set A directly to verified private files;trusted child privately renders effective manifest | Missing/duplicate/empty/shadowed fields fail closed;only approved ports/mounts/names;no plaintext in stdout/stderr/argv/history. Direct docker compose config/config --environment/raw inspect prohibited. Generic caught errors only;render output remains in private memory,not tool/chat. |
+| V3 create capability canary | FUTURE ONLY:pull frozen digests;create exactly two approved internal networks,enumerated new service containers and fresh data paths;anonymous-volume budget ZERO,unexpected anonymous volume blocks acceptance;write minimal synthetic fixtures | Actual mounts/networks/labels/exposures match model,only allowedloopback publishes;API/pooler loopback positive;IPv4+IPv6 non-loopback denial. Current-user access succeeds;other nonprivileged identity evidence if approved,otherwise mark limitation. No external-host test available→do not claim independent network proof. |
+| V4 lifecycle | One A→B generation cutover:one13primary stop/remove/create-start wave,then ONE DISTINCT13primary restart wave for persistence;outside sentinel unchanged. Cache/session observations use capped requests/time,not implicit extra lifecycle operations. Tenant seed impact explicit | Same-path B-positive/A-negative for every enabled verifier before/after that one restart,within OPERATION-BUDGET.json. No RLS403/404/dead endpoint mistaken for denial,no old-key grace or rollback. V5 restore wave is separately counted,not hidden in recreate-once consent. |
+| V5 synthetic recovery | Capture only OWNED quiesced synthetic DB+Storage set into private artifact;stop only canary services via frozen exact IDs;restore into NEW owned empty data subpaths under same project envelope;no parallel second stack | Owned logical fixture/object retained,required extensions/schema/roles understood;B configuration retained;A rejected after restore. Never restore raw credential/config defaults. Restoration into fresh app schemas needs conflict-handling plan before this stage. This does NOT prove backup/restorability of old/shared data. |
+| V6 cleanup/readback | Delete only owned minimal object/fixtures,then remove only exact new canary containers/network/data artifacts explicitly listed in final user grant;retain sanitized evidence and separately approved private recovery/key artifacts | Exact identity+created-by manifest verified before deletion;only owned targets changed;readback bindings/listeners gone and excluded original targets untouched. No prune,CLIstop,down-v,reset,old volume/transcript/worktree/junction deletion. If identity uncertain,retain+stop rather than guess. |
+
+Binding failure after create requires previously authorized immediate fail-stop of ONLY new exact canary IDs,followed by readback;this fallback must be in the execution grant before launch. No authority to stop existing shared services.
+
+All source-mentioned generator/Compose/Docker operations are proposed side effects,not executed from this document. Source-env support is not V1–V6 proof.
+
+## 3. Credential negative-control semantics
+
+Use owned pre-rotation A,NOT incident/shared keys. Every negative pairs with a B positive on the same endpoint/action+fixture,including header/role/key mapping where relevant. Distinguish gateway API key authorization,JWT signature,expired session/refresh token,Storage service token and S3 signing. Include unknown/wrong key only as additional control,not replacement for actual prior-A acceptance proof. Assert A was accepted before cutover,then A rejected after B and after approved restart/recovery;nonexistent users/buckets and network refusal cannot prove revocation.
+
+Multiple HMAC domains and persisted Realtime tenant fields remain explicit. Seed delete/reinsert behavior requires reviewed intended impacts and existing-connection/session policy. Choosing asymmetric keys cannot silently leave scalar HMAC accepted;minimal canary may use fresh scalar signing consistently instead of an unproved asymmetric transition. Cache TTL/reload details must be frozen in the probe spec before acceptance.
+
+## 4. Cleanup / retention / failure policy
+
+Final execution manifest must list exact generated directory roots,service/container-name set,new labels,the three approved named volumes with ZERO anonymous volumes,the two exact networks,fixture IDs and object path. After creation use full IDs for stop/removal and assert created-by/parent path/non-reparse identity. Never derive cleanup by broad project-name grep/prune or delete original named volumes. Keeping a canary artifact is preferable to deleting an uncertain resource.
+
+Credential/private backup retention requires user-selected owner and lifetime;do not put secrets in automatically pruned scratch or claim secure erasure. No generation into chat/logs;do not scrub incident transcripts. Evidence retention and private-key disposal are separate approved decisions.
+
+Failure:R/W/name/mount/exposure/data/verifier mismatch→fail-stop new canary only,retain evidence/data,return future lane immediately,report stage and booleans. No arbitrary retries,old key restore,shared/direct/cloud fallback,unapproved image change or timeout/assertion weakening.
+
+## 5. Exact command readiness — deliberately NOT READY
+
+| Component that must exist before one execution consent | Current state |
+|---|---|
+| Source-reviewed Windows ACL/exclusive/atomic private writer+no-value failure envelope | NOT IMPLEMENTED / W unproved |
+| Canonical single manifest with loopback publishes,all required env inputs,global names/DNS/tenant mapping,immutable image digests | SOURCE SURFACE KNOWN / rendered package absent |
+| Safe minimal-env launcher/private config-render projection/pre-import+worker target guard | DESIGN ONLY / no runnable command claimed |
+| Same-path A/B probes,cache/session policy,synthetic local sinks and owned fixture/object cleanup | DESIGN ONLY / exact endpoints/assertions not frozen |
+| Compatible DB+Storage backup/restore against fresh managed schemas and no old config reinstatement | DESIGN ONLY / exact tools/private restore recipe absent |
+| Full literal commands+approved paths/IDs/options+captured output boundary and rollback/fail-stop | NOT FROZEN;do not approve absent-script placeholders |
+
+Next permitted escalation:planner may commission implementation-only work and later a reviewed command-ready validation manifest. Current docs WO does NOT implement or run these tools. One consolidated execution request must include V0–V6 ceilings/stop conditions after missing components are resolved;architecture-direction approval alone is not runtime consent. Test environment success does not close shared incident or card20.
