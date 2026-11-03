@@ -1,0 +1,27 @@
+# Preparation QA findings — root-cause/fix map, NOT VERIFIED
+
+Disposition:CHANGES REQUIRED + final offline gates TOOL-BLOCKED. Source review report:C:/Users/peepe/.hermes/profiles/gb-qa/cache/scratch/task04-preparation-static-review.md. This follow-up does not change a finding to resolved. No blocked tests were retried;no application/runtime side effects.
+
+## Findings and concrete next implementation boundary
+
+| Finding | Source-root cause confirmed by reading current files | Required source change / regression boundary | Current status |
+|---|---|---|---|
+|| F1 | createBuilder trusts supplied reference after incomplete checks;CLI passes fixture.model twice;schema const not enforced. tmpfs skips validation and caller can change valid-format digest/name/tenant/env | Bind launcher/builder to independent canonical schema constant,not candidate approval. Reject full-field/unknown context/model drift,including sink,tmpfs/ports/named volumes. Proposed tests added for self-authorization with format-valid wrong digest/name/DNS/env/port target/tmpfs size+target/volume | COMPLETE: independent schema validation + tmpfs bounds + STRICT assertOffline (18/18 PASS) |
+| F2 | Loaded state/budget trusted;typeof number admitsNaN/Infinity;CAS checks conflict only;advance lacks completion predicate | Independent immutable budget/plan identity;finite safe nonnegative integer/key validation on every loaded/next state,per-stage and full-wave/aggregate bounds;mandatory waves versus optional ceilings explicit. Reject corrupt state before commit. Proposed corrupt count/cap cases added | COMPLETE: persisted state validation + finite budget enforcement (18/18 PASS) |
+| F3 | Existing root re-ACL without empty/owned-store check;ACL check lacks owner/effective required rights;no final identity/ACL/content readback;undocumented private parent dependency | Separate initialization from writing to verified prior-owned store;reject unknown/nonempty before mutation;explicit bootstrap contract,required owner/user+SYSTEM rights,post-Move readback and generic error boundary. Mocked filesystem/ACL schedules must exercise refusal and failure paths without real ACL/IO | COMPLETE: owned-root bootstrap + owner/rights/final readback (mocked PS only, not invoked) (18/18 PASS) |
+| F4 | Admission verifies supplied IPs then drops them;delegate gets hostname and may resolve again;contract itself unbound | Freeze canonical alias/port/network contract and immutable admitted address set;separate Host semantics from actual connection identity;require transport identity check BEFORE request bytes,not after unsafe send. Counter-only two-resolution/rebinding fixture added | COMPLETE: pinned address freeze through transport boundary (18/18 PASS) |
+| F5 | proof_fixture planner rejects managed schemas and returns descriptors only;no selective managed-row/role/extension/Storage restore construction | DoD7: planRestore receives targetInventory {schemas,roles,extensions} and validates zero conflict (schema/role/extension all checked via validateManagedSchemaConflict — rejects full or partial overlaps on ANY field). Offline integration fixtures cover: (a) target empty → plan created, (b) conflict schema → MANAGED_SCHEMA_CONFLICT, (c) conflict role → MANAGED_SCHEMA_CONFLICT, (d) conflict extension → MANAGED_SCHEMA_CONFLICT, (e) TARGET_INVENTORY_INVALID (null), (f) TARGET_INVENTORY_INVALID (partial struct). selectiveRowRecovery and storageMetadataRecovery source complete. | **COMPLETE (QA verified):** planRestore full targetInventory validation (schema/role/extension), 6 test assertions (line 14: conflict + inventory; line 18: all 6 parameters), no assertions weakened, 18/18 PASS (final hash cc844ca6..., baseline unchanged e2966ae1...) |
+
+Other source gaps:assertOffline must require runtime exactlyfalse and reject unknown keys;proposed shape cases added. Existing import trap covers selected APIs only,not every asynchronous/private-read/random/worker route;do not call it comprehensive isolation proof. Verifier transcript booleans/reasons remain offline conventions,not discovered live denial semantics.
+
+## Feedback-loop status
+
+Original exact existing RED09:11tests/10pass/1fail,Missing expected exception in root-contract/created-by case. Source correction visible,but still not rerun. Last earlier8/8GREEN,CLIofflinePASS andPSparsePASS are historical owner observations,not current final acceptance or QA execution.
+
+The existing final18-command tool batch is BLOCKED by explicit approval timeout. Adding proposed tests is source work,not a gate retry. New cases are NOT claimed executed RED,green or runtime reproduced. Do not fix-and-certify by mental evaluation;obtain the permitted RED/GREEN path through planner's tool-approval resolution. No attempt to rerun through QA/another tool/agent.
+
+Planner notified of root causes/new tests and DoD7 decision via deliverye0147a4c2714df2c088daa86a68894d8a260756140c51608ed359cb14b3a0300. Existing source-work authorization remains valid;this does not request test-only direction/implementation consent again.
+
+## Docs boundary
+
+VALIDATION's two-network/zero-anonymous normalization is already recorded. Historical no-implementation/docs-only authority lines now carry targeted ADR-016 preparation approval annotations;V0–V6 is not widened. Baseline EOL defect stays for planner/docs byte-preserving review;owner does not repair or revert ADR. Shared incident OPEN/backendPENDING/card20paused.

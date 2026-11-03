@@ -1,0 +1,587 @@
+{
+  "artifact_type": "DOCUMENTATION-ONLY FINAL CANDIDATE SPEC v1;NOT runnable Compose/launcher input",
+  "executable": false,
+  "architecture_accepted": false,
+  "project": "gb-env-proof-01",
+  "platform": "linux/amd64",
+  "vendor_commit": "831d6302c7361c0a5115a91e953bdf084eb85330",
+  "runtime_and_Windows_ACL_proof": "OPEN",
+  "public_registry_metadata_source_files": [
+    "REGISTRY-METADATA-BATCH1.json",
+    "REGISTRY-METADATA-BATCH2.json",
+    "REGISTRY-METADATA-BATCH3.json"
+  ],
+  "paths": {
+    "new_data_root": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01",
+    "new_private_root": "C:/Users/peepe/gb-test-env-private/gb-env-proof-01"
+  },
+  "networks": [
+    {
+      "name": "gb-env-proof-01-net",
+      "driver": "bridge",
+      "internal": true
+    },
+    {
+      "name": "gb-env-proof-01-deny-net",
+      "driver": "bridge",
+      "internal": true
+    }
+  ],
+  "named_volumes": [
+    "gb-env-proof-01-db-config-live",
+    "gb-env-proof-01-deno-cache",
+    "gb-env-proof-01-db-config-restore"
+  ],
+  "anonymous_volume_budget": 0,
+  "services": [
+    {
+      "service": "studio",
+      "container_name": "supabase-studio",
+      "image": "docker.io/supabase/studio@sha256:bfb1b1e4a7ee9fee9f0f5aaa86f990f271305cf89d736f64b437e11d5d85b86d",
+      "source_tag_selector": "supabase/studio:2026.10.12-sha-3699278",
+      "platform": "linux/amd64",
+      "network": "gb-env-proof-01-net",
+      "dns_aliases": [
+        "studio",
+        "supabase-studio"
+      ],
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/vendor/docker/volumes/snippets",
+          "target": "/app/snippets",
+          "access": "ro",
+          "source_line": 65,
+          "status": "proposed derivative;startup compatibility unproved"
+        },
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/functions",
+          "target": "/app/edge-functions",
+          "access": "ro",
+          "source_line": 66,
+          "status": "proposed derivative;startup compatibility unproved"
+        }
+      ],
+      "published_ports": [],
+      "cpu_limit_proposal": 0.5,
+      "memory_limit_MiB_proposal": 768,
+      "image_declared_volume_destinations": [],
+      "expected_anonymous_volumes": 0
+    },
+    {
+      "service": "api-gw",
+      "container_name": "supabase-envoy",
+      "image": "docker.io/envoyproxy/envoy@sha256:be87c8b52663c1164a5bdf3c5419017a269cb3d8c74be1ec93638a71f1ffbd4b",
+      "source_tag_selector": "envoyproxy/envoy:v1.39.1",
+      "platform": "linux/amd64",
+      "network": "gb-env-proof-01-net",
+      "dns_aliases": [
+        "api-gw",
+        "supabase-envoy"
+      ],
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/vendor/docker/volumes/api/envoy/envoy.yaml",
+          "target": "/etc/envoy/envoy.yaml",
+          "access": "ro",
+          "source_line": 93,
+          "status": "proposed derivative;startup compatibility unproved"
+        },
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/vendor/docker/volumes/api/envoy/cds.yaml",
+          "target": "/etc/envoy/cds.yaml",
+          "access": "ro",
+          "source_line": 94,
+          "status": "proposed derivative;startup compatibility unproved"
+        },
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/vendor/docker/volumes/api/envoy/lds.template.yaml",
+          "target": "/etc/envoy/lds.template.yaml",
+          "access": "ro",
+          "source_line": 95,
+          "status": "proposed derivative;startup compatibility unproved"
+        },
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/vendor/docker/volumes/api/envoy/docker-entrypoint.sh",
+          "target": "/docker-entrypoint.sh",
+          "access": "ro",
+          "source_line": 96,
+          "status": "proposed derivative;startup compatibility unproved"
+        }
+      ],
+      "published_ports": [
+        {
+          "host_ip": "127.0.0.1",
+          "published": 56321,
+          "target": 8000
+        }
+      ],
+      "cpu_limit_proposal": 0.25,
+      "memory_limit_MiB_proposal": 256,
+      "image_declared_volume_destinations": [],
+      "expected_anonymous_volumes": 0
+    },
+    {
+      "service": "auth",
+      "container_name": "supabase-auth",
+      "image": "docker.io/supabase/gotrue@sha256:839f529492d116b4e8b7777c953a27c381d34c15a744b1bcefde5eefaa1f9f9f",
+      "source_tag_selector": "supabase/gotrue:v2.197.0",
+      "platform": "linux/amd64",
+      "network": "gb-env-proof-01-net",
+      "dns_aliases": [
+        "auth",
+        "supabase-auth"
+      ],
+      "mounts": [],
+      "published_ports": [],
+      "cpu_limit_proposal": 0.5,
+      "memory_limit_MiB_proposal": 512,
+      "image_declared_volume_destinations": [],
+      "expected_anonymous_volumes": 0
+    },
+    {
+      "service": "rest",
+      "container_name": "supabase-rest",
+      "image": "docker.io/postgrest/postgrest@sha256:c847127074bd26e1b8d3f7c0e6e01e5346f4b85dd34f5d699fd230af960827c0",
+      "source_tag_selector": "postgrest/postgrest:v14.18",
+      "platform": "linux/amd64",
+      "network": "gb-env-proof-01-net",
+      "dns_aliases": [
+        "rest",
+        "supabase-rest"
+      ],
+      "mounts": [],
+      "published_ports": [],
+      "cpu_limit_proposal": 0.25,
+      "memory_limit_MiB_proposal": 256,
+      "image_declared_volume_destinations": [],
+      "expected_anonymous_volumes": 0
+    },
+    {
+      "service": "realtime",
+      "container_name": "realtime-dev.supabase-realtime",
+      "image": "docker.io/supabase/realtime@sha256:1591e9049bf15fd392da9e8344db892f6acfe9da274517327dbd14733f32b9e1",
+      "source_tag_selector": "supabase/realtime:v2.143.3",
+      "platform": "linux/amd64",
+      "network": "gb-env-proof-01-net",
+      "dns_aliases": [
+        "realtime",
+        "realtime-dev.supabase-realtime"
+      ],
+      "mounts": [],
+      "published_ports": [],
+      "cpu_limit_proposal": 0.5,
+      "memory_limit_MiB_proposal": 512,
+      "image_declared_volume_destinations": [],
+      "expected_anonymous_volumes": 0,
+      "tenant_contract": {
+        "intended_external_id": "realtime-dev",
+        "source_correspondence": "vendor container_name+candidate seed;actual tenant proof OPEN"
+      }
+    },
+    {
+      "service": "storage",
+      "container_name": "supabase-storage",
+      "image": "docker.io/supabase/storage-api@sha256:92c5fe87ba5291915d0c21ca530ece9a58e13cc76a36a6c84fc69121a8dde799",
+      "source_tag_selector": "supabase/storage-api:v1.81.0",
+      "platform": "linux/amd64",
+      "network": "gb-env-proof-01-net",
+      "dns_aliases": [
+        "storage",
+        "supabase-storage"
+      ],
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/live/storage",
+          "target": "/var/lib/storage",
+          "access": "rw",
+          "source_line": 392,
+          "status": "proposed derivative;startup compatibility unproved"
+        }
+      ],
+      "published_ports": [],
+      "cpu_limit_proposal": 1,
+      "memory_limit_MiB_proposal": 1024,
+      "image_declared_volume_destinations": [],
+      "expected_anonymous_volumes": 0
+    },
+    {
+      "service": "imgproxy",
+      "container_name": "supabase-imgproxy",
+      "image": "docker.io/darthsim/imgproxy@sha256:80200afeaa85c4abb58bbcb84deadab6d6cf5c79ac7af0694ff22e2b5de1477b",
+      "source_tag_selector": "darthsim/imgproxy:v3.31.4",
+      "platform": "linux/amd64",
+      "network": "gb-env-proof-01-net",
+      "dns_aliases": [
+        "imgproxy",
+        "supabase-imgproxy"
+      ],
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/live/storage",
+          "target": "/var/lib/storage",
+          "access": "ro",
+          "source_line": 399,
+          "status": "proposed derivative;startup compatibility unproved"
+        }
+      ],
+      "published_ports": [],
+      "cpu_limit_proposal": 0.25,
+      "memory_limit_MiB_proposal": 256,
+      "image_declared_volume_destinations": [],
+      "expected_anonymous_volumes": 0
+    },
+    {
+      "service": "meta",
+      "container_name": "supabase-meta",
+      "image": "docker.io/supabase/postgres-meta@sha256:822227a8d12c109b24b8d8f1dae98a9c089a698b4586d35527dadf929e655136",
+      "source_tag_selector": "supabase/postgres-meta:v0.100.0",
+      "platform": "linux/amd64",
+      "network": "gb-env-proof-01-net",
+      "dns_aliases": [
+        "meta",
+        "supabase-meta"
+      ],
+      "mounts": [],
+      "published_ports": [],
+      "cpu_limit_proposal": 0.25,
+      "memory_limit_MiB_proposal": 256,
+      "image_declared_volume_destinations": [],
+      "expected_anonymous_volumes": 0
+    },
+    {
+      "service": "functions",
+      "container_name": "supabase-edge-functions",
+      "image": "docker.io/supabase/edge-runtime@sha256:fded42ff725708990b1a0803633c2659453259d075c4bec6b4d01dfb82dc055e",
+      "source_tag_selector": "supabase/edge-runtime:v1.77.4",
+      "platform": "linux/amd64",
+      "network": "gb-env-proof-01-net",
+      "dns_aliases": [
+        "functions",
+        "supabase-edge-functions"
+      ],
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/functions",
+          "target": "/home/deno/functions",
+          "access": "ro",
+          "source_line": 439,
+          "status": "proposed derivative;startup compatibility unproved"
+        },
+        {
+          "type": "volume",
+          "source": "gb-env-proof-01-deno-cache",
+          "target": "/root/.cache/deno",
+          "access": "rw",
+          "source_line": 440,
+          "status": "proposed derivative;startup compatibility unproved"
+        }
+      ],
+      "published_ports": [],
+      "cpu_limit_proposal": 0.5,
+      "memory_limit_MiB_proposal": 512,
+      "image_declared_volume_destinations": [],
+      "expected_anonymous_volumes": 0
+    },
+    {
+      "service": "db",
+      "container_name": "supabase-db",
+      "image": "docker.io/supabase/postgres@sha256:5a4314708484bec672de2c09653a5c01fb1c84a998564ac231b0325e2238ed5b",
+      "source_tag_selector": "supabase/postgres:17.6.1.136",
+      "platform": "linux/amd64",
+      "network": "gb-env-proof-01-net",
+      "dns_aliases": [
+        "db",
+        "supabase-db"
+      ],
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/vendor/docker/volumes/db/realtime.sql",
+          "target": "/docker-entrypoint-initdb.d/migrations/99-realtime.sql",
+          "access": "ro",
+          "source_line": 483,
+          "status": "proposed derivative;startup compatibility unproved"
+        },
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/vendor/docker/volumes/db/webhooks.sql",
+          "target": "/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql",
+          "access": "ro",
+          "source_line": 485,
+          "status": "proposed derivative;startup compatibility unproved"
+        },
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/vendor/docker/volumes/db/roles.sql",
+          "target": "/docker-entrypoint-initdb.d/init-scripts/99-roles.sql",
+          "access": "ro",
+          "source_line": 487,
+          "status": "proposed derivative;startup compatibility unproved"
+        },
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/vendor/docker/volumes/db/jwt.sql",
+          "target": "/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql",
+          "access": "ro",
+          "source_line": 489,
+          "status": "proposed derivative;startup compatibility unproved"
+        },
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/live/db",
+          "target": "/var/lib/postgresql/data",
+          "access": "rw",
+          "source_line": 491,
+          "status": "proposed derivative;startup compatibility unproved"
+        },
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/vendor/docker/volumes/db/_supabase.sql",
+          "target": "/docker-entrypoint-initdb.d/migrations/97-_supabase.sql",
+          "access": "ro",
+          "source_line": 493,
+          "status": "proposed derivative;startup compatibility unproved"
+        },
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/vendor/docker/volumes/db/logs.sql",
+          "target": "/docker-entrypoint-initdb.d/migrations/99-logs.sql",
+          "access": "ro",
+          "source_line": 495,
+          "status": "proposed derivative;startup compatibility unproved"
+        },
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/vendor/docker/volumes/db/pooler.sql",
+          "target": "/docker-entrypoint-initdb.d/migrations/99-pooler.sql",
+          "access": "ro",
+          "source_line": 497,
+          "status": "proposed derivative;startup compatibility unproved"
+        },
+        {
+          "type": "volume",
+          "source": "gb-env-proof-01-db-config-live",
+          "target": "/etc/postgresql-custom",
+          "access": "rw",
+          "source_line": 499,
+          "status": "proposed derivative;startup compatibility unproved"
+        }
+      ],
+      "published_ports": [],
+      "cpu_limit_proposal": 2,
+      "memory_limit_MiB_proposal": 2048,
+      "image_declared_volume_destinations": [],
+      "expected_anonymous_volumes": 0
+    },
+    {
+      "service": "supavisor",
+      "container_name": "supabase-pooler",
+      "image": "docker.io/supabase/supavisor@sha256:c57b1222f3ca21a3180c202dea14806cc0be67cda633eb62bcc6481efc0e7a95",
+      "source_tag_selector": "supabase/supavisor:2.9.13",
+      "platform": "linux/amd64",
+      "network": "gb-env-proof-01-net",
+      "dns_aliases": [
+        "supavisor",
+        "supabase-pooler"
+      ],
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/vendor/docker/volumes/pooler/pooler.exs",
+          "target": "/etc/pooler/pooler.exs",
+          "access": "ro",
+          "source_line": 540,
+          "status": "proposed derivative;startup compatibility unproved"
+        }
+      ],
+      "published_ports": [
+        {
+          "host_ip": "127.0.0.1",
+          "published": 56329,
+          "target": 6543
+        }
+      ],
+      "cpu_limit_proposal": 0.5,
+      "memory_limit_MiB_proposal": 512,
+      "image_declared_volume_destinations": [],
+      "expected_anonymous_volumes": 0,
+      "tenant_contract": {
+        "POOLER_TENANT_ID": "gb-env-proof-01",
+        "POOLER_POOL_MODE": "transaction",
+        "intended_client_role": "postgres",
+        "intended_client_username": "postgres.gb-env-proof-01",
+        "proof": "pooler.exs:10 env-based external_id;actual pooled login/mode OPEN"
+      }
+    },
+    {
+      "service": "smtp-sink",
+      "container_name": "gb-env-proof-01-smtp-sink",
+      "image": "docker.io/axllent/mailpit@sha256:18156f9ee243aa339170ac33d09d6d5a80b10d9e06b265f90f223a777a8f4b73",
+      "source_tag_selector": "axllent/mailpit:v1.33.0",
+      "platform": "linux/amd64",
+      "network": "gb-env-proof-01-net",
+      "dns_aliases": [
+        "smtp-sink",
+        "gb-env-proof-01-smtp-sink"
+      ],
+      "mounts": [
+        {
+          "type": "tmpfs",
+          "target": "/tmp",
+          "size_MiB": 64
+        }
+      ],
+      "published_ports": [],
+      "cpu_limit_proposal": 0.25,
+      "memory_limit_MiB_proposal": 128,
+      "image_declared_volume_destinations": [],
+      "expected_anonymous_volumes": 0,
+      "sink_contract": {
+        "smtp_bind": "0.0.0.0:1025",
+        "api_bind": "0.0.0.0:8025",
+        "MP_DATABASE": "/tmp/mailpit.db",
+        "MP_DISABLE_VERSION_CHECK": true,
+        "MP_SMTP_DISABLE_RDNS": true,
+        "MP_SMTP_RELAY_ALL": false,
+        "forbid_env_prefix_exceptions": [
+          "MP_SMTP_RELAY_ALL=false"
+        ],
+        "forbid_env_prefixes": [
+          "MP_SMTP_RELAY_",
+          "MP_SMTP_FORWARD_"
+        ],
+        "forbid_env_keys": [
+          "MP_WEBHOOK_URL",
+          "MP_ENABLE_RSPAMD",
+          "MP_ENABLE_SPAMASSASSIN"
+        ],
+        "relay_or_forward_config_mounts": [],
+        "recipient_allowlist": [
+          "canary@example.invalid"
+        ],
+        "observed_delivery": false
+      }
+    },
+    {
+      "service": "probe",
+      "container_name": "gb-env-proof-01-probe",
+      "image": "docker.io/library/node@sha256:4eefa1bfce4197942661ef9148247d779ddf1bb0ee006d3294a467609de60724",
+      "source_tag_selector": "node:24-alpine",
+      "platform": "linux/amd64",
+      "network": "gb-env-proof-01-net",
+      "dns_aliases": [
+        "probe",
+        "gb-env-proof-01-probe"
+      ],
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/probes",
+          "target": "/proof",
+          "access": "ro"
+        },
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-private/gb-env-proof-01/canary",
+          "target": "/run/proof-private",
+          "access": "ro"
+        }
+      ],
+      "published_ports": [],
+      "cpu_limit_proposal": 0.25,
+      "memory_limit_MiB_proposal": 256,
+      "image_declared_volume_destinations": [],
+      "expected_anonymous_volumes": 0,
+      "sink_contract": {
+        "internal_http_sink": "http://probe:8081",
+        "paths": [
+          "/healthz",
+          "/line",
+          "/push",
+          "/webhook"
+        ],
+        "output": "counts/booleans only;discard message bodies",
+        "implementation": "NOT IMPLEMENTED"
+      }
+    },
+    {
+      "service": "deny-sentinel",
+      "container_name": "gb-env-proof-01-deny-sentinel",
+      "image": "docker.io/library/node@sha256:4eefa1bfce4197942661ef9148247d779ddf1bb0ee006d3294a467609de60724",
+      "platform": "linux/amd64",
+      "network": "gb-env-proof-01-deny-net",
+      "dns_aliases": [
+        "deny-sentinel"
+      ],
+      "mounts": [
+        {
+          "type": "bind",
+          "source": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/prepared/probes",
+          "target": "/proof",
+          "access": "ro"
+        }
+      ],
+      "published_ports": [
+        {
+          "host_ip": "127.0.0.1",
+          "published": 56325,
+          "target": 8080
+        }
+      ],
+      "cpu_limit_proposal": 0.25,
+      "memory_limit_MiB_proposal": 128,
+      "image_declared_volume_destinations": [],
+      "expected_anonymous_volumes": 0,
+      "implementation": "NOT IMPLEMENTED;synthetic outside-network positive-control listener only"
+    }
+  ],
+  "V5_mount_switch": {
+    "db_data": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/restore/db",
+    "storage_data": "C:/Users/peepe/gb-test-env-data/gb-env-proof-01/restore/storage",
+    "db_config_named_volume": "gb-env-proof-01-db-config-restore",
+    "original_canary_data_retained": true
+  },
+  "budgets": {
+    "classification": "DESIGN ESTIMATES/LIMITS,not observed usage",
+    "sum_per_service_cpu_limits": 7.25,
+    "sum_per_service_memory_MiB_limits": 7424,
+    "hard_design_CPU_total": 8,
+    "hard_design_RAM_GiB_total": 8,
+    "new_disk_budget_GiB": 48,
+    "fresh_free_disk_gate_GiB": 64,
+    "public_manifest_layer_compressed_sum_bytes_upper_bound_without_dedup": 2226633911,
+    "public_manifest_layer_compressed_sum_GiB": 2.074,
+    "pull_wire_budget_GiB": 8,
+    "pull_attempts_per_digest": 1,
+    "unique_image_digests": 13,
+    "wall_clock_minutes": 180,
+    "stage_time_minutes": {
+      "V0": 10,
+      "V1": 10,
+      "V2": 10,
+      "V3": 70,
+      "V4": 30,
+      "V5": 35,
+      "V6": 15
+    }
+  },
+  "remaining_static_or_runtime_unknowns": [
+    "actual installed engine/platform/Compose/PowerShell/filesystem versions and resources",
+    "image build-to-source attestation not inferred from registry digest",
+    "rendered runnable manifest and enforcement implementation absent",
+    "Windows read-only bind/initialization/private ACL compatibility",
+    "DNS/service/tenant effective behavior and default-deny dataplane proof",
+    "exact helper invocations/backup+restore commands absent",
+    "host pull CDN redirect destination allowlist not frozen",
+    "external-host exposure proof unavailable unless separately arranged"
+  ]
+}

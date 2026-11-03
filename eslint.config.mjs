@@ -39,6 +39,7 @@ const eslintConfig = [
       "theme/badgame.js",
       "theme/badgame.d.ts",
       "theme/badgame.variants.d.ts",
+      "tools/test-env/**",
     ],
   },
   {
