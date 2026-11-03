@@ -1,0 +1,20 @@
+diff --git a/e2e-browser/admin-wallet.spec.ts b/e2e-browser/admin-wallet.spec.ts
+index ecf2914..9c4d73e 100644
+--- a/e2e-browser/admin-wallet.spec.ts
++++ b/e2e-browser/admin-wallet.spec.ts
+@@ -39 +39 @@
+-    await page.getByRole('textbox', { name: /^จำนวนเงิน \(บาท\)/ }).fill('25.00');
++    await page.getByRole('textbox', { name: /^จำนวนเงิน \(บาท\)\s*จำเป็น$/ }).fill('25.00');
+@@ -41 +41 @@
+-    await page.getByRole('textbox', { name: /^เหตุผล/ }).fill('เครดิตทดสอบ');
++    await page.getByRole('textbox', { name: /^เหตุผล\s*จำเป็น$/ }).fill('เครดิตทดสอบ');
+@@ -58,2 +58,2 @@
+-    await page.getByRole('textbox', { name: /^จำนวนเงิน \(บาท\)/ }).fill('25.00');
+-    await page.getByRole('textbox', { name: /^เหตุผล/ }).fill('เครดิตทดสอบ');
++    await page.getByRole('textbox', { name: /^จำนวนเงิน \(บาท\)\s*จำเป็น$/ }).fill('25.00');
++    await page.getByRole('textbox', { name: /^เหตุผล\s*จำเป็น$/ }).fill('เครดิตทดสอบ');
+@@ -74,2 +74,2 @@
+-    await page.getByRole('textbox', { name: /^จำนวนเงิน \(บาท\)/ }).fill('10.00');
+-    await page.getByRole('textbox', { name: /^เหตุผล/ }).fill('คืนอดีตสมาชิก');
++    await page.getByRole('textbox', { name: /^จำนวนเงิน \(บาท\)\s*จำเป็น$/ }).fill('10.00');
++    await page.getByRole('textbox', { name: /^เหตุผล\s*จำเป็น$/ }).fill('คืนอดีตสมาชิก');

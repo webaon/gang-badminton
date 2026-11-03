@@ -2,7 +2,19 @@
 
 ## Current status
 
-Current source is ready for scoped commit and independent QA. The contrast edit has now been verified with a fresh default production build and the complete browser suite. No push or deployment has been performed.
+Implementation is committed at `1dfaa0911c35f35f68a8c2d532153aa0fc4bcce5`. A follow-up tightens wallet textbox locators to match the complete Thai required-field name, preserving every existing assertion. No push or deployment has been performed; independent QA acceptance remains pending.
+
+### Latest approved re-verification after locator tightening
+
+- Owner permission, relayed by planner, lifted shared-local test HOLD for WO-6.5b only; cards 17–19 remain excluded.
+- Planner explicitly accepted the existing self-name-absent assertion instead of the proposed self-topup mutation/error-detail case. The uncommitted draft case was removed under that decision; no backend/i18n change was made.
+- Default Turbopack build: PASS, exit 0 (`wo65b-approved-recheck-build.log`); no webpack fallback.
+- Typecheck/lint and `git diff --check`: PASS, exit 0.
+- Focused wallet: 1/1 PASS, 8.4 seconds (`wo65b-approved-wallet.log`).
+- Full Playwright: 62/62 PASS, 3.2 minutes, exit 0 (`wo65b-approved-full.log`). The log also contains a WebServer `The destination stream closed early` diagnostic; all tests completed successfully.
+- Build/DB lane released and planner notified immediately after completion. No further test run is scheduled by frontend.
+- `wallet-locators.patch` records old-to-new changes: anchored label prefix becomes anchored full label requiring `จำเป็น`; only whitespace between label and suffix is flexible. Amount, history, ledger and self-name absence assertions are unchanged.
+- Unit 625 passed/1 skipped is earlier implementation evidence, not a new unit run for this locator-only change.
 
 ### Verified before the latest contrast edit
 

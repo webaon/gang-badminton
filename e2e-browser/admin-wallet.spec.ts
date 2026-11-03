@@ -36,9 +36,9 @@ test('wallet: reason and confirmation, uncertain write recovery, signed history 
     await page.getByRole('button', { name: /^เลือกเติมเครดิต / }).click();
     await expect(page.getByText('เครดิตคงเหลือ ฿0.00', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'เติมเครดิต', exact: true }).click();
-    await page.getByRole('textbox', { name: /^จำนวนเงิน \(บาท\)/ }).fill('25.00');
+    await page.getByRole('textbox', { name: /^จำนวนเงิน \(บาท\)\s*จำเป็น$/ }).fill('25.00');
     await expect(page.getByRole('button', { name: 'ตรวจทานและไปหน้ายืนยัน' })).toBeDisabled();
-    await page.getByRole('textbox', { name: /^เหตุผล/ }).fill('เครดิตทดสอบ');
+    await page.getByRole('textbox', { name: /^เหตุผล\s*จำเป็น$/ }).fill('เครดิตทดสอบ');
     await page.getByRole('button', { name: 'ตรวจทานและไปหน้ายืนยัน' }).click();
     const before = await pool.query('select count(*)::int as n from public.credit_ledger where gang_id=$1 and user_id=$2', [gang.id, activeMember.id]);
     expect(before.rows[0].n).toBe(0);
@@ -55,8 +55,8 @@ test('wallet: reason and confirmation, uncertain write recovery, signed history 
     await expect(page.getByRole('button', { name: 'เติมเครดิต', exact: true })).toBeEnabled();
     await expect(page.getByRole('button', { name: 'ยืนยันเติมเครดิต', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'เติมเครดิต', exact: true }).click();
-    await page.getByRole('textbox', { name: /^จำนวนเงิน \(บาท\)/ }).fill('25.00');
-    await page.getByRole('textbox', { name: /^เหตุผล/ }).fill('เครดิตทดสอบ');
+    await page.getByRole('textbox', { name: /^จำนวนเงิน \(บาท\)\s*จำเป็น$/ }).fill('25.00');
+    await page.getByRole('textbox', { name: /^เหตุผล\s*จำเป็น$/ }).fill('เครดิตทดสอบ');
     await page.getByRole('button', { name: 'ตรวจทานและไปหน้ายืนยัน' }).click();
     await page.getByRole('button', { name: 'ยืนยันเติมเครดิต', exact: true }).click();
     await expect(page.getByText('เครดิตคงเหลือ ฿25.00', { exact: true })).toBeVisible();
@@ -71,8 +71,8 @@ test('wallet: reason and confirmation, uncertain write recovery, signed history 
     await expect(page.getByText('เครดิตคงเหลือ ฿40.00', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'เติมเครดิต', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'จ่ายคืนเงินสด', exact: true }).click();
-    await page.getByRole('textbox', { name: /^จำนวนเงิน \(บาท\)/ }).fill('10.00');
-    await page.getByRole('textbox', { name: /^เหตุผล/ }).fill('คืนอดีตสมาชิก');
+    await page.getByRole('textbox', { name: /^จำนวนเงิน \(บาท\)\s*จำเป็น$/ }).fill('10.00');
+    await page.getByRole('textbox', { name: /^เหตุผล\s*จำเป็น$/ }).fill('คืนอดีตสมาชิก');
     await page.getByRole('button', { name: 'ตรวจทานและไปหน้ายืนยัน' }).click();
     await page.getByRole('button', { name: 'ยืนยันว่าจ่ายคืนเงินสดแล้ว' }).click();
     await expect(page.getByText('เครดิตคงเหลือ ฿30.00', { exact: true })).toBeVisible();
