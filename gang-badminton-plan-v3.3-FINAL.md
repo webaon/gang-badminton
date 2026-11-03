@@ -434,3 +434,12 @@ Commit + push เป็นช่วงๆ ตามโมดูลไป `claude
 - คำตัดสินเจ้าของงาน (29 ต.ค.): **Q2ก** เหรัญญิก = payment.verify + gang.finance.view/manage + credit.read.other/overpayment.record/payout.record/return_charge (❌ credit.topup ❌ billing.close ❌ pricing) · **Q4ก** แต่งตั้งได้โดย admin+owner · ผู้ถือชุดสิทธิ์แต่งตั้งต่อไม่ได้ · **Q6ก** เหรัญญิกเห็นเฉพาะ event payment.* / audit.credit_* + credit_*
 
 - **แก้ไขเพิ่ม (31 ต.ค. 2026 · R-roles-2a `63239db`)**: RLS policy **ห้าม**เรียก `has_gang_permission()` ต่อแถว (วัด local payments 20k แถว: 5.5s vs is_gang_admin 0.29s + tenant-isolation infinite recursion) ⇒ policy ใช้ `gang_id = any((select gangs_with_permission('<action>'))::uuid[])` (InitPlan · 3ms) · `has_gang_permission`/`actor_has_permission` ใช้ใน DB function เท่านั้น · ความเท่ากันพิสูจน์ 738 เคส + role-matrix มีเทสต์กัน regress · ใช้กับ R-roles-2b/2c ทุกตัว
+
+### ADR-016 — Test-only environment direction + preparation source/offline fixtures (explicit user approval via planner)
+- Context:reviewed CLI-only S3 credential setter unsupported;historical isolated stopped,shared-local incident OPEN. Existing production architecture does not change.
+- Options:★fresh synthetic official Compose-derived TEST-ONLY candidate;or keep paused. Select test-only direction,not actual deployment.
+- Decision:sole owner gb-integrations may implement PREPARATION-WO source and offline dummy/no-network checks;full record `docs/adr/ADR-016-test-environment-preparation.md`.
+- Preserve old/shared data and credentials by non-use;R1 two networks/zero anonymous-volume budget and all operation ceilings unchanged.
+- Forbidden:image pull,containers/networks/DB/V0–V6,real credential inspection/generation/rotation,shared/cloud changes,commit/push/deploy without separate approval.
+- Consequences:QA verifies actual offline commands/exits;runtime ACL/egress/tenant/revocation/restore remain OPEN. Card20 stays paused;no incident clearance or runtime readiness inferred.
+
