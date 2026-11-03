@@ -308,6 +308,11 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 
 **Production**: hotfix open-redirect ที่ `/sign-in?next=` merge เข้า `main` ผ่าน **PR #15 → `71d62ed`** แล้ว deploy แล้ว (`main` remote = `71d62ed`)
 
+**Task04 (test-env preparation)** — ✅ offline/source **CLOSED** (`c8a4478` tools/test-env + tsconfig/eslint exclude · `be0592a` ADR-016 ต่อท้าย baseline) · QA: `node --test` 18/18 · tsc/eslint exit 0 · secret scan clean · owner @gb-integrations
+- ⏸ runtime V0–V6 ยัง **NOT RUN / HOLD**
+- 🔴 shared-local credential incident ยัง **OPEN**
+- ⏸ card20 **paused**
+
 **คำตัดสินเจ้าของงาน** (plan §3.1 และ §9):
 - C2: ใช้ tokens v4 เป็น source of truth · ชื่อในแอปยังเป็น "Gang Badminton"
 - C3: ยังเปลี่ยนตาม OS (`mode="system"`) ⇒ ต้องออกแบบ dark tokens เพิ่ม (v4 ไม่มี) — อยู่ใน WO-6.0
