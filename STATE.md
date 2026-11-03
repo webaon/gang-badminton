@@ -315,6 +315,7 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 - ⏸ **V2 (real credential generation): ยังไม่รัน** รอ authorize แยก
 - ⏸ card20 / shared-local resources **ไม่ถูกแตะ** (ยืนยัน 2 ทาง)
 - 🔴 shared-local credential incident ยัง **OPEN**
+- **เจ้าของตัดสิน (4 พ.ย. 2026):** ระหว่างที่ shared-local credential incident ยัง OPEN ยังใช้ shared-local รัน DB/e2e test ตามปกติได้ **ยกเว้นใบ 17-19** ซึ่งต้องรอ isolated test-env ใหม่ (Task04) ห้าม fallback ไปใช้ shared · ผลที่ตามมา: cloud push 0047→0053 ต้องรอใบ 17-19 ผ่าน runtime ก่อน
 - ⏸ card20 **paused**
 
 **คำตัดสินเจ้าของงาน** (plan §3.1 และ §9):
