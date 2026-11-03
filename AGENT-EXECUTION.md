@@ -1764,7 +1764,7 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | B1.a+c | ปุ่ม LINE Login + ผูก/ถอด LINE ในโปรไฟล์ (หลัง flag `LINE_PLATFORM_LOGIN_ENABLED`) | @gb-integrations | ✅ `217ad60` QA ผ่าน · ⚠️ `b48bd1a..1967be2` build ไม่ผ่าน ห้าม cherry-pick แยก · รอเจ้าของงานตั้งค่า LINE (`docs/ops/line-login-setup.md`) แล้วค่อย spike S1–S5 |
 | hotfix | open redirect `/sign-in?next=` → `7e90739` QA ผ่าน → PR #15 เข้า main | @gb-planner | ⏳ รอเจ้าของงาน OK merge |
 | Task04-V1 | Task04 V1 private-writer ACL canary — private root `C:/Users/peepe/gb-test-env-private/gb-env-proof-01` (DACL SYSTEM+user, protected) · 2 canary ไม่ใช่ความลับ · 4 เทสต์ PASS · V2 ยังไม่รัน รอ authorize แยก | @gb-integrations (runner @gb-planner) | ✅ QA PASS (ยืนยันรันจริง 2 ฝ่าย) |
-| Task04-V0 | Task04 V0 preflight (read-only) — evidence `tools/test-env/v0-evidence/` · V1–V6 ยังไม่รัน รอ authorize แยกต่อหน่วย | @gb-integrations (runner @gb-planner) | ✅ QA PASS · no side-effects (docker ps -a count=0 gb-env-proof-01) |
+| Task04-V0 | Task04 V0 preflight (read-only) — evidence `tools/test-env/v0-evidence/*.txt` (local only ไม่ commit · ดูสรุปใน STATE.md) · V1–V6 ยังไม่รัน รอ authorize แยกต่อหน่วย | @gb-integrations (runner @gb-planner) | ✅ QA PASS · no side-effects (docker ps -a count=0 gb-env-proof-01) |
 | Task04-commit | Task04 preparation (offline/source) — `c8a4478` tools/test-env + tsconfig/eslint exclude · `be0592a` ADR-016 ต่อท้าย baseline | @gb-integrations | ✅ QA PASS (node --test 18/18 · tsc/eslint exit 0 · secret scan clean) · credential incident OPEN · card20 paused |
 
 - **Forbidden ร่วมทุกใบใน Track A**: ห้ามมี migration · ห้ามแตะ DB function / state machine / `domain/billing` ·
