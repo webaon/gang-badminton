@@ -6,6 +6,7 @@ import { POOLED_URL, serviceClient } from '../tests/helpers/db';
 const pool = new Pool({ connectionString: POOLED_URL });
 import { paymentSlipPath } from '../lib/storage/paths';
 import { mkdir } from 'node:fs/promises';
+import { expectReadableControl } from './finance-contrast';
 import { signUp, uniqueSuffix, watchConsole } from './helpers';
 
 test.afterAll(async () => { await pool.end(); });
@@ -85,6 +86,15 @@ test('H32/H34: actual received → verify → overpayment; aborted request recov
   await expect(page.getByText('คืนเข้าเครดิตแล้ว ฿50.00').first()).toBeVisible();
   const { rows: [counts] } = await pool.query("select count(*) filter(where type='credit')::int as reductions,count(*) filter(where type='credit_return')::int as returns from public.payment_adjustments where session_charge_id=$1", [f.chargeId]);
   expect(counts).toEqual({ reductions: 1, returns: 1 });
+  await pool.query('select public.credit_cash_payout($1,$2,$3,$4,$5)', [f.gangId, f.ownerId, '10.00', 'ทดสอบเงินคืนในรายงาน', f.ownerId]);
+  await page.goto(`/gangs/${f.gangId}/reports?from=2020-01-01&to=2099-12-31`);
+  await expect(page.getByRole('group', { name: 'เงินโอนรับชำระก่อนคืนเงิน', exact: true })).toContainText('฿150.00');
+  await expect(page.getByRole('group', { name: 'โอนเกินเข้าเครดิต', exact: true })).toContainText('฿25.00');
+  await expect(page.getByRole('group', { name: 'เงินคืนสมาชิก', exact: true })).toContainText('฿10.00');
+  await expect(page.getByRole('group', { name: 'เงินสดสุทธิ', exact: true })).toContainText('฿165.00');
+  await expect(page.getByText(/^ยอดค้าง ณ/)).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'สลิปแอดมิน', exact: true })).toBeVisible();
+  await listEvidence(page, 'reports');
   expect(watcher.cspViolations).toEqual([]);
 
   const stranger = await browser.newContext();
@@ -101,6 +111,7 @@ async function listEvidence(page: Page, screen: string) {
     await page.setViewportSize({ width, height: 1000 });
     for (const colorScheme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme });
+      if (screen === 'reports') await expectReadableControl(page.getByRole('link', { name: 'ดูรายงานช่วงนี้', exact: true }));
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       if (process.env.SHOT_DIR) {
         await mkdir(process.env.SHOT_DIR, { recursive: true });
@@ -138,7 +149,24 @@ test('H32 queue/H33: server counts across pages, opaque cursor, filters, history
   await expect(page.getByRole('link', { name: 'ดูประวัติรายการหนี้', exact: true })).toHaveCount(1);
   await listEvidence(page, 'h33-outstanding');
   await page.getByRole('link', { name: '0–7 วัน · 1 คน · ฿150.00', exact: true }).click();
+  await expect(page.getByRole('link', { name: '✓ 0–7 วัน · 1 คน · ฿150.00', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('link', { name: 'ทุกช่วงอายุหนี้', exact: true })).not.toHaveAttribute('aria-current', 'page');
   await expect(page.getByText('ค้างเก็บ ฿150.00 · ลูกหนี้ 1 คน')).toBeVisible();
   await page.getByRole('link', { name: 'ดูประวัติรายการหนี้', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'ประวัติรายการหนี้', exact: true })).toBeVisible();
+
+  await page.goto(`/gangs/${f.gangId}/payments/outstanding`);
+  await page.getByRole('button', { name: 'ปรับยอด', exact: true }).click();
+  await page.getByLabel('จำนวนเงินปรับยอด', { exact: true }).fill('-25.00');
+  await expect(page.getByRole('button', { name: 'ตรวจทานการปรับยอด' })).toBeDisabled();
+  await page.getByLabel('เหตุผลการปรับยอด', { exact: true }).fill('ลดหนี้จากบัญชีแอดมิน');
+  await page.getByRole('button', { name: 'ตรวจทานการปรับยอด' }).click();
+  const before = await pool.query('select count(*)::int as n from public.payment_adjustments where session_charge_id=$1', [f.chargeId]);
+  expect(before.rows[0].n).toBe(0);
+  await page.getByRole('button', { name: 'ยืนยันรายการ', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'ประวัติรายการหนี้', exact: true })).toBeVisible();
+  const adjusted = await pool.query('select type,amount::text from public.payment_adjustments where session_charge_id=$1', [f.chargeId]);
+  expect(adjusted.rows).toEqual([{ type: 'credit', amount: '-25.00' }]);
+  await page.goto(`/gangs/${f.gangId}/payments/outstanding`);
+  await expect(page.getByText('ค้างเก็บ ฿125.00 · ลูกหนี้ 1 คน')).toBeVisible();
 });

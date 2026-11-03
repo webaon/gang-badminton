@@ -1,260 +1,99 @@
 'use client';
-
-import { actionError } from '@/lib/i18n/error-text';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { Badge } from '@astryxdesign/core/Badge';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
+import { Card } from '@astryxdesign/core/Card';
 import { CheckboxInput } from '@astryxdesign/core/CheckboxInput';
+import { Heading } from '@astryxdesign/core/Heading';
+import { HStack } from '@astryxdesign/core/HStack';
 import { RadioList, RadioListItem } from '@astryxdesign/core/RadioList';
 import { Selector } from '@astryxdesign/core/Selector';
+import { Text } from '@astryxdesign/core/Text';
 import { TextInput } from '@astryxdesign/core/TextInput';
-
-import type { AdjustmentType } from '@/domain/billing/ledger';
+import { VStack } from '@astryxdesign/core/VStack';
 import { addChargeAdjustment, createPaymentForCharges } from '@/server/actions/payments';
+import type { AdminLedgerRow } from '@/server/actions/payment-admin';
+import { actionError } from '@/lib/i18n/error-text';
+import { baht } from '@/domain/sessions/close-view';
 
-export type LedgerRow = {
-  chargeId: string;
-  displayName: string;
-  /** null = guest (ไม่มีบัญชี ⇒ เป็นผู้จ่ายเองไม่ได้) */
-  userId: string | null;
-  label: string;
-  charge: string;
-  allocated: string;
-  adjusted: string;
-  outstanding: string;
-};
-
-const ADJUSTMENT_LABELS: Record<AdjustmentType, string> = {
-  refund: 'คืนเงิน',
-  correction: 'แก้ยอด',
-  credit: 'ให้เครดิต',
-};
-
-/**
- * ยอดค้างรายคน — **[WO-2.5-D]**
- *
- * 🔴 ตัวเลขทุกช่องมาจาก ledger (`charge − allocations + adjustments`)
- *    ❌ ไม่ได้อ่านจาก `payments.status` — สลิปใบเดียวครอบหนี้ได้หลายคน
- *    และ refund ไม่ได้เปลี่ยน status ของอะไรเลย (baseline §การตัดสินใจสะสม)
- *
- * ทำสองอย่างจากที่เดียว: รวมหลายคนเป็นสลิปใบเดียว (จ่ายแทนเพื่อน) · ปรับยอดย้อนหลัง
- */
-export function LedgerPanel({
-  gangId,
-  rows,
-  payers,
-}: {
-  gangId: string;
-  rows: LedgerRow[];
-  /** คนที่เป็นผู้จ่ายได้ — สมาชิกก๊วนที่มีบัญชี */
+type Adjustment = 'refund' | 'correction' | 'credit';
+const LABEL = { refund: 'คืนเงิน', correction: 'แก้ยอด', credit: 'ลดหนี้' };
+export function LedgerPanel({ gangId, rows, payers, permissions }: {
+  gangId: string; rows: AdminLedgerRow[];
   payers: { userId: string; displayName: string }[];
+  permissions: { combine: boolean; adjust: boolean };
 }) {
   const router = useRouter();
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [payer, setPayer] = useState<string>(payers[0]?.userId ?? '');
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  /** charge ที่กำลังเปิดฟอร์มปรับยอด */
+  const busy = useRef(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [payer, setPayer] = useState('');
   const [adjusting, setAdjusting] = useState<string | null>(null);
-  const [adjustType, setAdjustType] = useState<AdjustmentType>('refund');
-  const [adjustAmount, setAdjustAmount] = useState('');
-  const [adjustReason, setAdjustReason] = useState('');
-
-  function toggle(chargeId: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(chargeId)) next.delete(chargeId);
-      else next.add(chargeId);
-      return next;
-    });
-  }
-
-  async function run(fn: () => Promise<{ success: boolean; error?: { message: string } }>) {
-    setPending(true);
-    setError(null);
-    setNotice(null);
-
-    const result = await fn();
-    if (result.success) router.refresh();
-    else setError(actionError(result.error));
-
-    setPending(false);
-    return result.success;
-  }
-
-  async function onCombine() {
-    if (payer === '') {
-      setError('เลือกคนจ่ายก่อน');
-      return;
-    }
-
-    const ok = await run(async () => {
-      const result = await createPaymentForCharges(gangId, [...selected], payer);
-      if (result.success) {
-        setNotice(`ออกใบจ่ายรวม ${result.data.amount} บาท (${selected.size} รายการ)`);
+  const [type, setType] = useState<Adjustment>('credit');
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [confirmation, setConfirmation] = useState<'combine' | 'adjust' | null>(null);
+  const [pending, setPending] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function commit() {
+    if (busy.current || uncertain || !confirmation) return;
+    busy.current = true; setPending(true); setUncertain(true); setError(null);
+    try {
+      if (confirmation === 'combine') {
+        const result = await createPaymentForCharges(gangId, selected, payer);
+        if (!result.success) { setError(actionError(result.error)); return; }
+        setSelected([]); setConfirmation(null);
+        router.push(`/gangs/${gangId}/payments/${result.data.paymentId}`);
+      } else if (adjusting) {
+        // Only step 1 here. History re-reads whether step 2 (credit return) is available.
+        const result = await addChargeAdjustment(adjusting, { type, amount, reason });
+        if (!result.success) { setError(actionError(result.error)); return; }
+        setConfirmation(null);
+        router.push(`/gangs/${gangId}/payments/charges/${adjusting}`);
       }
-      return result;
-    });
-
-    if (ok) setSelected(new Set());
+      setUncertain(true);
+    } catch { setUncertain(true); setConfirmation(null); setError(actionError({ code: 'INTERNAL_ERROR', message: '' })); }
+    finally { busy.current = false; setPending(false); }
   }
-
-  async function onAdjust(chargeId: string) {
-    const ok = await run(() =>
-      addChargeAdjustment(chargeId, {
-        type: adjustType,
-        amount: adjustAmount,
-        reason: adjustReason,
-      }),
-    );
-
-    if (ok) {
-      setAdjusting(null);
-      setAdjustAmount('');
-      setAdjustReason('');
-      setNotice('บันทึกรายการปรับยอดแล้ว');
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      {error ? <Banner status="error" title={error} /> : null}
-      {notice ? (
-        <Banner status="success" title={notice} isDismissable onDismiss={() => setNotice(null)} />
-      ) : null}
-
-      {rows.length === 0 ? (
-        <p className="text-sm">ยังไม่มียอดเรียกเก็บในก๊วนนี้</p>
-      ) : (
-        <ul className="divide-y">
-          {rows.map((row) => {
-            const outstanding = Number(row.outstanding);
-
-            return (
-              <li key={row.chargeId} className="py-3">
-                <div className="flex items-start gap-3">
-                  {outstanding > 0 ? (
-                    <CheckboxInput
-                      label={`เลือก ${row.displayName}`}
-                      isLabelHidden
-                      size="sm"
-                      value={selected.has(row.chargeId)}
-                      isDisabled={pending}
-                      onChange={() => toggle(row.chargeId)}
-                    />
-                  ) : (
-                    <span className="w-5" />
-                  )}
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{row.displayName}</p>
-                    <p className="text-xs opacity-70">{row.label}</p>
-                    <p className="text-xs opacity-70">
-                      เรียกเก็บ {row.charge} · จ่ายแล้ว {row.allocated}
-                      {row.adjusted !== '0.00' ? ` · ปรับยอด ${row.adjusted}` : ''}
-                    </p>
-                  </div>
-
-                  <div className="text-right">
-                    {outstanding > 0 ? (
-                      <span className="font-semibold">ค้าง {row.outstanding}</span>
-                    ) : outstanding < 0 ? (
-                      <Badge label={`ต้องคืน ${row.outstanding.replace('-', '')}`} />
-                    ) : (
-                      <Badge label="ครบแล้ว" />
-                    )}
-                  </div>
-
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    label="ปรับยอด"
-                    isDisabled={pending}
-                    onClick={() => setAdjusting(adjusting === row.chargeId ? null : row.chargeId)}
-                  />
-                </div>
-
-                {adjusting === row.chargeId ? (
-                  <div className="mt-3 rounded-lg border p-3">
-                    <RadioList
-                      label="ประเภท"
-                      orientation="horizontal"
-                      size="sm"
-                      value={adjustType}
-                      onChange={(v) => setAdjustType(v as AdjustmentType)}
-                    >
-                      {(['refund', 'correction', 'credit'] as AdjustmentType[]).map((t) => (
-                        <RadioListItem key={t} label={ADJUSTMENT_LABELS[t]} value={t} />
-                      ))}
-                    </RadioList>
-
-                    <div className="mt-2 flex items-end gap-2">
-                      <div className="w-32">
-                        <TextInput
-                          label="จำนวนเงิน"
-                          size="sm"
-                          value={adjustAmount}
-                          onChange={setAdjustAmount}
-                          description={adjustType === 'correction' ? 'บวก = เพิ่มหนี้' : 'ใส่ค่าติดลบ'}
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <TextInput
-                          label="เหตุผล"
-                          size="sm"
-                          value={adjustReason}
-                          onChange={setAdjustReason}
-                          placeholder="เช่น มาไม่ทันครึ่งหลัง"
-                        />
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        label="บันทึก"
-                        isDisabled={pending}
-                        onClick={() => onAdjust(row.chargeId)}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {/*
-        จ่ายแทนเพื่อน: เลือกหลายคน → ออกใบเดียว
-        ยอดของใบ = ผลรวม "ยอดค้างจริง" ที่ฐานข้อมูลคำนวณ ไม่ใช่ตัวเลขจากหน้าจอ
-      */}
-      {selected.size > 0 ? (
-        <div className="rounded-lg border p-3">
-          <p className="mb-2 text-sm font-medium">รวมเป็นสลิปใบเดียว ({selected.size} รายการ)</p>
-          <div className="flex items-end gap-2">
-            <div className="flex-1">
-              <Selector
-                label="คนจ่าย"
-                size="sm"
-                options={payers.map((p) => ({ value: p.userId, label: p.displayName }))}
-                value={payer}
-                onChange={setPayer}
-              />
-            </div>
-            <Button
-              size="sm"
-              variant="primary"
-              label="ออกใบจ่ายรวม"
-              isDisabled={pending}
-              onClick={onCombine}
-            />
-            <Button size="sm" label="ล้าง" onClick={() => setSelected(new Set())} />
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
+  return <VStack gap={3}>
+    {error ? <Banner status="error" title={error} /> : null}
+    {uncertain ? <Banner status="warning" title="ตรวจสถานะล่าสุดก่อนทำรายการอีกครั้ง" description="รายการอาจบันทึกแล้ว เปิดประวัติหรือโหลดหน้าใหม่ก่อนส่งซ้ำ" /> : null}
+    {rows.map((row) => <Card key={row.id} padding={4}><VStack gap={2}>
+      <HStack justify="between" wrap="wrap" gap={2}>
+        <Heading level={2}>{row.displayName}</Heading><Text weight="semibold" hasTabularNumbers>{baht(row.outstanding)}</Text>
+      </HStack>
+      <Text>{row.type === 'monthly_fee' ? 'ค่าสมาชิกรายเดือน' : `นัด: ${row.sessionTitle ?? 'ไม่ทราบชื่อนัด'}`}</Text>
+      <Text>ยอดเรียกเก็บ {baht(row.amount)} · ชำระแล้ว {baht(row.paid)}</Text>
+      <Text>{row.status === 'outstanding' ? `อายุหนี้ ${row.daysOutstanding} วัน` : row.status === 'credit' ? 'ต้องคืนสมาชิก' : 'ชำระครบ'}</Text>
+      <HStack wrap="wrap" gap={2}>
+        {permissions.combine && row.status === 'outstanding' ? <CheckboxInput label={`เลือก ${row.displayName}`} value={selected.includes(row.id)}
+          isDisabled={pending || uncertain || confirmation !== null} onChange={(checked) => setSelected(checked ? [...selected, row.id] : selected.filter((id) => id !== row.id))} /> : null}
+        <Button label="ดูประวัติรายการหนี้" variant="ghost" href={`/gangs/${gangId}/payments/charges/${row.id}`} />
+        {permissions.adjust ? <Button label="ปรับยอด" isDisabled={pending || uncertain || confirmation !== null} onClick={() => { setAdjusting(row.id); setAmount(''); setReason(''); }} /> : null}
+        {row.sessionId ? <Button variant="ghost" label="ดูสลิปของนัดนี้" href={`/gangs/${gangId}/payments/review?sessionId=${row.sessionId}`} /> : null}
+      </HStack>
+    </VStack></Card>)}
+    {permissions.combine && selected.length > 0 && !confirmation ? <VStack gap={2}>
+      <Text>เลือกรายการในหน้านี้ {selected.length} รายการ · ยอดรวมให้ระบบคำนวณตอนออกใบ</Text>
+      <Selector label="คนจ่าย" value={payer} onChange={setPayer} options={payers.map((p) => ({ value: p.userId, label: p.displayName }))} />
+      <Button label="ตรวจทานใบจ่ายรวม" isDisabled={!payer || pending || uncertain} onClick={() => setConfirmation('combine')} />
+    </VStack> : null}
+    {permissions.adjust && adjusting && !confirmation ? <VStack gap={2}>
+      <Heading level={2}>ปรับยอด — {rows.find((r) => r.id === adjusting)?.displayName}</Heading>
+      <RadioList label="ประเภทการปรับยอด" value={type} onChange={(v) => setType(v as Adjustment)}>
+        {(['credit', 'refund', 'correction'] as const).map((t) => <RadioListItem key={t} value={t} label={LABEL[t]} />)}
+      </RadioList>
+      <TextInput label="จำนวนเงินปรับยอด" value={amount} onChange={setAmount} description={type === 'correction' ? 'บวกเพิ่มหนี้ ลบลดหนี้' : 'ใส่ค่าติดลบ เช่น -50.00'} />
+      <TextInput label="เหตุผลการปรับยอด" value={reason} onChange={setReason} />
+      <Text type="supporting">ลดหนี้ไม่ได้ย้ายเงินเข้ากระเป๋าเครดิตทันที หลังบันทึกให้ตรวจประวัติและยืนยันคืนเข้าเครดิตแยกอีกขั้น</Text>
+      <Button label="ตรวจทานการปรับยอด" isDisabled={pending || uncertain || !amount.trim() || !reason.trim()} onClick={() => setConfirmation('adjust')} />
+    </VStack> : null}
+    {confirmation ? <VStack gap={2}>
+      <Heading level={2}>ตรวจทานก่อนยืนยัน</Heading>
+      <Text>{confirmation === 'combine' ? `ผู้จ่าย: ${payers.find((p) => p.userId === payer)?.displayName} · ${selected.length} รายการ` : `${LABEL[type]} ${amount} บาท · ${reason}`}</Text>
+      <Button variant="primary" label="ยืนยันรายการ" isDisabled={pending || uncertain} onClick={commit} />
+      <Button label="กลับไปแก้ไข" isDisabled={pending} onClick={() => setConfirmation(null)} />
+    </VStack> : null}
+  </VStack>;
 }

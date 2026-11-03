@@ -101,7 +101,14 @@ test.describe('จ่ายเงินฝั่งสมาชิก (หน้
 
     // แอดมิน (เจ้าของก๊วน) ยืนยัน → หน้าจ่ายขึ้นยืนยันแล้ว ไม่มีปุ่มส่งสลิป
     await page.goto(`/gangs/${gangId}/payments`);
-    await page.getByRole('button', { name: 'ยืนยันการจ่าย' }).first().click();
+    await expect(page.getByRole('heading', { name: 'คิวตรวจสลิป', exact: true })).toBeVisible();
+    await page.getByRole('link', { name: 'เปิดตรวจสลิป', exact: true }).first().click();
+    await page.getByLabel('ยอดที่โอนจริง (บาท)').fill('150.00');
+    await page.getByRole('button', { name: 'ตรวจทานยอดที่โอนจริง' }).click();
+    await page.getByRole('button', { name: 'ยืนยันขั้นตอนนี้' }).click();
+    await expect(page.getByText('ยอดตรง', { exact: true }).first()).toBeVisible();
+    await page.getByRole('button', { name: 'ยืนยันการจ่าย', exact: true }).click();
+    await page.getByRole('button', { name: 'ยืนยันขั้นตอนนี้' }).click();
     await expect(page.getByText('ยืนยันแล้ว').first()).toBeVisible({ timeout: 15_000 });
 
     await page.goto(`${sessionPath}/pay`);

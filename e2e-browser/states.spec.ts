@@ -104,7 +104,7 @@ test.describe('มือถือ 390×844 (บั๊กเดิมจาก QA
     const { gangId } = await createGang(page);
     await page.goto(`/gangs/${gangId}/reports`);
 
-    const date = page.getByLabel('วันที่');
+    const date = page.getByRole('textbox', { name: 'วันที่', exact: true });
     await expect(date).toBeVisible();
     const box = await date.boundingBox();
     expect(box).not.toBeNull();
