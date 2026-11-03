@@ -311,6 +311,8 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 **Task04 (test-env preparation)** — ✅ offline/source **CLOSED** (`c8a4478` tools/test-env + tsconfig/eslint exclude · `be0592a` ADR-016 ต่อท้าย baseline) · QA: `node --test` 18/18 · tsc/eslint exit 0 · secret scan clean · owner @gb-integrations
 - ✅ **V0 preflight: DONE** (read-only, PASS) — evidence ที่ `tools/test-env/v0-evidence/` · no side-effects ยืนยันแล้วโดย planner + QA (`docker ps -a` count=0 ของ `gb-env-proof-01`)
 - ⏸ **V1–V6: ยังไม่รัน** รอ authorize แยกต่อหน่วย
+- ✅ **V1 private-writer ACL canary: DONE** — real private root `C:/Users/peepe/gb-test-env-private/gb-env-proof-01` สร้างด้วย restricted DACL (SYSTEM + user เท่านั้น · 2 rules · protected=True) · เขียน canary ที่ไม่ใช่ความลับ 2 ไฟล์ (`canary-main.json`, `canary-manifest.json`) · 4 เทสต์ PASS (เขียนปกติ / ALREADY_EXISTS / WRITER_DENIED / RUNTIME_NOT_AUTHORIZED) · ไม่มี credential จริง · ไม่แตะ shared-local/card20 · source bug 2 รอบ (identifier mismatch + wrong-ACL-target/StrictMode) แก้แล้ว
+- ⏸ **V2 (real credential generation): ยังไม่รัน** รอ authorize แยก
 - ⏸ card20 / shared-local resources **ไม่ถูกแตะ** (ยืนยัน 2 ทาง)
 - 🔴 shared-local credential incident ยัง **OPEN**
 - ⏸ card20 **paused**
