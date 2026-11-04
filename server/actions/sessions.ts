@@ -7,7 +7,7 @@ import { requireUser } from '@/lib/supabase/auth';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
 import { assertCan } from '@/domain/permissions/can';
-import type { GangRole } from '@/domain/permissions/types';
+import { loadGangPermissionContext } from '@/server/permissions/gang-context';
 import { zonedTimeToUtc } from '@/domain/time/timezone';
 import { buildSessionSnapshot } from '@/server/sessions/snapshot';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
@@ -15,19 +15,6 @@ import { AppError, assertOne, runAction, unwrap } from '@/shared/action';
 
 async function cid(): Promise<string> {
   return correlationIdFrom(await headers());
-}
-
-async function roleInGang(gangId: string, userId: string): Promise<GangRole | null> {
-  const supabase = await supabaseServer();
-  const { data } = await supabase
-    .from('gang_members')
-    .select('role')
-    .eq('gang_id', gangId)
-    .eq('user_id', userId)
-    .is('deleted_at', null)
-    .maybeSingle();
-
-  return (data?.role as GangRole | undefined) ?? null;
 }
 
 export type CreateSessionInput = {
@@ -62,7 +49,7 @@ export async function createSession(
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    assertCan({ role: await roleInGang(gangId, user.id) }, 'session.create');
+    assertCan(await loadGangPermissionContext(gangId, user.id), 'session.create');
 
     if (input.title.trim() === '') throw new AppError('VALIDATION_ERROR', 'ต้องระบุชื่อนัด');
     if (!Number.isInteger(input.maxPlayers) || input.maxPlayers < 1) {
@@ -143,7 +130,7 @@ export async function transitionSession(
 
     if (!session) throw new AppError('NOT_FOUND', 'ไม่พบนัดนี้');
 
-    assertCan({ role: await roleInGang(session.gang_id, user.id) }, 'session.transition');
+    assertCan(await loadGangPermissionContext(session.gang_id, user.id), 'session.transition');
 
     const { data, error } = await supabaseAdmin().rpc('transition_session', {
       p_session_id: sessionId,
@@ -208,7 +195,7 @@ export async function updateSession(
 
     if (!session) throw new AppError('NOT_FOUND', 'ไม่พบนัดนี้');
 
-    assertCan({ role: await roleInGang(session.gang_id, user.id) }, 'session.update');
+    assertCan(await loadGangPermissionContext(session.gang_id, user.id), 'session.update');
 
     if (!['draft', 'open'].includes(session.status)) {
       throw new AppError('INVALID_TRANSITION', 'แก้ได้เฉพาะนัดที่ยังไม่เริ่มเล่น');

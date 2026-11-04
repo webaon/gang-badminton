@@ -3,7 +3,7 @@ import 'server-only';
 import { notFound, redirect } from 'next/navigation';
 
 import { can } from '@/domain/permissions/can';
-import type { GangRole } from '@/domain/permissions/types';
+import { loadGangPermissionContext } from '@/server/permissions/gang-context';
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
@@ -54,18 +54,10 @@ export async function loadConsole(gangId: string, sessionId: string, nextPath: s
 
   if (!session) notFound();
 
-  const { data: membership } = await supabase
-    .from('gang_members')
-    .select('role')
-    .eq('gang_id', gangId)
-    .eq('user_id', user.id)
-    .is('deleted_at', null)
-    .maybeSingle();
-
-  const role = (membership?.role as GangRole | undefined) ?? null;
+  const ctx = await loadGangPermissionContext(gangId, user.id);
 
   // คอนโซล/กระดานเป็นเครื่องมือของแอดมิน — สมาชิกทั่วไปให้กลับไปหน้ารายละเอียดนัด
-  if (!can({ role }, 'game.manage')) {
+  if (!can(ctx, 'game.manage')) {
     redirect(`/gangs/${gangId}/sessions/${sessionId}`);
   }
 
@@ -144,6 +136,6 @@ export async function loadConsole(gangId: string, sessionId: string, nextPath: s
     games,
     finishedGames,
     now: new Date().toISOString(),
-    canClose: can({ role }, 'billing.close'),
+    canClose: can(ctx, 'billing.close'),
   };
 }

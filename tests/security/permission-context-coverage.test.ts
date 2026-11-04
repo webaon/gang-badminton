@@ -136,15 +136,15 @@ const MANIFEST: readonly ManifestEntry[] = [
   { file: 'server/actions/finance.ts', line: 33, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.finance.manage'], delegable: true },
 
   // ---- server/actions/game-console.ts (scheduler preset's core surface) ----
-  { file: 'server/actions/game-console.ts', line: 84, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.checkin'], delegable: true },
-  { file: 'server/actions/game-console.ts', line: 114, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.no_show'], delegable: true },
-  { file: 'server/actions/game-console.ts', line: 145, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.checkin'], delegable: true },
-  { file: 'server/actions/game-console.ts', line: 189, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['game.manage'], delegable: true },
-  { file: 'server/actions/game-console.ts', line: 293, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['game.manage'], delegable: true },
-  { file: 'server/actions/game-console.ts', line: 346, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['game.manage'], delegable: true },
-  { file: 'server/actions/game-console.ts', line: 390, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['game.manage'], delegable: true },
-  { file: 'server/actions/game-console.ts', line: 427, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.checkin'], delegable: true, note: 'guarded by `if (!isMine)` — self check-in bypasses this' },
-  { file: 'server/actions/game-console.ts', line: 476, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.checkin'], delegable: true },
+  { file: 'server/actions/game-console.ts', line: 78, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.checkin'], delegable: true },
+  { file: 'server/actions/game-console.ts', line: 108, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.no_show'], delegable: true },
+  { file: 'server/actions/game-console.ts', line: 139, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.checkin'], delegable: true },
+  { file: 'server/actions/game-console.ts', line: 183, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['game.manage'], delegable: true },
+  { file: 'server/actions/game-console.ts', line: 287, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['game.manage'], delegable: true },
+  { file: 'server/actions/game-console.ts', line: 340, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['game.manage'], delegable: true },
+  { file: 'server/actions/game-console.ts', line: 384, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['game.manage'], delegable: true },
+  { file: 'server/actions/game-console.ts', line: 421, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.checkin'], delegable: true, note: 'guarded by `if (!isMine)` — self check-in bypasses this' },
+  { file: 'server/actions/game-console.ts', line: 470, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.checkin'], delegable: true },
 
   // ---- server/actions/gang-config.ts (shared assertGangAdmin helper — never-delegable actions only) ----
   { file: 'server/actions/gang-config.ts', line: 44, fn: 'assertCan', category: 'tenant', actionKind: 'dynamicSet', actions: ['gang.skill.manage', 'gang.pricing.manage'], delegable: false, note: 'assertGangAdmin(gangId, action); callers: :60/:95 gang.skill.manage, :137 gang.pricing.manage' },
@@ -177,22 +177,22 @@ const MANIFEST: readonly ManifestEntry[] = [
   { file: 'server/actions/payments.ts', line: 467, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['payment.submit.self'], delegable: false },
 
   // ---- server/actions/registrations.ts ----
-  { file: 'server/actions/registrations.ts', line: 58, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['registration.create.self'], delegable: false },
-  { file: 'server/actions/registrations.ts', line: 85, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.create.other'], delegable: true },
-  { file: 'server/actions/registrations.ts', line: 144, fn: 'assertCan', category: 'tenant', actionKind: 'dynamicSet', actions: ['registration.cancel.self', 'registration.cancel.other'], delegable: 'mixed', note: 'ternary isSelf' },
-  { file: 'server/actions/registrations.ts', line: 149, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.cancel.other'], delegable: true },
-  { file: 'server/actions/registrations.ts', line: 158, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.promote.other'], delegable: true },
-  { file: 'server/actions/registrations.ts', line: 220, fn: 'assertCan', category: 'tenant', actionKind: 'dynamicSet', actions: ['registration.cancel.self', 'registration.cancel.other'], delegable: 'mixed', note: 'ternary reg.user_id===user.id' },
-  { file: 'server/actions/registrations.ts', line: 275, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.promote.other'], delegable: true },
-  { file: 'server/actions/registrations.ts', line: 314, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.invite.manage'], delegable: true, note: 'feature-gated on features.guests' },
+  { file: 'server/actions/registrations.ts', line: 49, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['registration.create.self'], delegable: false },
+  { file: 'server/actions/registrations.ts', line: 76, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.create.other'], delegable: true },
+  { file: 'server/actions/registrations.ts', line: 127, fn: 'assertCan', category: 'tenant', actionKind: 'dynamicSet', actions: ['registration.cancel.self', 'registration.cancel.other'], delegable: 'mixed', note: 'ternary isSelf' },
+  { file: 'server/actions/registrations.ts', line: 132, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.cancel.other'], delegable: true },
+  { file: 'server/actions/registrations.ts', line: 141, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.promote.other'], delegable: true },
+  { file: 'server/actions/registrations.ts', line: 195, fn: 'assertCan', category: 'tenant', actionKind: 'dynamicSet', actions: ['registration.cancel.self', 'registration.cancel.other'], delegable: 'mixed', note: 'ternary reg.user_id===user.id' },
+  { file: 'server/actions/registrations.ts', line: 242, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.promote.other'], delegable: true },
+  { file: 'server/actions/registrations.ts', line: 278, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.invite.manage'], delegable: true, note: 'feature-gated on features.guests' },
 
   // ---- server/actions/reports.ts ----
   { file: 'server/actions/reports.ts', line: 44, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.update'], delegable: false, note: 'NEVER_DELEGABLE (gang.update) — recomputeGangStatistics gates on gang.update, not statistics.view.all; pre-existing, not changed by this WO' },
 
   // ---- server/actions/sessions.ts ----
-  { file: 'server/actions/sessions.ts', line: 65, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.create'], delegable: true },
-  { file: 'server/actions/sessions.ts', line: 146, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.transition'], delegable: true },
-  { file: 'server/actions/sessions.ts', line: 211, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.update'], delegable: true },
+  { file: 'server/actions/sessions.ts', line: 52, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.create'], delegable: true },
+  { file: 'server/actions/sessions.ts', line: 133, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.transition'], delegable: true },
+  { file: 'server/actions/sessions.ts', line: 198, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.update'], delegable: true },
 
   // ---- server/actions/templates.ts — BLOCKING decision pending (ADR-015/R-roles-3 plan §Task5):
   //      planner decided these four should become a new nondelegable session.template.manage;
@@ -208,8 +208,8 @@ const MANIFEST: readonly ManifestEntry[] = [
   { file: 'server/actions/discovery.ts', line: 160, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.join_request.manage'], delegable: false, note: 'NEVER_DELEGABLE; feature-gated on features.discovery' },
 
   // ---- server/sessions/console-loader.ts — shared loader behind console/page.tsx + console/board/page.tsx ----
-  { file: 'server/sessions/console-loader.ts', line: 68, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['game.manage'], delegable: true, note: 'real gate: denies loading admin.rpc(session_console_queue) service-role data, not cosmetic' },
-  { file: 'server/sessions/console-loader.ts', line: 147, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['billing.close'], delegable: true, note: 'cosmetic canClose flag only — real enforcement is membership.ts:149 on the /close route per the file\'s own comment' },
+  { file: 'server/sessions/console-loader.ts', line: 60, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['game.manage'], delegable: true, note: 'real gate: denies loading admin.rpc(session_console_queue) service-role data, not cosmetic' },
+  { file: 'server/sessions/console-loader.ts', line: 139, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['billing.close'], delegable: true, note: 'cosmetic canClose flag only — real enforcement is membership.ts:150 on the /close route per the file\'s own comment' },
 
   // ---- server/actions/payment-admin.ts — can() used as read-only eligibility hints on an
   //      already financeReader()-gated response (same pattern as console-loader.ts:147);

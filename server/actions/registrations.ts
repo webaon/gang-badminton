@@ -7,7 +7,7 @@ import { requireUser } from '@/lib/supabase/auth';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
 import { assertCan } from '@/domain/permissions/can';
-import type { GangRole } from '@/domain/permissions/types';
+import { loadGangPermissionContext } from '@/server/permissions/gang-context';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { AppError, runAction } from '@/shared/action';
 
@@ -15,7 +15,7 @@ async function cid(): Promise<string> {
   return correlationIdFrom(await headers());
 }
 
-/** ข้อมูลนัด + role ของผู้ใช้ในก๊วนนั้น — ใช้ตัดสินสิทธิ์ก่อนเรียก DB function */
+/** ข้อมูลนัด + บริบทสิทธิ์ของผู้ใช้ในก๊วนนั้น (รวม extra ของชุดสิทธิ์) — ใช้ตัดสินสิทธิ์ก่อนเรียก DB function */
 async function sessionContext(sessionId: string, userId: string) {
   const supabase = await supabaseServer();
 
@@ -28,18 +28,9 @@ async function sessionContext(sessionId: string, userId: string) {
 
   if (!session) throw new AppError('NOT_FOUND', 'ไม่พบนัดนี้');
 
-  const { data: membership } = await supabase
-    .from('gang_members')
-    .select('role')
-    .eq('gang_id', session.gang_id)
-    .eq('user_id', userId)
-    .is('deleted_at', null)
-    .maybeSingle();
+  const ctx = await loadGangPermissionContext(session.gang_id, userId);
 
-  return {
-    session,
-    role: (membership?.role as GangRole | undefined) ?? null,
-  };
+  return { session, ctx };
 }
 
 /**
@@ -53,9 +44,9 @@ export async function registerSelf(sessionId: string): Promise<ApiResponse<{ sta
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    const { session, role } = await sessionContext(sessionId, user.id);
+    const { session, ctx } = await sessionContext(sessionId, user.id);
 
-    assertCan({ role }, 'registration.create.self');
+    assertCan(ctx, 'registration.create.self');
 
     const { data, error } = await supabaseAdmin().rpc('register_to_session', {
       p_session_id: sessionId,
@@ -80,9 +71,9 @@ export async function registerMember(
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    const { session, role } = await sessionContext(sessionId, user.id);
+    const { session, ctx } = await sessionContext(sessionId, user.id);
 
-    assertCan({ role }, 'registration.create.other');
+    assertCan(ctx, 'registration.create.other');
 
     const { data, error } = await supabaseAdmin().rpc('register_to_session', {
       p_session_id: sessionId,
@@ -130,23 +121,15 @@ export async function cancelRegistration(
 
     const gangId = (reg as unknown as { sessions: { gang_id: string } }).sessions.gang_id;
 
-    const { data: membership } = await supabase
-      .from('gang_members')
-      .select('role')
-      .eq('gang_id', gangId)
-      .eq('user_id', user.id)
-      .is('deleted_at', null)
-      .maybeSingle();
-
-    const role = (membership?.role as GangRole | undefined) ?? null;
+    const ctx = await loadGangPermissionContext(gangId, user.id);
     const isSelf = reg.user_id === user.id;
 
-    assertCan({ role }, isSelf ? 'registration.cancel.self' : 'registration.cancel.other');
+    assertCan(ctx, isSelf ? 'registration.cancel.self' : 'registration.cancel.other');
 
     const waive = options.waivePenalty === true;
     if (waive) {
       // ยกเว้นค่าปรับ = งานแอดมิน แม้จะยกเลิกของตัวเอง · ต้องมีเหตุผล (DB ตรวจซ้ำ)
-      assertCan({ role }, 'registration.cancel.other');
+      assertCan(ctx, 'registration.cancel.other');
       if (!options.reason?.trim()) {
         throw new AppError('VALIDATION_ERROR', 'ต้องระบุเหตุผลที่ไม่คิดค่าปรับ');
       }
@@ -155,7 +138,7 @@ export async function cancelRegistration(
     const promoteId = options.promoteRegistrationId;
     if (promoteId) {
       // "เปลี่ยนคน": ยกเลิกคนนี้แล้วเลื่อนคนที่เลือกใน transaction เดียว (DB ตรวจสิทธิ์แอดมิน/ที่ว่างซ้ำ)
-      assertCan({ role }, 'registration.promote.other');
+      assertCan(ctx, 'registration.promote.other');
     }
 
     const { data, error } = await supabaseAdmin().rpc('cancel_registration', {
@@ -207,17 +190,9 @@ export async function cancelPreview(registrationId: string): Promise<ApiResponse
 
     const gangId = (reg as unknown as { sessions: { gang_id: string } }).sessions.gang_id;
 
-    const { data: membership } = await supabase
-      .from('gang_members')
-      .select('role')
-      .eq('gang_id', gangId)
-      .eq('user_id', user.id)
-      .is('deleted_at', null)
-      .maybeSingle();
-
-    const role = (membership?.role as GangRole | undefined) ?? null;
+    const ctx = await loadGangPermissionContext(gangId, user.id);
     // สิทธิ์เดียวกับการยกเลิกจริง
-    assertCan({ role }, reg.user_id === user.id ? 'registration.cancel.self' : 'registration.cancel.other');
+    assertCan(ctx, reg.user_id === user.id ? 'registration.cancel.self' : 'registration.cancel.other');
 
     const { data, error } = await supabaseAdmin().rpc('preview_cancel_registration', {
       p_registration_id: registrationId,
@@ -264,18 +239,7 @@ export async function promoteRegistration(
 
     const gangId = (reg as unknown as { sessions: { gang_id: string } }).sessions.gang_id;
 
-    const { data: membership } = await supabase
-      .from('gang_members')
-      .select('role')
-      .eq('gang_id', gangId)
-      .eq('user_id', user.id)
-      .is('deleted_at', null)
-      .maybeSingle();
-
-    assertCan(
-      { role: (membership?.role as GangRole | undefined) ?? null },
-      'registration.promote.other',
-    );
+    assertCan(await loadGangPermissionContext(gangId, user.id), 'registration.promote.other');
 
     const { data, error } = await supabaseAdmin().rpc('promote_waitlist', {
       p_session_id: reg.session_id,
@@ -308,10 +272,10 @@ export async function createInviteLink(
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    const { session, role } = await sessionContext(sessionId, user.id);
+    const { ctx } = await sessionContext(sessionId, user.id);
 
-    // feature flag `guests` ถูกตรวจใน can() และใน register_to_session() อีกชั้น
-    assertCan({ role, features: await gangFeatures(session.gang_id) }, 'session.invite.manage');
+    // feature flag `guests` ถูกตรวจใน can() และใน register_to_session() อีกชั้น — ctx.features มาจาก loader แล้ว
+    assertCan(ctx, 'session.invite.manage');
 
     const { data, error } = await supabaseAdmin().rpc('create_session_invite', {
       p_session_id: sessionId,
@@ -327,10 +291,4 @@ export async function createInviteLink(
 
     return { token: row.token, expiresAt: row.expires_at, maxUses: row.max_uses };
   });
-}
-
-async function gangFeatures(gangId: string) {
-  const supabase = await supabaseServer();
-  const { data } = await supabase.from('gangs').select('features').eq('id', gangId).maybeSingle();
-  return (data?.features ?? {}) as Record<string, boolean>;
 }
