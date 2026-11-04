@@ -8,8 +8,8 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
 import { moneyFromDb } from '@/lib/supabase/money';
 import { assertCan } from '@/domain/permissions/can';
+import { loadGangPermissionContext } from '@/server/permissions/gang-context';
 import { fromSatang, sumSatang, toSatang } from '@/domain/billing/money';
-import type { GangRole } from '@/domain/permissions/types';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { AppError, runAction } from '@/shared/action';
 import { ADMIN_READ_PAGE, allById, financeReader } from '@/server/payments/admin-read';
@@ -26,19 +26,6 @@ import { ADMIN_READ_PAGE, allById, financeReader } from '@/server/payments/admin
 
 async function cid(): Promise<string> {
   return correlationIdFrom(await headers());
-}
-
-async function roleInGang(gangId: string, userId: string): Promise<GangRole | null> {
-  const supabase = await supabaseServer();
-  const { data } = await supabase
-    .from('gang_members')
-    .select('role')
-    .eq('gang_id', gangId)
-    .eq('user_id', userId)
-    .is('deleted_at', null)
-    .maybeSingle();
-
-  return (data?.role as GangRole | undefined) ?? null;
 }
 
 export type CreditEntry = {
@@ -108,7 +95,7 @@ export async function getMyCredit(gangId: string): Promise<ApiResponse<MemberCre
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    assertCan({ role: await roleInGang(gangId, user.id) }, 'credit.read.self');
+    assertCan(await loadGangPermissionContext(gangId, user.id), 'credit.read.self');
     return readMemberCredit(gangId, user.id);
   });
 }
@@ -122,8 +109,8 @@ export async function getMemberCredit(
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    const role = await roleInGang(gangId, user.id);
-    assertCan({ role }, user.id === userId ? 'credit.read.self' : 'credit.read.other');
+    const ctx = await loadGangPermissionContext(gangId, user.id);
+    assertCan(ctx, user.id === userId ? 'credit.read.self' : 'credit.read.other');
     return readMemberCredit(gangId, userId);
   });
 }
@@ -209,7 +196,7 @@ export async function recordOverpayment(
       .maybeSingle();
     if (!payment) throw new AppError('PAYMENT_NOT_FOUND', 'ไม่พบการชำระเงินนี้');
 
-    assertCan({ role: await roleInGang(payment.gang_id, user.id) }, 'credit.overpayment.record');
+    assertCan(await loadGangPermissionContext(payment.gang_id, user.id), 'credit.overpayment.record');
 
     // ส่งเป็น string เสมอ — ห้ามผ่าน float (CLAUDE.md §2.6); DB ตรวจรูปแบบซ้ำ
     if (amount !== null && !/^\d+(\.\d{1,2})?$/.test(amount.trim())) {
@@ -257,7 +244,7 @@ export async function setPaymentReceivedAmount(
       .maybeSingle();
     if (!payment) throw new AppError('PAYMENT_NOT_FOUND', 'ไม่พบการชำระเงินนี้');
 
-    assertCan({ role: await roleInGang(payment.gang_id, user.id) }, 'payment.verify');
+    assertCan(await loadGangPermissionContext(payment.gang_id, user.id), 'payment.verify');
 
     if (!/^\d+(\.\d{1,2})?$/.test(receivedAmount.trim())) {
       throw new AppError('VALIDATION_ERROR', 'ยอดที่โอนจริงไม่ถูกต้อง');
@@ -298,7 +285,7 @@ async function creditMovement(
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    assertCan({ role: await roleInGang(gangId, user.id) }, action);
+    assertCan(await loadGangPermissionContext(gangId, user.id), action);
 
     // ส่งเป็น string เสมอ — ห้ามผ่าน float (CLAUDE.md §2.6); DB ตรวจรูปแบบซ้ำ
     if (!MONEY_RE.test(amount.trim())) throw new AppError('VALIDATION_ERROR', 'จำนวนเงินไม่ถูกต้อง');
@@ -360,7 +347,7 @@ export async function returnChargeToCredit(
     const { data: charge } = await admin.from('session_charges').select('id, gang_id').eq('id', chargeId).maybeSingle();
     if (!charge) throw new AppError('CHARGE_NOT_FOUND', 'ไม่พบยอดเรียกเก็บนี้');
 
-    assertCan({ role: await roleInGang(charge.gang_id, user.id) }, 'credit.return_charge');
+    assertCan(await loadGangPermissionContext(charge.gang_id, user.id), 'credit.return_charge');
 
     if (amount !== null && !MONEY_RE.test(amount.trim())) throw new AppError('VALIDATION_ERROR', 'จำนวนเงินไม่ถูกต้อง');
     if (!reason.trim()) throw new AppError('VALIDATION_ERROR', 'ต้องระบุเหตุผล');

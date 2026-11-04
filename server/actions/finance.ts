@@ -6,7 +6,7 @@ import { headers } from 'next/headers';
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseServer } from '@/lib/supabase/server';
 import { assertCan } from '@/domain/permissions/can';
-import type { GangRole } from '@/domain/permissions/types';
+import { loadGangPermissionContext } from '@/server/permissions/gang-context';
 import { toSatang } from '@/domain/billing/money';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { AppError, assertOne, runAction, unwrap } from '@/shared/action';
@@ -30,17 +30,7 @@ const TABLE: Record<Kind, 'gang_expenses' | 'gang_incomes'> = {
 
 async function assertFinanceAdmin(gangId: string): Promise<string> {
   const user = await requireUser();
-  const supabase = await supabaseServer();
-
-  const { data } = await supabase
-    .from('gang_members')
-    .select('role')
-    .eq('gang_id', gangId)
-    .eq('user_id', user.id)
-    .is('deleted_at', null)
-    .maybeSingle();
-
-  assertCan({ role: (data?.role as GangRole | undefined) ?? null }, 'gang.finance.manage');
+  assertCan(await loadGangPermissionContext(gangId, user.id), 'gang.finance.manage');
   return user.id;
 }
 

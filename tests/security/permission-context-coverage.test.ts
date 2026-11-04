@@ -115,25 +115,25 @@ type ManifestEntry = {
  */
 const MANIFEST: readonly ManifestEntry[] = [
   // ---- server/actions/credit.ts ----
-  { file: 'server/actions/credit.ts', line: 111, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['credit.read.self'], delegable: false },
-  { file: 'server/actions/credit.ts', line: 126, fn: 'assertCan', category: 'tenant', actionKind: 'dynamicSet', actions: ['credit.read.self', 'credit.read.other'], delegable: 'mixed', note: 'ternary user.id===userId' },
-  { file: 'server/actions/credit.ts', line: 212, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['credit.overpayment.record'], delegable: true },
-  { file: 'server/actions/credit.ts', line: 260, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true },
-  { file: 'server/actions/credit.ts', line: 301, fn: 'assertCan', category: 'tenant', actionKind: 'dynamicSet', actions: ['credit.topup', 'credit.payout.record'], delegable: true, note: 'creditMovement(action) shared by topUpCredit/payOutCredit' },
-  { file: 'server/actions/credit.ts', line: 363, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['credit.return_charge'], delegable: true },
+  { file: 'server/actions/credit.ts', line: 98, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['credit.read.self'], delegable: false },
+  { file: 'server/actions/credit.ts', line: 113, fn: 'assertCan', category: 'tenant', actionKind: 'dynamicSet', actions: ['credit.read.self', 'credit.read.other'], delegable: 'mixed', note: 'ternary user.id===userId' },
+  { file: 'server/actions/credit.ts', line: 199, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['credit.overpayment.record'], delegable: true },
+  { file: 'server/actions/credit.ts', line: 247, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true },
+  { file: 'server/actions/credit.ts', line: 288, fn: 'assertCan', category: 'tenant', actionKind: 'dynamicSet', actions: ['credit.topup', 'credit.payout.record'], delegable: true, note: 'creditMovement(action) shared by topUpCredit/payOutCredit' },
+  { file: 'server/actions/credit.ts', line: 350, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['credit.return_charge'], delegable: true },
 
   // ---- server/payments/admin-read.ts (financeReader shared helper — 5 callers pass different actions) ----
-  { file: 'server/payments/admin-read.ts', line: 27, fn: 'assertCan', category: 'tenant', actionKind: 'dynamicSet', actions: ['gang.finance.view', 'credit.read.other', 'payment.verify'], delegable: true, note: 'financeReader(gangId, action=gang.finance.view); callers: finance-report.ts:44, payment-admin.ts:132/199 (default), credit.ts:144 (credit.read.other), payment-admin.ts:64 (payment.verify), payment-list.ts:47 (payment.verify)' },
+  { file: 'server/payments/admin-read.ts', line: 24, fn: 'assertCan', category: 'tenant', actionKind: 'dynamicSet', actions: ['gang.finance.view', 'credit.read.other', 'payment.verify'], delegable: true, note: 'financeReader(gangId, action=gang.finance.view); callers: finance-report.ts:44, payment-admin.ts:132/199 (default), credit.ts:144 (credit.read.other), payment-admin.ts:64 (payment.verify), payment-list.ts:47 (payment.verify)' },
 
   // ---- server/actions/billing.ts ----
-  { file: 'server/actions/billing.ts', line: 229, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['billing.close'], delegable: true },
-  { file: 'server/actions/billing.ts', line: 361, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['billing.close'], delegable: true },
+  { file: 'server/actions/billing.ts', line: 219, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['billing.close'], delegable: true },
+  { file: 'server/actions/billing.ts', line: 342, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['billing.close'], delegable: true },
 
   // ---- server/actions/announcements.ts ----
   { file: 'server/actions/announcements.ts', line: 41, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['announcement.manage'], delegable: true },
 
   // ---- server/actions/finance.ts ----
-  { file: 'server/actions/finance.ts', line: 43, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.finance.manage'], delegable: true },
+  { file: 'server/actions/finance.ts', line: 33, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.finance.manage'], delegable: true },
 
   // ---- server/actions/game-console.ts (scheduler preset's core surface) ----
   { file: 'server/actions/game-console.ts', line: 84, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['registration.checkin'], delegable: true },
@@ -164,17 +164,17 @@ const MANIFEST: readonly ManifestEntry[] = [
   { file: 'server/actions/members.ts', line: 227, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.member.manage'], delegable: false, note: 'NEVER_DELEGABLE' },
 
   // ---- server/actions/membership.ts ----
-  { file: 'server/actions/membership.ts', line: 58, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.pricing.manage'], delegable: false, note: 'NEVER_DELEGABLE' },
-  { file: 'server/actions/membership.ts', line: 110, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.member.manage'], delegable: false, note: 'NEVER_DELEGABLE' },
-  { file: 'server/actions/membership.ts', line: 149, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['billing.close'], delegable: true },
+  { file: 'server/actions/membership.ts', line: 59, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.pricing.manage'], delegable: false, note: 'NEVER_DELEGABLE' },
+  { file: 'server/actions/membership.ts', line: 111, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.member.manage'], delegable: false, note: 'NEVER_DELEGABLE' },
+  { file: 'server/actions/membership.ts', line: 150, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['billing.close'], delegable: true },
 
   // ---- server/actions/payments.ts ----
-  { file: 'server/actions/payments.ts', line: 62, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['payment.submit.self'], delegable: false },
-  { file: 'server/actions/payments.ts', line: 196, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true },
-  { file: 'server/actions/payments.ts', line: 279, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['payment.submit.self'], delegable: false },
-  { file: 'server/actions/payments.ts', line: 282, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true, note: 'guarded by `if (payer !== user.id)` — paying for self bypasses this' },
-  { file: 'server/actions/payments.ts', line: 327, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true },
-  { file: 'server/actions/payments.ts', line: 479, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['payment.submit.self'], delegable: false },
+  { file: 'server/actions/payments.ts', line: 50, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['payment.submit.self'], delegable: false },
+  { file: 'server/actions/payments.ts', line: 184, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true },
+  { file: 'server/actions/payments.ts', line: 267, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['payment.submit.self'], delegable: false },
+  { file: 'server/actions/payments.ts', line: 270, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true, note: 'guarded by `if (payer !== user.id)` — paying for self bypasses this' },
+  { file: 'server/actions/payments.ts', line: 315, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true },
+  { file: 'server/actions/payments.ts', line: 467, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['payment.submit.self'], delegable: false },
 
   // ---- server/actions/registrations.ts ----
   { file: 'server/actions/registrations.ts', line: 58, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['registration.create.self'], delegable: false },

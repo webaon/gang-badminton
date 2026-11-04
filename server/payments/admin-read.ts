@@ -4,7 +4,8 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { requireUser } from '@/lib/supabase/auth';
 import { assertCan } from '@/domain/permissions/can';
-import type { Action, GangRole } from '@/domain/permissions/types';
+import { loadGangPermissionContext } from '@/server/permissions/gang-context';
+import type { Action } from '@/domain/permissions/types';
 import { AppError } from '@/shared/action';
 
 export const ADMIN_READ_PAGE = 500;
@@ -19,12 +20,9 @@ export function uuid(value: string): string {
 export async function financeReader(gangId: string, action: Action = 'gang.finance.view') {
   uuid(gangId);
   const user = await requireUser();
-  const db = await supabaseServer();
-  const { data, error } = await db.from('gang_members').select('role')
-    .eq('gang_id', gangId).eq('user_id', user.id).is('deleted_at', null).maybeSingle();
-  if (error) throw error;
-  const ctx = { role: (data?.role ?? null) as GangRole | null };
+  const ctx = await loadGangPermissionContext(gangId, user.id);
   assertCan(ctx, action);
+  const db = await supabaseServer();
   return { db, ctx, user };
 }
 

@@ -5,9 +5,8 @@ import { headers } from 'next/headers';
 
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { supabaseServer } from '@/lib/supabase/server';
 import { assertCan } from '@/domain/permissions/can';
-import type { GangRole } from '@/domain/permissions/types';
+import { loadGangPermissionContext } from '@/server/permissions/gang-context';
 import { fromJson as cancellationFromJson } from '@/domain/policies/cancellation';
 import {
   courtPlusShuttleFromJson,
@@ -214,19 +213,10 @@ export async function previewSessionCharges(
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    const supabase = await supabaseServer();
 
     const context = await loadBillingContext(sessionId);
 
-    const { data: membership } = await supabase
-      .from('gang_members')
-      .select('role')
-      .eq('gang_id', context.session.gang_id)
-      .eq('user_id', user.id)
-      .is('deleted_at', null)
-      .maybeSingle();
-
-    assertCan({ role: (membership?.role as GangRole | undefined) ?? null }, 'billing.close');
+    assertCan(await loadGangPermissionContext(context.session.gang_id, user.id), 'billing.close');
 
     const toStatus = input.toStatus ?? 'billing';
     const result = calculateSessionCharges({
@@ -346,19 +336,10 @@ export async function closeSessionWithBilling(
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    const supabase = await supabaseServer();
 
     const first = await loadBillingContext(sessionId);
 
-    const { data: membership } = await supabase
-      .from('gang_members')
-      .select('role')
-      .eq('gang_id', first.session.gang_id)
-      .eq('user_id', user.id)
-      .is('deleted_at', null)
-      .maybeSingle();
-
-    assertCan({ role: (membership?.role as GangRole | undefined) ?? null }, 'billing.close');
+    assertCan(await loadGangPermissionContext(first.session.gang_id, user.id), 'billing.close');
 
     const toStatus = input.toStatus ?? 'billing';
 

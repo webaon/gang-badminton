@@ -7,7 +7,7 @@ import { requireUser } from '@/lib/supabase/auth';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
 import { assertCan } from '@/domain/permissions/can';
-import type { GangRole } from '@/domain/permissions/types';
+import { loadGangPermissionContext } from '@/server/permissions/gang-context';
 import { summarize, validateAdjustment, type AdjustmentType, type LedgerEntry } from '@/domain/billing/ledger';
 import { breakdownCharges } from '@/domain/billing/charge-breakdown';
 import type { BillingResult, BillingSnapshot } from '@/domain/billing/session-billing';
@@ -29,18 +29,6 @@ function sumMoney(amounts: string[]): string {
   return fromSatang(sumSatang(amounts.map(toSatang)));
 }
 
-async function roleInGang(gangId: string, userId: string): Promise<GangRole | null> {
-  const supabase = await supabaseServer();
-  const { data } = await supabase
-    .from('gang_members')
-    .select('role')
-    .eq('gang_id', gangId)
-    .eq('user_id', userId)
-    .is('deleted_at', null)
-    .maybeSingle();
-  return (data?.role as GangRole | undefined) ?? null;
-}
-
 /** ออกใบจ่ายจาก charges ของตัวเองในนัดนั้น */
 export async function createMyPayment(
   sessionId: string,
@@ -59,7 +47,7 @@ export async function createMyPayment(
       .maybeSingle();
 
     if (!session) throw new AppError('NOT_FOUND', 'ไม่พบนัดนี้');
-    assertCan({ role: await roleInGang(session.gang_id, user.id) }, 'payment.submit.self');
+    assertCan(await loadGangPermissionContext(session.gang_id, user.id), 'payment.submit.self');
 
     // charges ของ "ตัวเอง" = charge ที่ผูกกับ registration ที่เป็น user นี้
     const { data: charges } = await admin
@@ -193,7 +181,7 @@ export async function reviewPayment(
       .maybeSingle();
 
     if (!payment) throw new AppError('PAYMENT_NOT_FOUND', 'ไม่พบรายการจ่ายนี้');
-    assertCan({ role: await roleInGang(payment.gang_id, user.id) }, 'payment.verify');
+    assertCan(await loadGangPermissionContext(payment.gang_id, user.id), 'payment.verify');
 
     if (decision === 'rejected' && !reason?.trim()) {
       // ปฏิเสธโดยไม่บอกเหตุผล = ผู้จ่ายไม่รู้ว่าต้องแก้อะไร แล้วจะอัปซ้ำแบบเดิม
@@ -232,7 +220,7 @@ export async function slipSignedUrl(paymentId: string): Promise<ApiResponse<{ ur
 
     if (!payment?.slip_url) throw new AppError('NOT_FOUND', 'ยังไม่มีสลิป');
 
-    const role = await roleInGang(payment.gang_id, user.id);
+    const role = (await loadGangPermissionContext(payment.gang_id, user.id)).role;
     const isOwner = payment.payer_user_id === user.id;
 
     if (!isOwner && !['owner', 'admin'].includes(role ?? '')) {
@@ -273,13 +261,13 @@ export async function createPaymentForCharges(
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    const role = await roleInGang(gangId, user.id);
+    const ctx = await loadGangPermissionContext(gangId, user.id);
 
     // ต้องเป็นสมาชิกก๊วนนี้ถึงจะจ่ายแทนกันได้
-    assertCan({ role }, 'payment.submit.self');
+    assertCan(ctx, 'payment.submit.self');
 
     const payer = payerUserId ?? user.id;
-    if (payer !== user.id) assertCan({ role }, 'payment.verify');
+    if (payer !== user.id) assertCan(ctx, 'payment.verify');
 
     if (chargeIds.length === 0) {
       throw new AppError('VALIDATION_ERROR', 'ยังไม่ได้เลือกรายการที่จะจ่าย');
@@ -324,7 +312,7 @@ export async function addChargeAdjustment(
       .maybeSingle();
 
     if (!charge) throw new AppError('CHARGE_NOT_FOUND', 'ไม่พบยอดเรียกเก็บนี้');
-    assertCan({ role: await roleInGang(charge.gang_id, user.id) }, 'payment.verify');
+    assertCan(await loadGangPermissionContext(charge.gang_id, user.id), 'payment.verify');
 
     // ตรวจใน domain ก่อนยิง DB — ข้อความบอกผู้ใช้ได้ละเอียดกว่า error จากฐานข้อมูล
     const { data: allocations } = await admin
@@ -476,7 +464,7 @@ type AllocRow = {
 
 /** สมาชิกของก๊วน + มีสิทธิ์จ่ายของตัวเอง */
 async function assertSelfPayer(gangId: string, userId: string): Promise<void> {
-  assertCan({ role: await roleInGang(gangId, userId) }, 'payment.submit.self');
+  assertCan(await loadGangPermissionContext(gangId, userId), 'payment.submit.self');
 }
 
 /**
