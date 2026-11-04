@@ -7,7 +7,7 @@ import { requireUser } from '@/lib/supabase/auth';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
 import { assertCan } from '@/domain/permissions/can';
-import type { GangRole } from '@/domain/permissions/types';
+import { loadGangPermissionContext } from '@/server/permissions/gang-context';
 import { announcementImagePath, BUCKETS, tenantKeyOf } from '@/lib/storage/paths';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { AppError, assertOne, runAction, unwrap } from '@/shared/action';
@@ -28,17 +28,7 @@ async function cid(): Promise<string> {
 
 async function assertAnnouncementAdmin(gangId: string): Promise<string> {
   const user = await requireUser();
-  const supabase = await supabaseServer();
-
-  const { data } = await supabase
-    .from('gang_members')
-    .select('role')
-    .eq('gang_id', gangId)
-    .eq('user_id', user.id)
-    .is('deleted_at', null)
-    .maybeSingle();
-
-  assertCan({ role: (data?.role as GangRole | undefined) ?? null }, 'announcement.manage');
+  assertCan(await loadGangPermissionContext(gangId, user.id), 'announcement.manage');
   return user.id;
 }
 

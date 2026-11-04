@@ -130,7 +130,7 @@ const MANIFEST: readonly ManifestEntry[] = [
   { file: 'server/actions/billing.ts', line: 342, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['billing.close'], delegable: true },
 
   // ---- server/actions/announcements.ts ----
-  { file: 'server/actions/announcements.ts', line: 41, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['announcement.manage'], delegable: true },
+  { file: 'server/actions/announcements.ts', line: 31, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['announcement.manage'], delegable: true },
 
   // ---- server/actions/finance.ts ----
   { file: 'server/actions/finance.ts', line: 33, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.finance.manage'], delegable: true },
