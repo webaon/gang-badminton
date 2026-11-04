@@ -300,7 +300,8 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 - ใบ 24 (6.5a): payment-admin 9 · payment-list 5 · finance-cash 7 · finance-range 10 = 31/31
 - ใบ 26–29 (R-roles-1 / 2a / 2b / 2c · migration 0050–0053): gang-roles 25/25 · treasurer-finance 16/16 · scheduler-sessions 10/10 · scheduler-statistics 7/7 · role-matrix 7/7 (golden ไม่เปลี่ยน)
 - 🔴 **cloud push 0050–0053 ยังห้าม** — ต้องรอ 0047–0049 (ใบ 17–19 HOLD รอ Task04 test-env) · cloud ยังอยู่ที่ 0046
-- 6.5b: `1dfaa09` + `f56decc` รอ QA ใบ 30 · WO-6.6a เปิดแล้ว (แผน `b56fff5`) แต่ @gb-frontend ติด provider limit ถึง 10 พ.ย. 00:03
+- 6.5b ✅ QA ใบ 30 PASS (`1dfaa09` + `f56decc`): typecheck 0 error · lint 0 error · unit 625 passed / 1 skipped · default build ผ่าน · full Playwright 62/62 (QA rerun เอง)
+- 6.5b ✅ ปิดงาน · WO-6.6a เปิดแล้ว (แผน `b56fff5`) แต่ @gb-frontend ติด provider limit ถึง 10 พ.ย. 00:03
 - R-roles-3: ปลดพักแล้ว · @gb-backend กำลังทำ
 
 ลำดับที่ใช้จริง: **6.2 → 6.4 → 6.3** (แตก 6.4 เป็น 6.4a/6.4b และ 6.4a เป็นวันเล่นลำดับแรก) · ดูแผนที่ `docs/phase6-redesign-plan.md` §10

@@ -1750,7 +1750,7 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | R-roles-3 | server โหลดชุดสิทธิ์เข้า can() extra — แผน `docs/plans/r-roles-3-server-permission-context.md` `6e026a5` · template guards ใช้ action แยก ไม่ delegable (planner 1 พ.ย.) | @gb-backend | ✅ ปลดพักแล้ว · @gb-backend กำลังทำ |
 | R2.2 + R2.3 | reminders test pageSize ≤ max_rows `b843adc` → แก้ F1/F2 ด้วย fixture-scoped real HTTP + งบ request คงที่ `eb1f043` `0cc41d4` (test-only · รวม B13 session :218) | @gb-integrations | ✅ QA ใบ 22 PASS (31 ต.ค. · ties ข้ามหน้าจริง [1,1,2] · mutation ปิด filter/เปลี่ยน path แดง · writers 47/47 ×3) · ข้อจำกัด: ไม่รับรอง global churn |
 | 6.5a | loaders แอดมินเงิน: adminPaymentDetail/adminLedger/chargeHistory `79844ca` · financeReport + listGangCredits | @gb-integrations | ✅ QA ใบ 24 — static + runtime payment-admin 9 / payment-list 5 / finance-cash 7 / finance-range 10 = 31/31 |
-| 6.5b | H32/33/34 + กระเป๋าเครดิต + reports | @gb-frontend | 🔄 commit `1dfaa09` + `f56decc` รอ QA ใบ 30 |
+| 6.5b | H32/33/34 + กระเป๋าเครดิต + reports | @gb-frontend | ✅ `1dfaa09` + `f56decc` QA ใบ 30 PASS — typecheck 0 error · lint 0 error · unit 625 passed / 1 skipped · default build ผ่าน · full Playwright 62/62 (QA rerun เอง) |
 | 6.6a | WO-6.6a เปิดแล้ว (แผน `b56fff5`) · ⏸ @gb-frontend ติด provider limit ถึง 10 พ.ย. 00:03 | @gb-frontend | ⏸ |
 | 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ |
 | 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
