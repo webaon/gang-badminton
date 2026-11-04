@@ -294,6 +294,15 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 | 6.8 | Growth screens + หน้าแรก | @gb-frontend | ⏳ |
 | 6.9 | Playwright checkpoint + `v1.1.0` | @gb-qa | ⏳ |
 
+**QA ล่าสุด (รับจาก planner · 4 พ.ย. 2026)** — ทุกใบผ่าน static + runtime จริง:
+- ใบ 21 (R3): my-payments 14/14
+- ใบ 23 (6.3): pay-flow 3/3 + my-balance (จาก full Playwright 62/62 ของ 6.5b)
+- ใบ 24 (6.5a): payment-admin 9 · payment-list 5 · finance-cash 7 · finance-range 10 = 31/31
+- ใบ 26–29 (R-roles-1 / 2a / 2b / 2c · migration 0050–0053): gang-roles 25/25 · treasurer-finance 16/16 · scheduler-sessions 10/10 · scheduler-statistics 7/7 · role-matrix 7/7 (golden ไม่เปลี่ยน)
+- 🔴 **cloud push 0050–0053 ยังห้าม** — ต้องรอ 0047–0049 (ใบ 17–19 HOLD รอ Task04 test-env) · cloud ยังอยู่ที่ 0046
+- 6.5b: `1dfaa09` + `f56decc` รอ QA ใบ 30 · WO-6.6a เปิดแล้ว (แผน `b56fff5`) แต่ @gb-frontend ติด provider limit ถึง 10 พ.ย. 00:03
+- R-roles-3: ปลดพักแล้ว · @gb-backend กำลังทำ
+
 ลำดับที่ใช้จริง: **6.2 → 6.4 → 6.3** (แตก 6.4 เป็น 6.4a/6.4b และ 6.4a เป็นวันเล่นลำดับแรก) · ดูแผนที่ `docs/phase6-redesign-plan.md` §10
 
 **Track B (ความสามารถใหม่ที่เจ้าของงานตัดสินแล้ว)**

@@ -1725,8 +1725,8 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | 6.1a | App shell — tab bar มือถือ · sidebar แอดมิน · สลับก๊วน (plan §10) | @gb-frontend | ✅ `f042a50`+`0e0588f` QA ผ่าน |
 | 6.1b | global states g1–g4 + ErrorCode → ข้อความไทยกลาง + บั๊ก 390px (plan §10) | @gb-frontend | ✅ `2c82b89` QA ผ่าน |
 | 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) (plan §11.3) | @gb-frontend | ✅ `69533df`+`56798cc`+`cef63c0` QA ผ่าน |
-| 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) | @gb-frontend | 🔄 QA ใบ 23 (012cfc3 + d26c239 · H29 /my-payments) |
-| R3 | loader อ่านอย่างเดียว: ยอดของฉันข้ามนัด + breakdown ของฉัน + payment ที่ผูกนัด (แก้บั๊ก limit 1) | @gb-integrations | 🔄 QA ใบ 21 (81abd7f) |
+| 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) | @gb-frontend | ✅ QA ใบ 23 — static + runtime pay-flow 3/3 + my-balance (จาก full Playwright 62/62 ของ 6.5b) · `012cfc3` + `d26c239` |
+| R3 | loader อ่านอย่างเดียว: ยอดของฉันข้ามนัด + breakdown ของฉัน + payment ที่ผูกนัด (แก้บั๊ก limit 1) | @gb-integrations | ✅ QA ใบ 21 — static + runtime my-payments 14/14 (81abd7f) |
 | R4 | waitlist.promoted + payment.due ⇒ LINE (session.opened in_app เท่านั้น) — เจ้าของงานเลือก ก · `c9b2fe7` migration 0045 | @gb-backend | ✅ QA ใบ 15 ผ่าน · db push cloud ✅ (45/45 · EXECUTE anon/auth=false · ไม่มี overload) |
 | 6.4a | วันเล่น — เช็คอิน · กระดานคิวสด · จัดคู่ · เกม+ลูก · เวลาพัก (23–27) | @gb-frontend | ✅ `44fe570` QA ผ่าน |
 | 6.4b | ปิดรอบ → ตรวจยอด (28 + K28a · K28b → BACKLOG) | @gb-frontend | 🔄 |
@@ -1743,14 +1743,15 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | B5b-3 | leave_gang หักเครดิต + ห้าม topup ตัวเอง `6d6a3ba` (0049) | @gb-backend | 🔄 QA ใบ 19 |
 | B13-ADR | ADR-015 บทบาทกำหนดเอง `b2f2f66` · Accepted `e64a1f2` | @gb-backend | ✅ (เอกสาร) |
 | R-roles-0 | golden role-matrix `146bf16` + 0.1 แก้ fixture cron/inventory `2e000f6` (เทสต์อย่างเดียว) | @gb-backend | 🔄 QA ใบ 20 |
-| R-roles-1 | expand: gang_roles + has_gang_permission + preset + assign (ไม่แก้ policy เดิม) `62405a8` (0050) | @gb-backend | 🔄 QA ใบ 26 |
-| R-roles-2a | migrate การเงิน → ผู้ถือชุดสิทธิ์ (InitPlan `gangs_with_permission` · ADR-015 amendment `e06304d`) `63239db` (0051) | @gb-backend | 🔄 QA ใบ 27 |
-| R-roles-2b | migrate จัดนัด + `sessions_with_permission` `7425aac` (0052) | @gb-backend | 🔄 QA ใบ 28 |
-| R-roles-2c | ประกาศ + statistics.view.all ให้ scheduler (flag gate ใน policy · helper กลางไม่รู้จัก feature) `b354a9b` (0053) | @gb-backend | 🔄 QA ใบ 29 |
-| R-roles-3 | server โหลดชุดสิทธิ์เข้า can() extra — แผน `docs/plans/r-roles-3-server-permission-context.md` `6e026a5` · template guards ใช้ action แยก ไม่ delegable (planner 1 พ.ย.) | @gb-backend | ⏸ พักรอคิว QA |
+| R-roles-1 | expand: gang_roles + has_gang_permission + preset + assign (ไม่แก้ policy เดิม) `62405a8` (0050) | @gb-backend | ✅ QA ใบ 26 — static + runtime gang-roles 25/25 · cloud push 0050 ⏸ รอ 0047–0049 |
+| R-roles-2a | migrate การเงิน → ผู้ถือชุดสิทธิ์ (InitPlan `gangs_with_permission` · ADR-015 amendment `e06304d`) `63239db` (0051) | @gb-backend | ✅ QA ใบ 27 — static + runtime treasurer-finance 16/16 · cloud push 0051 ⏸ รอ 0047–0049 |
+| R-roles-2b | migrate จัดนัด + `sessions_with_permission` `7425aac` (0052) | @gb-backend | ✅ QA ใบ 28 — static + runtime scheduler-sessions 10/10 · cloud push 0052 ⏸ รอ 0047–0049 |
+| R-roles-2c | ประกาศ + statistics.view.all ให้ scheduler (flag gate ใน policy · helper กลางไม่รู้จัก feature) `b354a9b` (0053) | @gb-backend | ✅ QA ใบ 29 — static + runtime scheduler-statistics 7/7 · role-matrix 7/7 (golden ไม่เปลี่ยน) · cloud push 0053 ⏸ รอ 0047–0049 |
+| R-roles-3 | server โหลดชุดสิทธิ์เข้า can() extra — แผน `docs/plans/r-roles-3-server-permission-context.md` `6e026a5` · template guards ใช้ action แยก ไม่ delegable (planner 1 พ.ย.) | @gb-backend | ✅ ปลดพักแล้ว · @gb-backend กำลังทำ |
 | R2.2 + R2.3 | reminders test pageSize ≤ max_rows `b843adc` → แก้ F1/F2 ด้วย fixture-scoped real HTTP + งบ request คงที่ `eb1f043` `0cc41d4` (test-only · รวม B13 session :218) | @gb-integrations | ✅ QA ใบ 22 PASS (31 ต.ค. · ties ข้ามหน้าจริง [1,1,2] · mutation ปิด filter/เปลี่ยน path แดง · writers 47/47 ×3) · ข้อจำกัด: ไม่รับรอง global churn |
-| 6.5a | loaders แอดมินเงิน: adminPaymentDetail/adminLedger/chargeHistory `79844ca` · financeReport + listGangCredits 🔄 | @gb-integrations | 🔄 QA ใบ 24 (ชุดแรก) |
-| 6.5b | H32/33/34 + กระเป๋าเครดิต + reports | @gb-frontend | 🔄 |
+| 6.5a | loaders แอดมินเงิน: adminPaymentDetail/adminLedger/chargeHistory `79844ca` · financeReport + listGangCredits 🔄 | @gb-integrations | ✅ QA ใบ 24 — static + runtime payment-admin 9 / payment-list 5 / finance-cash 7 / finance-range 10 = 31/31 |
+| 6.5b | H32/33/34 + กระเป๋าเครดิต + reports | @gb-frontend | 🔄 commit `1dfaa09` + `f56decc` รอ QA ใบ 30 |
+| 6.6a | WO-6.6a เปิดแล้ว (แผน `b56fff5`) · ⏸ @gb-frontend ติด provider limit ถึง 10 พ.ย. 00:03 | @gb-frontend | ⏸ |
 | 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ |
 | 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
 | 6.7 | Auth + onboarding | @gb-frontend | ⏳ |
