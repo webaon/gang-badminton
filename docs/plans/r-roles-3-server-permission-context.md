@@ -121,6 +121,18 @@ export async function loadGangPermissionContext(
 
 ## Task 4 — Integrate finance guards in a small commit
 
+**Status: DONE (`ee3d10a`).** Wired `loadGangPermissionContext` into
+`server/payments/admin-read.ts` (`financeReader`, shared by 5 callers incl.
+the 5 eligibility-hint `can()` calls in `payment-admin.ts`), `credit.ts` (6
+sites), `payments.ts` (6 sites — plus found and preserved, unchanged, a
+pre-existing direct `['owner','admin'].includes(role)` check in
+`slipSignedUrl()` that bypasses `can()` entirely; flagged for
+planner/BACKLOG, not silently "fixed"), `finance.ts`, `billing.ts` (both
+`billing.close` sites), `membership.ts` (`billing.close` only — its other two
+NEVER_DELEGABLE sites untouched). No action names/signatures/lock
+order/money logic changed. tsc/eslint/build clean; both no-DB suites GREEN;
+action/DB tests NOT run (shared DB held for QA).
+
 Files: `server/actions/{credit,payments,payment-admin,finance,reports,billing}.ts`, `server/payments/admin-read.ts`; their existing tests plus new delegated-action tests.
 
 1. Write RED action tests: treasurer gets only accepted finance actions; cannot close billing, top up, alter pricing, or access another gang.
@@ -131,6 +143,17 @@ Files: `server/actions/{credit,payments,payment-admin,finance,reports,billing}.t
 
 ## Task 5 — Integrate sessions/game guards in a separate commit
 
+**Status: DONE (`2906dae`).** Wired the loader into `sessions.ts` (3 sites),
+`registrations.ts`'s shared `sessionContext()` (now returns `{session, ctx}`;
+`createInviteLink`'s separate `gangFeatures()` helper became redundant and
+was removed since `ctx.features` already carries it — one less round trip,
+identical feature-gate behavior), `game-console.ts`'s shared `sessionContext()`
+(9 call sites), and `console-loader.ts` (the real `game.manage` gate that
+decides whether `admin.rpc(session_console_queue)` loads, plus the cosmetic
+`canClose` flag). `templates.ts` left **untouched** exactly as planned — still
+pending the planner's `session.template.manage` decision. tsc/eslint/build
+clean; both no-DB suites GREEN; action/DB tests NOT run.
+
 Files: `server/actions/{sessions,registrations,game-console,templates}.ts`, `server/sessions/console-loader.ts`.
 
 1. Write RED scheduler action tests for create/update/transition/invite/register-other/guest/cancel/promote/check-in/no-show/game operations.
@@ -140,6 +163,22 @@ Files: `server/actions/{sessions,registrations,game-console,templates}.ts`, `ser
 5. Test revoke/leave/other gang and an ordinary member negative control. Commit after targeted suites and checks pass.
 
 ## Task 6 — Remaining guards and statistics read semantics
+
+**Status: PARTIAL (`2246cf2`).** The only remaining tenant+delegable guard
+site outside the `templates.ts` block was `server/actions/announcements.ts`'s
+`assertAnnouncementAdmin()` — wired to the loader (no preset grants
+`announcement.manage` per ADR-015 Q2ก, but a future custom bundle now works
+without touching this file again). Every other classified site in
+`tests/security/permission-context-coverage.test.ts` is either
+NEVER_DELEGABLE/self-only (intentionally left on plain role, e.g.
+`members.ts`, `gangs.ts`, `gang-config.ts`, `line.ts`, `membership.ts`'s other
+two sites, `discovery.ts`) or `ui` category (page-gate only, out of scope).
+NOT done: statistics read-semantics RED test (bullet 1), the
+scheduler-can-request-gang-wide-statistics test, and a test-only custom
+announcement bundle exercise — all require the shared DB and are deferred to
+when planner grants a slot. Task 7 verification (role-matrix/RLS re-runs,
+full suite, regrant/revoke-visible-next-action proof) is entirely DB-gated
+and NOT started.
 
 Files: classified sites from Task 1, including `server/actions/announcements.ts`; app/server statistics loaders as actually discovered.
 
