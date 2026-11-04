@@ -17,14 +17,45 @@
 
 ## Confirmed current integration points
 
+- Re-inventoried 2026 (R-roles-3 Phase 1, not the historical ADR counts above):
+  `tests/security/permission-context-coverage.test.ts` is the frozen, re-grepped
+  source of truth — 74 real `assertCan(`/`can(` call sites across `app/`+`server/`,
+  classified tenant(49)/self(7)/org(0)/public(0)/ui(18). It is a drift detector
+  (fails if a real call site is unclassified OR a manifest entry no longer points
+  at a real call), not a snapshot — update it whenever a guard site changes.
+- Fresh findings this re-inventory caught that the paragraph below (written before
+  re-inventorying) did NOT know about:
+  - `server/sessions/console-loader.ts:68` — `can({role},'game.manage')` gating
+    whether `loadConsole()` even calls `admin.rpc('session_console_queue', ...)`
+    (service-role, RLS-bypassing). This is a REAL tenant-scoped gate, not cosmetic
+    UI — misclassifying it as "UI" would be wrong. `:147`'s `canClose` IS cosmetic
+    (the file's own comment says the `/close` route re-checks `billing.close`).
+  - `server/actions/payment-admin.ts:102/103/104/105/213` — five `can(ctx, ...)`
+    calls that compute read-only eligibility-hint flags on a response already
+    gated by `financeReader()`'s `assertCan` (same pattern as console-loader:147).
+  - `server/actions/announcements.ts`'s `assertCan` call is now at line 41, not
+    line 29 as originally logged — the file shifted; line 29 is where membership
+    is *loaded*, not where `assertCan` is *called*. Exactly the kind of drift this
+    task's coverage test exists to catch — don't hand-copy old line numbers.
 - Seven duplicated `roleInGang` loaders: `server/actions/{credit,gangs,members,membership,templates,payments,sessions}.ts`.
 - Inline guards also occur in `server/actions/{announcements,billing,discovery,reports,registrations,payment-admin,game-console,line,gang-config,finance}.ts`.
 - Read guards: `server/payments/admin-read.ts`, `server/sessions/console-loader.ts`.
-- `server/actions/announcements.ts:29` currently loads gang membership and calls `assertCan` without `extra`.
 - There is no `server/actions/statistics.ts` or `server/auth/context.ts`; do not invent an existing abstraction. Audit app server components for statistics reads and navigation context separately.
 - Re-inventory at implementation time: earlier ADR counts are historical, not proof of current coverage.
 
 ## Task 1 — Freeze the integration inventory (test-only)
+
+**Status: DONE (Phase 1, this WO).** `tests/security/permission-context-coverage.test.ts`
+created and GREEN (9/9, no DB). RED-before-manifest-fix was observed live while
+building it: the scanner caught `server/sessions/console-loader.ts:68/147` and
+`server/actions/payment-admin.ts:102/103/104/105/213` as real call sites not in
+the first draft of the manifest, and caught 6 false positives (JSDoc comments
+that merely *mention* `can()`/`assertCan()` in prose) that a naive regex would
+have wrongly treated as call sites — fixed by stripping comments before
+scanning. Final counts: 74 total, tenant 49 / self 7 / org 0 / public 0 / ui 18;
+34 tenant+delegable sites still need the Task 3 loader wired in (Task 4/5/6),
+excluding the 4 `templates.ts` sites blocked on the `session.template.manage`
+decision.
 
 Files: create `tests/security/permission-context-coverage.test.ts` and a reviewed list of server guard sites in this plan.
 
@@ -36,6 +67,19 @@ Files: create `tests/security/permission-context-coverage.test.ts` and a reviewe
 
 ## Task 2 — Specify loader behavior before implementation
 
+**Status: DONE (Phase 1, this WO).** `tests/server/gang-permission-context.test.ts`
+created; RED captured first (22/22 failing with "Cannot find module
+'@/server/permissions/gang-context'" — the loader did not exist yet), then
+GREEN after Task 3 (22/22, no DB — `@/lib/supabase/server` is mocked with an
+in-memory fake query builder that records every `.eq()`/`.is()` call and the
+`.select()` string, so the test asserts the loader's actual filters rather than
+trusting a canned response). Covers owner/admin/member/orgAdmin/outsider,
+treasurer/scheduler/both/duplicate-permissions/deleted-assignment/deleted-role/
+departed-member/foreign-gang-role/malformed-permissions/smuggled-nondelegable-
+action, membership+assignment query errors (fail closed), and the named FK
+embed string. See `server/permissions/gang-context.ts` for what it does NOT
+prove (live FK name, RLS, real network errors — still a runtime gate).
+
 Files: create `tests/server/gang-permission-context.test.ts` and later `server/permissions/gang-context.ts`.
 
 1. Write mocked query-contract tests for owner/admin/member/orgAdmin/outsider and feature flags.
@@ -45,6 +89,17 @@ Files: create `tests/server/gang-permission-context.test.ts` and later `server/p
 5. Run `npx vitest run tests/server/gang-permission-context.test.ts` and save the RED result (loader missing).
 
 ## Task 3 — Implement the minimal server-only context loader
+
+**Status: DONE (Phase 1, this WO), NOT wired into any call site.**
+`server/permissions/gang-context.ts` created; exports exactly
+`loadGangPermissionContext(gangId, actorId): Promise<PermissionContext>` per the
+proposed interface below. No import from `next`/`react`/`domain/` added to
+`domain/`; this file itself lives under `server/` and imports `supabaseServer()`
+(allowed there). `orgRole` is intentionally left unset — matches the verified
+status quo (Task 1's coverage test confirms zero current call sites pass
+`orgRole`), not a new decision; resolving that gap is still an Open point below.
+Task 4/5/6 (wiring call sites) remain unstarted — gated on planner's "ช่วง 2"
+release after QA runtime clearance for migrations 0050–0053.
 
 Files: create `server/permissions/gang-context.ts`; no imports added to domain from server/Next/Supabase.
 
