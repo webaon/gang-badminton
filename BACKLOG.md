@@ -536,3 +536,7 @@
 
 - [ ] 🟡 **[docs/dev-env] build ที่ไม่ export `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` ยัง exit 0** แต่ค่าใน client bundle จะว่าง แล้วหน้า new session crash ตอน runtime (Playwright เคยพัง 17/62 เพราะเรื่องนี้ ดู `smoke.spec.ts:89`) · ตรวจแล้ว (ก) `.env.example` **มีอยู่แล้ว** (มีชื่อตัวแปรและค่า local ของ `supabase start`) (ข) README มีคำสั่ง build พร้อม export อยู่แล้ว (ส่วน smoke) · ที่ยังขาด: ทำให้ `npm run build` fail ถ้าไม่มีตัวแปรที่จำเป็น และย้ำขั้นตอนนี้ในส่วนขั้นตอนติดตั้งหลัก (ค) ตัดสินว่าจะให้ build fail หรือไม่ (เปลี่ยนพฤติกรรม build)
 - [ ] 🟢 **[UX · polish 6.9] ปุ่ม ghost "โหลดประวัติและยอดล่าสุด" ใน wallet (light/dark)** ดูเหมือนข้อความธรรมดา — contrast ผ่าน AA แล้ว แต่ affordance อ่อน · ให้พิจารณาตอน polish ของ 6.9
+
+## จาก R-roles-3 (รับเข้าจาก gb-backend · planner ตัดสินแล้ว)
+
+- [ ] 🟡 **[R-roles-4 · ความปลอดภัยสิทธิ์] action ใหม่ `session.template.manage`** (ไม่ delegable · เฉพาะ admin / owner / orgAdmin) สำหรับ guard site 4 จุดใน `server/actions/templates.ts` (บรรทัด 78 / 114 / 156 / 187) · ตอนนี้ยังใช้ `session.create` / `session.update` เดิมซึ่งเป็น delegable action ของ scheduler preset ⇒ scheduler ที่ควรจัดการได้แค่นัดเดี่ยว (ADR-015 Q2ก) มีสิทธิ์จัด "นัดประจำ/เทมเพลต" ไปด้วยโดยไม่ตั้งใจ · ยังไม่ส่ง extra เข้า assertCan ที่ templates.ts (จงใจคงไว้ที่ role ฐานตามคำสั่ง planner รอบ R-roles-3) · รอบนี้ไม่มี migration/implementation · ทำใน R-roles-4 (migration เพิ่ม action + DB check + ปรับ 4 call site) โดย @gb-backend
