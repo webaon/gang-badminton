@@ -149,3 +149,15 @@ export function assertCan(ctx: PermissionContext, action: Action): void {
 export function allowedActions(ctx: PermissionContext): Action[] {
   return ACTIONS.filter((a) => can(ctx, a));
 }
+
+/**
+ * [WO-6.5c, planner G1 — 31 ต.ค. 2026] composite สำหรับ widget ที่รวมยอดจากหลายตารางที่มี RLS
+ * คนละสิทธิ์พร้อมกันในเลขเดียว — `credit_balances` (0051:256-264) ต้อง `credit.read.other`,
+ * allocations/payments ต้อง `payment.verify`, `session_charges` ต้อง `gang.finance.view`
+ * ถ้าขาดอย่างใดอย่างหนึ่ง RLS กรองแถวออกเงียบๆ (ไม่ throw) ⇒ เลขที่ได้จะไม่ครบแบบไม่มีใครรู้ตัว
+ * ⇒ ต้องมีสิทธิ์ครบทั้ง 3 เท่านั้นถึงจะคืนเลข ไม่งั้นคืน null ทั้งหมด (ไม่ใช่สิทธิ์ใหม่ — รวม `can()`
+ * ที่มีอยู่แล้ว 3 ตัว, treasurer/admin preset มีครบอยู่แล้วจึงไม่ได้รับผลกระทบ)
+ */
+export function canSeeGangMoney(ctx: PermissionContext): boolean {
+  return can(ctx, 'gang.finance.view') && can(ctx, 'payment.verify') && can(ctx, 'credit.read.other');
+}

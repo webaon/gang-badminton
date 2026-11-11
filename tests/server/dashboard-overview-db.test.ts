@@ -48,7 +48,7 @@ vi.mock('@/lib/supabase/server', () => ({
 }));
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
-import { dashboardOverview } from '@/server/actions/dashboard';
+import { dashboardOverview, type DashboardOverview } from '@/server/actions/dashboard';
 import { adminLedger } from '@/server/actions/payment-admin';
 import { adminPaymentList } from '@/server/actions/payment-list';
 import { financeReport } from '@/server/actions/finance-report';
@@ -304,36 +304,85 @@ describe('dashboardOverview() — creditOutstanding paginates past PostgREST max
   }, 30_000);
 });
 
-describe('dashboardOverview() — creditOutstanding ต้องมีทั้ง gang.finance.view AND credit.read.other (planner ถอนอนุมัติเดิม, 31 ต.ค. 2026)', () => {
-  it('🔴 custom role ที่มีแค่ gang.finance.view (ไม่มี credit.read.other): creditOutstanding = null แต่ netCash/กราฟยังได้ปกติ', async () => {
+describe('dashboardOverview() — [planner G1] canSeeGangMoney() ต้องครบทั้ง 3: finance.view && payment.verify && credit.read.other', () => {
+  async function newGangWithCustomRole(permissions: string[], roleKey: string) {
     const owner = await newUser();
     const {
       rows: [gang],
-    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-financeonly-${crypto.randomUUID()}`]);
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-g1-${roleKey}-${crypto.randomUUID()}`]);
     const gangId = gang.id;
-    const financeOnlyUser = await newUser();
-    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'member')`, [gangId, financeOnlyUser]);
-
-    // role ต่อก๊วน (ไม่ใช่ preset ระบบ treasurer/scheduler) มีแค่ gang.finance.view ตัวเดียว —
-    // ยืนยันว่าช่องโหว่นี้ไม่ใช่แค่ "treasurer เท่านั้นที่ถูกต้อง" แต่ action-level จริงๆ
+    const customUser = await newUser();
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'member')`, [gangId, customUser]);
     await pool.query(
       `insert into public.gang_roles (gang_id, key, name, permissions, is_system)
-       values ($1, 'finance_view_only', 'ดูการเงินอย่างเดียว', array['gang.finance.view']::text[], false)`,
-      [gangId],
+       values ($1, $2, $2, $3::text[], false)`,
+      [gangId, roleKey, permissions],
     );
-    await pool.query(`select public.assign_gang_role($1, $2, 'finance_view_only', $3)`, [gangId, financeOnlyUser, owner]);
+    await pool.query(`select public.assign_gang_role($1, $2, $3, $4)`, [gangId, customUser, roleKey, owner]);
+    return { gangId, customUser, owner };
+  }
 
-    h.userId = financeOnlyUser;
-    const data = unwrap(await dashboardOverview(gangId));
-
+  function expectAllMoneyWidgetsNull(data: DashboardOverview) {
+    expect(data.outstanding).toBeNull();
+    expect(data.netCashThisMonth).toBeNull();
+    expect(data.monthlyCashFlow).toBeNull();
     expect(data.creditOutstanding).toBeNull();
-    expect(data.netCashThisMonth).not.toBeNull();
-    expect(data.monthlyCashFlow).not.toBeNull();
-    expect(data.monthlyCashFlow).toHaveLength(6);
-    expect(data.outstanding).not.toBeNull(); // #4 ยังใช้ gang.finance.view เดี่ยวๆตามที่อนุมัติไว้เดิม ไม่กระทบ
+  }
+
+  it('🔴 finance-only (แค่ gang.finance.view): ไม่ error + outstanding/netCash/monthlyCashFlow/creditOutstanding ต้องเป็น null ทั้งชุด (ไม่ใช่แค่ creditOutstanding)', async () => {
+    const { gangId, customUser } = await newGangWithCustomRole(['gang.finance.view'], 'finance_only');
+    h.userId = customUser;
+    const data = unwrap(await dashboardOverview(gangId));
+    expectAllMoneyWidgetsNull(data);
+    // widget อื่นที่ไม่เกี่ยวกับ canSeeGangMoney() ต้องยังทำงานปกติ ไม่ throw/ไม่หายไปด้วย
+    expect(data.sessionsThisMonth).toBeTypeOf('number');
   });
 
-  it('🔴 [QA source review] treasurer ที่ถูกถอน credit.read.other ออก (revoke_gang_role) — creditOutstanding ต้องกลับเป็น null ทันที ไม่ใช่ยอดค้างจาก cache/สถานะเก่า', async () => {
+  it('🔴 verify-only (แค่ payment.verify): ไม่ error + widget การเงินทั้ง 4 ตัวต้อง null เหมือนกัน', async () => {
+    const { gangId, customUser } = await newGangWithCustomRole(['payment.verify'], 'verify_only');
+    h.userId = customUser;
+    const data = unwrap(await dashboardOverview(gangId));
+    expectAllMoneyWidgetsNull(data);
+    // [G2] pendingSlips ต้อง payment.verify && gang.finance.view ด้วย — verify-only อย่างเดียวไม่พอ
+    expect(data.pendingSlips).toBeNull();
+  });
+
+  it('🔴 credit-only (แค่ credit.read.other): ไม่ error + widget การเงินทั้ง 4 ตัวต้อง null เหมือนกัน', async () => {
+    const { gangId, customUser } = await newGangWithCustomRole(['credit.read.other'], 'credit_only');
+    h.userId = customUser;
+    const data = unwrap(await dashboardOverview(gangId));
+    expectAllMoneyWidgetsNull(data);
+  });
+
+  it('🔴 finance.view + payment.verify (ไม่มี credit.read.other): ยังต้อง null ทั้งชุด — ขาดแค่ตัวเดียวก็พอทำให้ครบไม่ได้', async () => {
+    const { gangId, customUser } = await newGangWithCustomRole(['gang.finance.view', 'payment.verify'], 'finance_verify_no_credit');
+    h.userId = customUser;
+    const data = unwrap(await dashboardOverview(gangId));
+    expectAllMoneyWidgetsNull(data);
+    // [G2] แต่ pendingSlips ต้องผ่าน (มี payment.verify && gang.finance.view ครบตามเกณฑ์ G2 ซึ่งต่างจาก G1)
+    expect(data.pendingSlips).not.toBeNull();
+  });
+
+  it('✅ treasurer (bundle ระบบเดิม มีครบทั้ง 3): เห็นทุก widget การเงินครบ ไม่ null เลย', async () => {
+    const owner = await newUser();
+    const {
+      rows: [gang],
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-g1-treasurer-${crypto.randomUUID()}`]);
+    const gangId = gang.id;
+    const treasurer = await newUser();
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'member')`, [gangId, treasurer]);
+    await pool.query(`select public.assign_gang_role($1, $2, 'treasurer', $3)`, [gangId, treasurer, owner]);
+
+    h.userId = treasurer;
+    const data = unwrap(await dashboardOverview(gangId));
+    expect(data.outstanding).not.toBeNull();
+    expect(data.netCashThisMonth).not.toBeNull();
+    expect(data.monthlyCashFlow).not.toBeNull();
+    expect(data.creditOutstanding).not.toBeNull();
+    expect(data.pendingSlips).not.toBeNull();
+  });
+
+  it('🔴 [QA source review] treasurer ที่ถูกถอน credit.read.other ออก (revoke_gang_role) — widget การเงินทั้งชุดต้องกลับเป็น null ทันที ไม่ใช่ยอดค้างจาก cache/สถานะเก่า', async () => {
     const owner = await newUser();
     const {
       rows: [gang],
@@ -343,7 +392,7 @@ describe('dashboardOverview() — creditOutstanding ต้องมีทั้�
     await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'member')`, [gangId, revokedTreasurer]);
     await pool.query(`select public.assign_gang_role($1, $2, 'treasurer', $3)`, [gangId, revokedTreasurer, owner]);
 
-    // ก่อนถอน: มี credit.read.other จริง (เป็นส่วนหนึ่งของ preset treasurer) — เห็น creditOutstanding
+    // ก่อนถอน: มีสิทธิ์ครบทั้ง 3 จริง (เป็นส่วนหนึ่งของ preset treasurer) — เห็น creditOutstanding
     h.userId = revokedTreasurer;
     const before = unwrap(await dashboardOverview(gangId));
     expect(before.creditOutstanding).not.toBeNull();
@@ -351,9 +400,7 @@ describe('dashboardOverview() — creditOutstanding ต้องมีทั้�
     await pool.query(`select public.revoke_gang_role($1, $2, 'treasurer', $3)`, [gangId, revokedTreasurer, owner]);
 
     const after = unwrap(await dashboardOverview(gangId));
-    expect(after.creditOutstanding).toBeNull();
-    // widget อื่นที่ไม่เกี่ยวกับ credit.read.other ก็ต้องหายไปด้วย (ไม่มี gang.finance.view อีกแล้วหลัง revoke)
-    expect(after.netCashThisMonth).toBeNull();
+    expectAllMoneyWidgetsNull(after);
   });
 
   it('🔴 [ไม่ mock DB] client ของ treasurer จริง (JWT เซ็นเอง ผ่าน PostgREST+RLS จริง ไม่ใช่ serviceClient) ต้องได้ยอดรวมทั้งก๊วน', async () => {
@@ -386,6 +433,18 @@ describe('dashboardOverview() — creditOutstanding ต้องมีทั้�
       expect(data.creditOutstanding).toBe('175.00'); // ยอดรวมทั้งก๊วน ไม่ใช่แค่ 25.00 ของตัวเอง
     } finally {
       h.asUserId = null; // คืนเป็น serviceClient() เสมอ ไม่ให้รั่วไปเทสต์ถัดไป
+    }
+  });
+
+  it('🔴 [ไม่ mock DB] custom role finance-only จริง (JWT เซ็นเอง ผ่าน PostgREST+RLS จริง ไม่ใช่ serviceClient) ต้องได้ widget การเงินเป็น null จริง ไม่ใช่แค่ service-role มองไม่เห็นแถวโดยบังเอิญ', async () => {
+    const { gangId, customUser } = await newGangWithCustomRole(['gang.finance.view'], 'realjwt_finance_only');
+    h.userId = customUser;
+    h.asUserId = customUser; // RLS จริงผ่าน PostgREST — ไม่ bypass ด้วย service-role
+    try {
+      const data = unwrap(await dashboardOverview(gangId));
+      expectAllMoneyWidgetsNull(data);
+    } finally {
+      h.asUserId = null;
     }
   });
 });

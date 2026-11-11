@@ -4,7 +4,7 @@ import { headers } from 'next/headers';
 
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseServer } from '@/lib/supabase/server';
-import { can } from '@/domain/permissions/can';
+import { can, canSeeGangMoney } from '@/domain/permissions/can';
 import { loadGangPermissionContext } from '@/server/permissions/gang-context';
 import { isSeated } from '@/domain/sessions/member-view';
 import { splitCashFlow } from '@/domain/reports/finance';
@@ -61,17 +61,17 @@ export type DashboardOverview = {
   unclosedSessionsCount: number | null;
   /** null = ไม่มีสิทธิ์ gang.join_request.manage (รวมกรณีปิด features.discovery) */
   joinRequestsPending: number | null;
-  /** null = ไม่มีสิทธิ์ gang.finance.view */
+  /** null = ไม่มีสิทธิ์ครบ `canSeeGangMoney()` (finance.view && payment.verify && credit.read.other — G1) */
   outstanding: { amount: string; debtors: number } | null;
-  /** null = ไม่มีสิทธิ์ payment.verify */
+  /** null = ไม่มีสิทธิ์ครบ `payment.verify && gang.finance.view` (G2 — payment-list.ts ต้องอ่าน session_charges ด้วย) */
   pendingSlips: { count: number; oldestDays: number | null } | null;
-  /** null = ไม่มีสิทธิ์ gang.finance.view — ห้ามเรียกว่า "กำไร" */
+  /** null = ไม่มีสิทธิ์ครบ `canSeeGangMoney()` (G1) — ห้ามเรียกว่า "กำไร" */
   netCashThisMonth: string | null;
-  /** null = ไม่มีสิทธิ์ gang.finance.view AND credit.read.other (RLS ของ credit_balances ต้องการ credit.read.other เสมอ — มีแค่ finance.view ไม่พอ) */
+  /** null = ไม่มีสิทธิ์ครบ `canSeeGangMoney()` (G1 — เดิมเช็คแค่ finance.view+credit.read.other แยก แก้เป็น gate เดียวกันทั้ง 4 ตัวตามคำตัดสิน QA RLS chain) */
   creditOutstanding: string | null;
-  /** null = ไม่มีสิทธิ์ gang.finance.view — เรียงเก่า→ใหม่ 6 เดือน ป้าย "เงินเข้า/เงินออก" เท่านั้น */
+  /** null = ไม่มีสิทธิ์ครบ `canSeeGangMoney()` (G1) — เรียงเก่า→ใหม่ 6 เดือน ป้าย "เงินเข้า/เงินออก" เท่านั้น */
   monthlyCashFlow: { month: string; inflow: string; outflow: string }[] | null;
-  /** กรองตาม payment.verify อยู่แล้วใน buildTimeline() — ไม่ต้องเช็คซ้ำ */
+  /** กรองด้วย canSeeFinance(gang.finance.view)/canSeeOtherAdminOnly(gang.member.manage) อยู่แล้วใน buildTimeline() — ไม่ต้องเช็คซ้ำ (G3) */
   recentActivity: TimelineItem[];
 };
 
@@ -115,14 +115,25 @@ export async function dashboardOverview(gangId: string): Promise<ApiResponse<Das
       ? await countRows(db, 'join_requests', (q) => q.eq('gang_id', gangId).eq('status', 'pending'))
       : null;
 
-    const outstanding = can(ctx, 'gang.finance.view') ? await loadOutstanding(gangId) : null;
-    const pendingSlips = can(ctx, 'payment.verify') ? await loadPendingSlips(gangId) : null;
+    // 🔴 [planner G1, QA RLS-chain review] outstanding(#4)/netCashThisMonth/monthlyCashFlow(#10)/
+    // creditOutstanding ต้อง gate เดียวกันทั้ง 4 ตัว — canSeeGangMoney() = finance.view && payment.verify
+    // && credit.read.other เพราะแต่ละยอดดึงจากตารางที่มี RLS คนละสิทธิ์กัน (session_charges ต้อง
+    // finance.view, allocations/payments ต้อง payment.verify, credit_balances ต้อง credit.read.other)
+    // ถ้าขาดอย่างใดอย่างหนึ่ง RLS กรองแถวออกเงียบๆ ไม่ throw ⇒ ต้องครบทั้ง 3 ไม่งั้นคืน null ทั้งชุด
+    // (ไม่ใช่สิทธิ์ใหม่ — treasurer/admin มีครบทั้ง 3 อยู่แล้วจึงไม่โดนผลกระทบ จะโดนเฉพาะ custom role)
+    const canSeeMoney = canSeeGangMoney(ctx);
+    const outstanding = canSeeMoney ? await loadOutstanding(gangId) : null;
+    // 🔴 [planner G2] pendingSlips(#5) ต้อง payment.verify && gang.finance.view (ไม่ใช่ payment.verify
+    // เดี่ยวๆ) เพราะ payment-list.ts (adminPaymentList) อ่าน session_charges ด้วย ซึ่งต้อง finance.view
+    const pendingSlips = (can(ctx, 'payment.verify') && can(ctx, 'gang.finance.view'))
+      ? await loadPendingSlips(gangId)
+      : null;
 
     let netCashThisMonth: string | null = null;
     let creditOutstanding: string | null = null;
     let monthlyCashFlow: DashboardOverview['monthlyCashFlow'] = null;
 
-    if (can(ctx, 'gang.finance.view')) {
+    if (canSeeMoney) {
       // 🔴 [QA source review, 3246e9b] financeReport() เดือนปัจจุบันเคยถูกเรียก 2 ครั้ง (การ์ด netCash
       // + รอบใน last6Months) — ไม่ใช่สูตรผิด แต่ถ้ามีเงินเข้า/ออกระหว่าง 2 calls ตัวเลขอาจไม่ตรงกันเอง
       // ภายใน response เดียว ⇒ เรียกเดือนปัจจุบันครั้งเดียว (อยู่ใน months loop ด้านล่างนี้แหละ เพราะ
@@ -144,11 +155,9 @@ export async function dashboardOverview(gangId: string): Promise<ApiResponse<Das
       const currentMonth = monthReports[monthReports.length - 1];
       netCashThisMonth = currentMonth.data.report.netCash;
 
-      // [planner 31 ต.ค. 2026] ถอนการอนุมัติเดิมที่ให้ gang.finance.view เห็น creditOutstanding ได้เลย —
-      // RLS ของ credit_balances (0051:256-264) อนุญาตแค่ credit.read.other หรือแถวของตัวเอง เท่านั้น
-      // คนที่มี gang.finance.view อย่างเดียวจะได้ 0/บางส่วนแบบเงียบๆ ไม่ใช่ FORBIDDEN ⇒ ต้องเช็คสองสิทธิ์
-      // พร้อมกัน ไม่งั้นคืน null (ให้ UI ซ่อน) ไม่ใช่เลขที่โกหก ห้าม service-role/migration ตามคำสั่ง
-      creditOutstanding = can(ctx, 'credit.read.other') ? await loadCreditOutstanding(db, gangId) : null;
+      // [planner G1] creditOutstanding ใช้ gate เดียวกับ canSeeMoney ด้านบนแล้ว (ครบ finance.view+
+      // payment.verify+credit.read.other) — ไม่ใช่แค่ credit.read.other เดี่ยวๆเหมือนรอบก่อน
+      creditOutstanding = await loadCreditOutstanding(db, gangId);
 
       monthlyCashFlow = monthReports.map(({ year, month, data }) => {
         const split = splitCashFlow({
@@ -163,7 +172,12 @@ export async function dashboardOverview(gangId: string): Promise<ApiResponse<Das
       });
     }
 
-    const recentActivity = await loadRecentActivity(db, gangId, can(ctx, 'payment.verify'));
+    // 🔴 [planner G3] timeline ต้องแสดงได้ไม่เกินที่ RLS 0051:273-286 อนุญาต — แยก 2 แกน: event การเงิน
+    // (payment.*/audit.credit_* — isFinanceEventType()) gate ด้วย gang.finance.view (ไม่ใช่ payment.verify
+    // เหมือนรอบก่อน เพราะ RLS เปิดให้คนมี gang.finance.view เห็นได้แม้ไม่ใช่แอดมิน) ส่วน adminOnly อื่น
+    // (line.*/gang.join_*/audit.role_* ฯลฯ — TS เข้มกว่า SQL โดยตั้งใจ ไม่ใช่สโคปที่แก้ในใบนี้) gate ด้วย
+    // permission ที่ NEVER_DELEGABLE (gang.member.manage — เทียบเท่า is_gang_admin() ของ SQL โดยไม่ใช้ role===)
+    const recentActivity = await loadRecentActivity(db, gangId, can(ctx, 'gang.finance.view'), can(ctx, 'gang.member.manage'));
 
     return {
       nextSession,
@@ -355,11 +369,15 @@ async function loadCreditOutstanding(
 /**
  * ไทม์ไลน์ทั้งก๊วน (#12) — ข้าม session_id เดียว (ต่างจาก `SessionDetailPage.tsx` ที่ query ต่อนัด)
  * แปลงผ่าน `buildTimeline()`/`describeEvent()` เดิมเท่านั้น — ห้ามอ่าน payload ดิบที่นี่เลย
+ *
+ * [planner G3] `canSeeFinance`/`canSeeOtherAdminOnly` ส่งต่อตรงเข้า `buildTimeline()`'s 2 แกน —
+ * ดูเหตุผลที่ timeline.ts (RLS 0051:273-286)
  */
 async function loadRecentActivity(
   db: Awaited<ReturnType<typeof supabaseServer>>,
   gangId: string,
-  canSeeMoney: boolean,
+  canSeeFinance: boolean,
+  canSeeOtherAdminOnly: boolean,
 ): Promise<TimelineItem[]> {
   const { data, error } = await db.from('event_logs')
     .select('id, event_type, created_at, payload, profiles!event_logs_actor_id_fkey(display_name)')
@@ -381,5 +399,5 @@ async function loadRecentActivity(
     payload: r.payload ?? {},
   }));
 
-  return buildTimeline(events, canSeeMoney);
+  return buildTimeline(events, canSeeFinance, canSeeOtherAdminOnly);
 }

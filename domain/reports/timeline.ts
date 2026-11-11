@@ -195,6 +195,16 @@ const DESCRIPTORS: Record<string, Descriptor> = {
 export const DESCRIPTORS_FOR_TEST: Readonly<Record<string, Descriptor>> = DESCRIPTORS;
 
 /**
+ * [planner G3, 31 ต.ค. 2026] ตรงกับ SQL `public.event_type_is_finance()` (0051:88-96) เป๊ะๆ —
+ * `payment.%` หรือ `audit.credit_%` เท่านั้น ใช้แยกว่า event adminOnly ตัวนี้ควร gate ด้วย
+ * gang.finance.view (เพราะ RLS เปิดให้คนมี gang.finance.view เห็นได้แม้ไม่ใช่แอดมิน) หรือ gate ด้วย
+ * permission อื่นที่เข้มกว่า (เพราะ RLS ไม่เปิดให้ใครเห็นนอกจากแอดมิน)
+ */
+export function isFinanceEventType(eventType: string): boolean {
+  return eventType.startsWith('payment.') || eventType.startsWith('audit.credit_');
+}
+
+/**
  * แปลง event เป็นรายการที่แสดงได้
  *
  * ⚠️ event ที่ไม่รู้จัก **ไม่ทิ้ง** แต่ขึ้นข้อความกลางๆ พร้อมชื่อ type
@@ -227,11 +237,28 @@ export function describeEvent(event: TimelineEvent): TimelineItem {
 /**
  * แปลงทั้งชุดแล้วกรองตามสิทธิ์
  *
- * @param canSeeMoney มีสิทธิ์ดูเรื่องเงินของก๊วนหรือไม่ (`payment.verify`)
+ * 🔴 [planner G3, 31 ต.ค. 2026] RLS จริง (0051:273-286) แยกเป็น 3 กลุ่ม: แอดมินเห็นหมด · สมาชิกทั่วไป
+ *    เห็นทุกอย่างที่ไม่ใช่ admin-only · ผู้มี `gang.finance.view` เห็น event การเงิน (`event_type_is_finance`
+ *    = `payment.%`/`audit.credit_%`) เพิ่มได้แม้ไม่ใช่แอดมิน — TS ชั้นนี้ห้าม filter ให้หลวมกว่านั้น ⇒
+ *    event การเงิน (ที่ตรง `isFinanceEventType()`) gate ด้วย `canSeeFinance` (`gang.finance.view`
+ *    ไม่ใช่ `payment.verify`) ส่วน adminOnly อื่นที่ไม่ใช่เรื่องเงิน (line.* , gang.join_* , audit.role_*
+ *    ฯลฯ — TS เข้มกว่า SQL โดยตั้งใจ ดู timeline.ts DESCRIPTORS) gate ด้วย `canSeeOtherAdminOnly`
+ *
+ * @param canSeeMoney legacy single-flag — gate ทั้ง finance และ other-adminOnly เท่ากัน (เพื่อไม่ทำให้
+ *   `features/sessions/SessionDetailPage.tsx` ที่ยังไม่ได้แยกสองแกนพังนอกสโคป WO นี้)
+ * @param canSeeOtherAdminOnly ไม่ส่งมา = ใช้ `canSeeMoney` เหมือนเดิม (backward-compat) ส่งมาเพื่อแยกแกน
+ *   ให้ตรง RLS จริง — ใช้ permission ที่ NEVER_DELEGABLE (เช่น `gang.member.manage`) ไม่ใช่ `role===`
  */
 export function buildTimeline(
   events: readonly TimelineEvent[],
   canSeeMoney: boolean,
+  canSeeOtherAdminOnly: boolean = canSeeMoney,
 ): TimelineItem[] {
-  return events.map(describeEvent).filter((item) => canSeeMoney || !item.adminOnly);
+  return events
+    .filter((event) => {
+      const item = describeEvent(event);
+      if (!item.adminOnly) return true;
+      return isFinanceEventType(event.eventType) ? canSeeMoney : canSeeOtherAdminOnly;
+    })
+    .map(describeEvent);
 }

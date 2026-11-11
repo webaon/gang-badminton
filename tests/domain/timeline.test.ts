@@ -167,3 +167,65 @@ describe('WO-3.C DoD — เรื่องเงินไม่ถึงสม�
     expect(items[1].detail).toBe('refund -50.00 บาท');
   });
 });
+
+describe('🔴 [planner G3, 31 ต.ค. 2026] buildTimeline() แยก 2 แกนให้ตรง RLS จริง (0051:273-286) — isFinanceEventType() ตัดสิน', () => {
+  const financeEvent = event({ eventType: 'payment.adjusted', payload: { type: 'refund', amount: '-50.00' } });
+  const creditFinanceEvent = event({ eventType: 'audit.credit_topup', payload: { reason: 'โบนัส' } });
+  const otherAdminOnlyEvent = event({ eventType: 'line.account_linked' });
+  const joinAdminOnlyEvent = event({ eventType: 'gang.join_requested' });
+  const normalEvent = event({ eventType: 'registration.checked_in' });
+  const mixed = [normalEvent, financeEvent, creditFinanceEvent, otherAdminOnlyEvent, joinAdminOnlyEvent];
+
+  it('🔴 canSeeFinance=true, canSeeOtherAdminOnly=false: เห็น event การเงิน (payment.*/audit.credit_*) แต่ไม่เห็น adminOnly อื่น — ตรงกับคนที่มี gang.finance.view อย่างเดียวใน RLS จริง', () => {
+    const items = buildTimeline(mixed, true, false);
+    const titles = items.map((i) => i.title);
+    expect(titles).toContain('ปรับยอด');
+    expect(items.some((i) => i.title === 'เติมเครดิตให้สมาชิก')).toBe(true);
+    expect(items.some((i) => i.title === 'ผูกบัญชี LINE')).toBe(false);
+    expect(items.some((i) => i.title === 'มีคนขอเข้าก๊วน')).toBe(false);
+    expect(items.some((i) => i.title === 'เช็คอิน')).toBe(true);
+    expect(items).toHaveLength(3); // normal + 2 finance event เท่านั้น
+  });
+
+  it('🔴 canSeeFinance=false, canSeeOtherAdminOnly=true: เห็น adminOnly อื่น (line.*/gang.join_*) แต่ไม่เห็น event การเงิน — ตรงกับแอดมินที่ (สมมติ) ไม่มี gang.finance.view', () => {
+    const items = buildTimeline(mixed, false, true);
+    expect(items.some((i) => i.title === 'ปรับยอด')).toBe(false);
+    expect(items.some((i) => i.title === 'เติมเครดิตให้สมาชิก')).toBe(false);
+    expect(items.some((i) => i.title === 'ผูกบัญชี LINE')).toBe(true);
+    expect(items.some((i) => i.title === 'มีคนขอเข้าก๊วน')).toBe(true);
+    expect(items.some((i) => i.title === 'เช็คอิน')).toBe(true);
+    expect(items).toHaveLength(3); // normal + 2 other-adminOnly เท่านั้น
+  });
+
+  it('ไม่มีสิทธิ์ทั้งคู่: เห็นแค่ event ธรรมดาที่ไม่ใช่ adminOnly', () => {
+    const items = buildTimeline(mixed, false, false);
+    expect(items).toHaveLength(1);
+    expect(items[0].title).toBe('เช็คอิน');
+  });
+
+  it('มีสิทธิ์ทั้งคู่: เห็นครบทุกตัว', () => {
+    const items = buildTimeline(mixed, true, true);
+    expect(items).toHaveLength(5);
+  });
+
+  it('isFinanceEventType() ต้องตรงกับ SQL event_type_is_finance() เป๊ะ (0051:88-96) — payment.% หรือ audit.credit_% เท่านั้น ไม่รวม audit.* อื่นหรือ session.charges_committed', async () => {
+    const { isFinanceEventType } = await import('@/domain/reports/timeline');
+    expect(isFinanceEventType('payment.created')).toBe(true);
+    expect(isFinanceEventType('payment.transitioned')).toBe(true);
+    expect(isFinanceEventType('audit.credit_topup')).toBe(true);
+    expect(isFinanceEventType('audit.credit_overpayment_recorded')).toBe(true);
+    // ไม่ใช่ finance แม้จะเป็น adminOnly (ตรงกับ SQL ที่ event_type_is_finance ⊂ event_type_is_admin_only ไม่ใช่ตรงกัน)
+    expect(isFinanceEventType('audit.role_assigned')).toBe(false);
+    expect(isFinanceEventType('audit.payment_received_amount_set')).toBe(false);
+    expect(isFinanceEventType('session.charges_committed')).toBe(false);
+    expect(isFinanceEventType('membership.fees_generated')).toBe(false);
+    expect(isFinanceEventType('line.account_linked')).toBe(false);
+    expect(isFinanceEventType('gang.join_requested')).toBe(false);
+    expect(isFinanceEventType('registration.checked_in')).toBe(false);
+  });
+
+  it('backward-compat: ไม่ส่ง canSeeOtherAdminOnly (เรียกแบบ 2 args เดิม) ต้องเท่ากับ canSeeMoney (ไม่พังของเดิมที่ SessionDetailPage.tsx เรียกอยู่)', () => {
+    expect(buildTimeline(mixed, true)).toHaveLength(buildTimeline(mixed, true, true).length);
+    expect(buildTimeline(mixed, false)).toHaveLength(buildTimeline(mixed, false, false).length);
+  });
+});
