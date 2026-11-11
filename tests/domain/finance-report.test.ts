@@ -9,8 +9,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   assertReportReconciles,
-  calculateCashFlowSplit,
+  cashFlowPartsOf,
   calculateFinanceReport,
+  splitCashFlow,
   type ReportCharge,
 } from '@/domain/reports/finance';
 import { fromSatang, toSatang } from '@/domain/billing/money';
@@ -173,10 +174,10 @@ describe('WO-3.B DoD — reconcile ได้', () => {
   });
 });
 
-describe('WO-6.5c — calculateCashFlowSplit(): เงินเข้า/เงินออกแยกสองฝั่ง ต้องตรงกับ netCash ของ calculateFinanceReport ทุกเคส', () => {
+describe('WO-6.5c — splitCashFlow(cashFlowPartsOf()): เงินเข้า/เงินออกแยกสองฝั่ง ต้องตรงกับ netCash ของ calculateFinanceReport ทุกเคส (สูตรเดียว — ใช้ aggregate() ร่วมกัน ไม่มีฟังก์ชันคำนวณซ้ำตัวที่สอง)', () => {
   function expectIdentity(input: Parameters<typeof calculateFinanceReport>[0]) {
     const report = calculateFinanceReport(input);
-    const split = calculateCashFlowSplit(input);
+    const split = splitCashFlow(cashFlowPartsOf(input));
     const inflowSatang = toSatang(split.inflow);
     const outflowSatang = toSatang(split.outflow);
     expect(fromSatang(inflowSatang - outflowSatang)).toBe(report.netCash);
@@ -197,7 +198,7 @@ describe('WO-6.5c — calculateCashFlowSplit(): เงินเข้า/เง�
     expect(split).toEqual({ inflow: '200.00', outflow: '0.00' });
   });
 
-  it('🔴 มี refund → refund ไปอยู่ฝั่ง outflow ไม่ใช่หักจาก inflow เงียบๆ (ต่างจาก collected ของรายงานเดิม)', () => {
+  it('🔴 มี refund ≠ 0 ตัวเลขชัดเจน → refund ไปอยู่ฝั่ง outflow เป็นค่า**บวก** ไม่ใช่หักจาก inflow เงียบๆ (ต่างจาก collected ของรายงานเดิมที่หัก refund ไปแล้ว)', () => {
     const { split } = expectIdentity({
       charges: [
         charge({ allocated: ['200.00'], adjustments: ['-50.00'], refunds: ['-50.00'] }),
@@ -205,10 +206,33 @@ describe('WO-6.5c — calculateCashFlowSplit(): เงินเข้า/เง�
       otherIncomes: [],
       expenses: [],
     });
-    // cashInBySession (ก่อนหัก refund) = allocated 200 (ไม่มี creditAllocated) → inflow = 200
+    // transferIn (ก่อนหัก refund) = allocated 200 (ไม่มี creditAllocated) → inflow = 200
     expect(split.inflow).toBe('200.00');
-    // outflow = refund 50 (ค่าสัมบูรณ์)
+    // outflow = refund 50 — เครื่องหมายต้องพลิกจาก -50 (เก็บใน aggregate().refunded) เป็น +50
     expect(split.outflow).toBe('50.00');
+  });
+
+  it('🔴 เช็คเครื่องหมาย refunded ตรงๆ: cashFlowPartsOf().refunds ต้องเป็นค่าบวกเสมอ แม้ aggregate() เก็บ refunded เป็นลบ', () => {
+    const parts = cashFlowPartsOf({
+      charges: [charge({ allocated: ['300.00'], refunds: ['-75.25'] })],
+      otherIncomes: [],
+      expenses: [],
+    });
+    expect(parts.refunds).toBe('75.25'); // ไม่ใช่ '-75.25'
+    expect(parts.transferIn).toBe('300.00'); // ก่อนหัก refund
+  });
+
+  it('refund หลายรายการสะสมกันถูกต้อง (ไม่ใช่แค่รายการเดียว)', () => {
+    const { split } = expectIdentity({
+      charges: [
+        charge({ allocated: ['200.00'], refunds: ['-30.00', '-20.00'] }),
+        charge({ allocated: ['100.00'], refunds: ['-10.00'] }),
+      ],
+      otherIncomes: [],
+      expenses: [],
+    });
+    expect(split.inflow).toBe('300.00'); // 200+100 ก่อนหัก refund
+    expect(split.outflow).toBe('60.00'); // 30+20+10
   });
 
   it('ส่วนที่จ่ายด้วยเครดิตไม่ใช่เงินสดเข้า ⇒ ไม่เข้า inflow', () => {
@@ -231,7 +255,7 @@ describe('WO-6.5c — calculateCashFlowSplit(): เงินเข้า/เง�
     expect(split).toEqual({ inflow: '780.00', outflow: '130.00' });
   });
 
-  it('เงินไม่ผ่าน float — สตางค์ยังตรงหลังบวกลบหลายชั้นทั้ง inflow/outflow', () => {
+  it('เงินไม่ผ่าน float — สตางค์ยังตรงหลังบวกลบหลายชั้นทั้ง inflow/outflow (รวม refund)', () => {
     expectIdentity({
       charges: [
         charge({ amount: '333.33', allocated: ['111.11'], refunds: ['-10.01'] }),

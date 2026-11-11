@@ -97,32 +97,15 @@ export function calculateFinanceReport(input: FinanceInput): FinanceReport {
   };
 }
 
-/**
- * [WO-6.5c] เงินเข้า/เงินออกแยกสองฝั่ง สำหรับกราฟแดชบอร์ด (H10) — **ไม่ใช่สูตรใหม่**
- *
- * รื้อ `collected` (ที่หัก refund ไว้แล้ว) กลับเป็นสองก้อนตามที่ planner อนุมัติไว้:
- *   เงินเข้า = cashInBySession (ก่อนหัก refund) + overpaymentIn + otherIncome
- *   เงินออก = refunds (ค่าสัมบูรณ์) + expense + memberPayouts
- *
- * พิสูจน์ด้วย identity test ว่า inflow − outflow === netCash ของ `calculateFinanceReport`
- * ทุกกรณี (เพราะมาจาก `aggregate()` ตัวเดียวกัน ไม่ได้คำนวณแยกคนละทาง) — ห้ามรวมยอดใน
- * loader/UI ตามคำสั่ง planner จึงต้องมีฟังก์ชัน pure ตัวนี้แทน
- */
-export function calculateCashFlowSplit(input: FinanceInput): { inflow: string; outflow: string } {
-  const a = aggregate(input);
-  const cashInBySession = a.collected - a.refunded; // refunded เป็นค่าติดลบอยู่แล้ว ⇒ ลบคือ "คืนกลับ" ก่อนหัก
-  const refundsOut = -a.refunded; // พลิกกลับเป็นค่าบวก (ขนาดของเงินที่คืนออกไป)
-
-  return {
-    inflow: fromSatang(cashInBySession + a.overpaymentIn + a.otherIncome),
-    outflow: fromSatang(refundsOut + a.expense + a.memberPayouts),
-  };
-}
-
 /** [WO-6.5c] เงินเข้า/เงินออกจากค่าที่ `financeReport()` (server action) คำนวณไว้แล้ว — **ไม่ใช่สูตรใหม่**
  *  ไม่รับ FinanceInput ดิบ เพราะ loader ของ H10 เรียก `financeReport()` action ทีละเดือน (ตามที่ planner
  *  สั่ง "ใช้ financeReport เดือนละ 1 ครั้ง") ซึ่งคืนค่าที่รวมแล้วเท่านั้น — รวมยอดที่นี่ ไม่ใช่ใน loader/UI
- *  ตามคำสั่ง "ห้ามรวมยอดใน loader/UI" */
+ *  ตามคำสั่ง "ห้ามรวมยอดใน loader/UI"
+ *
+ *  🔴 [planner 31 ต.ค. 2026] นี่คือฟังก์ชันเดียวที่คำนวณ inflow/outflow — ของเดิมที่ชื่อ
+ *  `calculateCashFlowSplit(FinanceInput)` ถูกลบไปแล้ว เพราะไม่มีที่ใดเรียกจริง (loader เรียกตัวนี้
+ *  ที่เดียว ที่ dashboard.ts) และสูตรเงินห้ามมีสองแหล่ง — ดู `cashFlowPartsOf()` ด้านล่างสำหรับพิสูจน์
+ *  identity จาก FinanceInput เดียวกับ `calculateFinanceReport()` (ใช้ aggregate() ตัวเดียวกัน) */
 export function splitCashFlow(parts: {
   /** `financeReport()` result.transferIn — เงินสดเข้าจากการจ่ายหนี้ ก่อนหัก refund */
   transferIn: string;
@@ -143,7 +126,28 @@ export function splitCashFlow(parts: {
   };
 }
 
-/** รวมส่วนร่วมของ calculateFinanceReport/calculateCashFlowSplit ไว้ที่เดียว — กันสองฟังก์ชันคำนวณไม่ตรงกัน */
+/**
+ * [WO-6.5c, planner 31 ต.ค. 2026] จาก `FinanceInput` เดียวกับ `calculateFinanceReport()` ให้ parts
+ * ที่ `splitCashFlow()` ต้องการ — ใช้ `aggregate()` ตัวเดียวกันทั้งคู่ (ไม่คำนวณแยกคนละทาง) จึงพิสูจน์
+ * identity (inflow − outflow === netCash) ได้จริงในเทสต์ ไม่ใช่แค่สมมติ
+ *
+ * 🔴 เครื่องหมายของ `refunded`: `aggregate()` เก็บ `refunded` เป็น**ค่าติดลบ** (ผลรวมของ refund lines
+ * ที่เป็นลบอยู่แล้ว) ⇒ `transferIn` (เงินเข้าก่อนหัก refund) = `allocated − creditPaid` (ไม่ใช่ `collected`
+ * ที่หัก refund ไปแล้ว) และ `refunds` (ขนาดเงินที่คืนออก สำหรับช่อง outflow) = `-refunded` พลิกกลับเป็นบวก
+ */
+export function cashFlowPartsOf(input: FinanceInput): Parameters<typeof splitCashFlow>[0] {
+  const a = aggregate(input);
+  return {
+    transferIn: fromSatang(a.allocated - a.creditPaid),
+    refunds: fromSatang(-a.refunded),
+    overpaymentIn: fromSatang(a.overpaymentIn),
+    otherIncome: fromSatang(a.otherIncome),
+    expense: fromSatang(a.expense),
+    memberPayouts: fromSatang(a.memberPayouts),
+  };
+}
+
+/** รวมส่วนร่วมของ calculateFinanceReport/cashFlowPartsOf ไว้ที่เดียว — กันสองฟังก์ชันคำนวณไม่ตรงกัน */
 function aggregate(input: FinanceInput) {
   const lines = input.charges.map((c) => ledgerLineOf(c));
 

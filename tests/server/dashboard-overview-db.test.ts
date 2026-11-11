@@ -231,3 +231,43 @@ describe('dashboardOverview() — real DB role matrix (no mock DB queries)', () 
     expect(toSatang(thisMonthBar!.inflow) - toSatang(thisMonthBar!.outflow)).toBe(toSatang(report.report.netCash));
   });
 });
+
+describe('dashboardOverview() — creditOutstanding paginates past PostgREST max_rows (planner review, 31 ต.ค. 2026)', () => {
+  it('🔴 เครดิตคงค้าง > 500 แถว (1 แถว/คน) ต้องรวมได้ครบทุกแถว ไม่ใช่แค่หน้าแรก', async () => {
+    const owner = await newUser();
+    const {
+      rows: [gang],
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-paginate-${crypto.randomUUID()}`]);
+    const gangId = gang.id;
+    const admin = await newUser();
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'admin')`, [gangId, admin]);
+
+    // สร้างสมาชิก 520 คน (เกิน PostgREST max_rows=1000 ครึ่งแถวกำลังดี — ถ้าทดสอบโค้ดเก่าที่ไม่แบ่งหน้า
+    // จะยังผ่านเพราะ 520<1000 เลยทดสอบด้วย PAGE=500 ของ loadCreditOutstanding เอง ซึ่งคือจุดที่พังจริง
+    // ถ้าไม่แบ่งหน้า loop) — 1.00 บาท/คน ⇒ ยอดรวมต้องเป็น 520.00 เป๊ะ ไม่ใช่ 500.00 (หน้าแรกเท่านั้น)
+    const N = 520;
+    const {
+      rows: memberRows,
+    } = await pool.query<{ id: string }>(
+      `insert into auth.users (id, email)
+       select gen_random_uuid(), 'dash-paginate-' || gen_random_uuid() || '@example.com'
+       from generate_series(1, $1)
+       returning id`,
+      [N],
+    );
+    await pool.query(
+      `insert into public.gang_members (gang_id, user_id, role)
+       select $1, unnest($2::uuid[]), 'member'`,
+      [gangId, memberRows.map((r) => r.id)],
+    );
+    await pool.query(
+      `insert into public.credit_balances (gang_id, user_id, balance)
+       select $1, unnest($2::uuid[]), 1.00`,
+      [gangId, memberRows.map((r) => r.id)],
+    );
+
+    h.userId = admin;
+    const data = unwrap(await dashboardOverview(gangId));
+    expect(data.creditOutstanding).toBe(`${N}.00`);
+  }, 30_000);
+});

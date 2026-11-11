@@ -284,14 +284,34 @@ async function loadPendingSlips(gangId: string): Promise<{ count: number; oldest
  * (ไม่เรียก `listGangCredits()` ตรงๆ เพราะมันล็อกด้วย `credit.read.other` ไม่ใช่ `gang.finance.view`
  * ตามที่ planner กำหนดไว้สำหรับ widget นี้ — เรียกแล้วจะ throw FORBIDDEN ให้คนที่มี gang.finance.view
  * อย่างเดียวทั้งที่ควรเห็นได้ ⇒ sum ตรงจาก credit_balances เอง ด้วยสิทธิ์ตามที่ widget นี้กำหนด)
+ *
+ * 🔴 [planner 31 ต.ค. 2026] แบ่งหน้าด้วย keyset cursor บน `user_id` — PostgREST มี max_rows=1000
+ * เป็น default เสมอ (ไม่ใช่แค่ตัวที่ตั้ง `head:true` ไว้) ก๊วนที่มีสมาชิกเกิน 1 หน้าจะได้ยอดไม่ครบถ้าดึง
+ * ครั้งเดียว `credit_balances` PK คือ (gang_id, user_id) ไม่มีคอลัมน์ `id` ⇒ ใช้ `allById()` เดิม
+ * (ที่ต้องมี `id: string`) ไม่ได้ตรงๆ จึงเขียน loop cursor บน user_id เองแทน — ตรรกะเดียวกัน
  */
 async function loadCreditOutstanding(
-  db: Awaited<ReturnType<typeof supabaseServer>>,
+  db: SupaClient,
   gangId: string,
 ): Promise<string> {
-  const { data, error } = await db.from('credit_balances').select('balance').eq('gang_id', gangId).gt('balance', 0);
-  if (error) throw error;
-  return fromSatang(sumSatang(((data ?? []) as { balance: string | number }[]).map((r) => toSatang(String(r.balance)))));
+  const PAGE = 500;
+  let after: string | null = null;
+  const balances: string[] = [];
+  for (;;) {
+    let q = db.from('credit_balances')
+      .select('user_id, balance').eq('gang_id', gangId).gt('balance', 0)
+      .order('user_id', { ascending: true }).limit(PAGE);
+    if (after) q = q.gt('user_id', after);
+    const { data, error } = await q;
+    if (error) throw error;
+    const rows = (data ?? []) as { user_id: string; balance: string | number }[];
+    balances.push(...rows.map((r) => String(r.balance)));
+    if (rows.length < PAGE) break;
+    const next = rows[rows.length - 1].user_id;
+    if (next === after) throw new AppError('INTERNAL_ERROR', 'อ่านเครดิตคงค้างหน้าถัดไปไม่สำเร็จ');
+    after = next;
+  }
+  return fromSatang(sumSatang(balances.map((b) => toSatang(b))));
 }
 
 /**
