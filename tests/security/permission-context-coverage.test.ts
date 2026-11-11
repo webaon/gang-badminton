@@ -1,7 +1,10 @@
 /**
- * R-roles-3 Task 1 — frozen inventory of every tenant-authorization call site
- * that uses `can()`/`assertCan()`, BEFORE the server-only permission-context
- * loader is wired in (Phase 2). This is a drift detector, not a style rule:
+ * R-roles-3 — inventory AND wiring-verification of every tenant-authorization
+ * call site that uses `can()`/`assertCan()`. Started as a Task 1 drift
+ * detector (classification only); since Phase 2 (Task 4-6) it ALSO asserts
+ * every non-exempt tenant+delegable site's FILE actually calls
+ * `loadGangPermissionContext(` — i.e. "every tenant site passes through
+ * context", not just "is inventoried". This is still not a style rule:
  * it does not prescribe import spelling or match comments — it finds every
  * real `assertCan(`/`can({` call in app/ and server/ by brace-matching the
  * call expression, then cross-checks it against a hand-reviewed manifest.
@@ -105,6 +108,8 @@ type ManifestEntry = {
   actionKind: 'literal' | 'dynamicSet';
   actions: readonly string[];
   delegable: boolean | 'mixed';
+  /** ตั้งใจไม่ส่ง extra ของ loader แม้ action เป็น delegable ทั่วไป — เหตุผลอ้างอิงคำตัดสินของ planner (เช่น 'Q2ก') */
+  exempt?: string;
   note?: string;
 };
 
@@ -171,10 +176,11 @@ const MANIFEST: readonly ManifestEntry[] = [
   // ---- server/actions/payments.ts ----
   { file: 'server/actions/payments.ts', line: 50, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['payment.submit.self'], delegable: false },
   { file: 'server/actions/payments.ts', line: 184, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true },
-  { file: 'server/actions/payments.ts', line: 267, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['payment.submit.self'], delegable: false },
-  { file: 'server/actions/payments.ts', line: 270, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true, note: 'guarded by `if (payer !== user.id)` — paying for self bypasses this' },
-  { file: 'server/actions/payments.ts', line: 315, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true },
-  { file: 'server/actions/payments.ts', line: 467, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['payment.submit.self'], delegable: false },
+  { file: 'server/actions/payments.ts', line: 228, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true, note: 'slipSignedUrl(): OR-ed with isOwner — was a hardcoded [\'owner\',\'admin\'].includes(role) bypass of can(), fixed per planner decision 3 (treasurer with delegated payment.verify can now see slips too)' },
+  { file: 'server/actions/payments.ts', line: 269, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['payment.submit.self'], delegable: false },
+  { file: 'server/actions/payments.ts', line: 272, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true, note: 'guarded by `if (payer !== user.id)` — paying for self bypasses this' },
+  { file: 'server/actions/payments.ts', line: 317, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true },
+  { file: 'server/actions/payments.ts', line: 469, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['payment.submit.self'], delegable: false },
 
   // ---- server/actions/registrations.ts ----
   { file: 'server/actions/registrations.ts', line: 49, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['registration.create.self'], delegable: false },
@@ -194,15 +200,14 @@ const MANIFEST: readonly ManifestEntry[] = [
   { file: 'server/actions/sessions.ts', line: 133, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.transition'], delegable: true },
   { file: 'server/actions/sessions.ts', line: 198, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.update'], delegable: true },
 
-  // ---- server/actions/templates.ts — BLOCKING decision pending (ADR-015/R-roles-3 plan §Task5):
-  //      planner decided these four should become a new nondelegable session.template.manage;
-  //      current code still literally checks session.create/update, so a naive loader wire-up
-  //      would wrongly let the scheduler preset manage recurring templates (Q2ก violation).
-  //      DO NOT pass extra at these four sites in Phase 2 until that action/migration lands.
-  { file: 'server/actions/templates.ts', line: 78, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.create'], delegable: true, note: 'BLOCKED for Phase 2: pending session.template.manage decision' },
-  { file: 'server/actions/templates.ts', line: 114, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.update'], delegable: true, note: 'BLOCKED for Phase 2: pending session.template.manage decision' },
-  { file: 'server/actions/templates.ts', line: 156, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.update'], delegable: true, note: 'BLOCKED for Phase 2: pending session.template.manage decision' },
-  { file: 'server/actions/templates.ts', line: 187, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.create'], delegable: true, note: 'BLOCKED for Phase 2: pending session.template.manage decision' },
+  // ---- server/actions/templates.ts — ตั้งใจไม่ delegate ตามคำตัดสิน Q2ก ของ planner (ADR-015):
+  //      scheduler preset จัดการได้แค่นัดเดี่ยว ไม่ใช่ "นัดประจำ/เทมเพลต" — แม้ session.create/update
+  //      จะเป็น delegable action โดยทั่วไป ที่นี่ต้องค้างอยู่ที่ role ฐานเดิมเท่านั้น (ห้ามส่ง extra)
+  //      จนกว่า action ใหม่ session.template.manage (ไม่ delegable) จะถูก migrate เข้ามาแทน — ดู BACKLOG/R-roles-4
+  { file: 'server/actions/templates.ts', line: 78, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.create'], delegable: true, exempt: 'Q2ก', note: 'intentionally not delegated — ค้างที่ role ฐาน, ยังไม่มี session.template.manage' },
+  { file: 'server/actions/templates.ts', line: 114, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.update'], delegable: true, exempt: 'Q2ก', note: 'intentionally not delegated — ค้างที่ role ฐาน, ยังไม่มี session.template.manage' },
+  { file: 'server/actions/templates.ts', line: 156, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.update'], delegable: true, exempt: 'Q2ก', note: 'intentionally not delegated — ค้างที่ role ฐาน, ยังไม่มี session.template.manage' },
+  { file: 'server/actions/templates.ts', line: 187, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['session.create'], delegable: true, exempt: 'Q2ก', note: 'intentionally not delegated — ค้างที่ role ฐาน, ยังไม่มี session.template.manage' },
 
   // ---- server/actions/discovery.ts ----
   { file: 'server/actions/discovery.ts', line: 160, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.join_request.manage'], delegable: false, note: 'NEVER_DELEGABLE; feature-gated on features.discovery' },
@@ -225,7 +230,7 @@ const MANIFEST: readonly ManifestEntry[] = [
   { file: 'app/gangs/[gangId]/join-requests/page.tsx', line: 47, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['gang.join_request.manage'], delegable: false },
   { file: 'app/gangs/[gangId]/announcements/page.tsx', line: 48, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['announcement.view'], delegable: false },
   { file: 'app/gangs/[gangId]/announcements/page.tsx', line: 81, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['announcement.manage'], delegable: true, note: 'extra not passed yet; scheduler-visible "manage" UI is future UI work, not this WO' },
-  { file: 'app/gangs/[gangId]/templates/page.tsx', line: 41, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['session.create'], delegable: true, note: 'same pending session.template.manage decision as server/actions/templates.ts' },
+  { file: 'app/gangs/[gangId]/templates/page.tsx', line: 41, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['session.create'], delegable: true, exempt: 'Q2ก', note: 'same intentional non-delegation as server/actions/templates.ts' },
   { file: 'app/gangs/[gangId]/members/page.tsx', line: 64, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['gang.member.manage'], delegable: false },
   { file: 'app/gangs/[gangId]/settings/page.tsx', line: 58, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['gang.update'], delegable: false },
   { file: 'app/gangs/[gangId]/liff/page.tsx', line: 57, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['line.link.self'], delegable: false },
@@ -240,7 +245,7 @@ function byKey(e: { file: string; line: number }): string {
   return `${e.file}:${e.line}`;
 }
 
-describe('R-roles-3 Task 1 — guard-site inventory drift detector (no DB)', () => {
+describe('R-roles-3 — guard-site inventory + Phase-2 wiring verification (no DB)', () => {
   const files = sourceFiles();
   const actual: FoundCall[] = files.flatMap((f) => findCalls(stripComments(read(f)), f));
   const actualByKey = new Map(actual.map((c) => [byKey(c), c]));
@@ -312,13 +317,36 @@ describe('R-roles-3 Task 1 — guard-site inventory drift detector (no DB)', () 
       public: byCategory('public'),
       ui: byCategory('ui'),
       total: MANIFEST.length,
-    }).toEqual({ tenant: 49, self: 7, org: 0, public: 0, ui: 18, total: 74 });
+    }).toEqual({ tenant: 50, self: 7, org: 0, public: 0, ui: 18, total: 75 });
   });
 
-  it('Phase-2 scope: tenant-category sites needing the loader (delegable true/mixed, excluding the templates.ts block)', () => {
+  it('Phase-2 scope: tenant-category sites needing the loader (delegable true/mixed, excluding Q2ก-exempt templates.ts)', () => {
     const needsLoader = MANIFEST.filter(
-      (e) => e.category === 'tenant' && e.delegable !== false && !e.note?.includes('BLOCKED for Phase 2'),
+      (e) => e.category === 'tenant' && e.delegable !== false && !e.exempt,
     );
-    expect(needsLoader.length).toBe(34);
+    expect(needsLoader.length).toBe(35);
+  });
+
+  it('🔴 every tenant site needing the loader is ACTUALLY wired — not just classified (Phase 2 done, not just inventoried)', () => {
+    const needsLoader = MANIFEST.filter(
+      (e) => e.category === 'tenant' && e.delegable !== false && !e.exempt,
+    );
+    const filesNeedingWiring = Array.from(new Set(needsLoader.map((e) => e.file)));
+    const unwired = filesNeedingWiring.filter((f) => !read(f).includes('loadGangPermissionContext('));
+    expect(
+      unwired,
+      'ไฟล์เหล่านี้มี tenant site ที่ควรส่ง extra จาก loader แล้ว แต่ source ไม่มี loadGangPermissionContext( เลย — ยังไม่ wire จริง',
+    ).toEqual([]);
+  });
+
+  it('templates.ts (Q2ก-exempt) is intentionally NOT wired to the loader — must stay on plain role only', () => {
+    const exempt = MANIFEST.filter((e) => e.exempt === 'Q2ก' && e.category === 'tenant');
+    expect(exempt.map((e) => e.file)).toEqual(['server/actions/templates.ts', 'server/actions/templates.ts', 'server/actions/templates.ts', 'server/actions/templates.ts']);
+    // ถ้าวันหนึ่งมีคนไปเพิ่ม loadGangPermissionContext( ใน templates.ts โดยไม่ได้ตั้งใจแก้ exempt นี้ด้วย
+    // (เช่น refactor ปนกับไฟล์ที่ wire แล้ว) นี่คือสัญญาณให้ตรวจว่า extra รั่วไปให้ scheduler หรือยัง (Q2ก)
+    expect(
+      read('server/actions/templates.ts').includes('loadGangPermissionContext('),
+      'templates.ts เริ่มมี loadGangPermissionContext( แล้ว — ตรวจด่วนว่า assertCan ที่ :78/114/156/187 ยังไม่ส่ง extra ให้ scheduler (ละเมิด Q2ก ถ้าส่ง)',
+    ).toBe(false);
   });
 });

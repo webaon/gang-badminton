@@ -6,7 +6,7 @@ import { headers } from 'next/headers';
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
-import { assertCan } from '@/domain/permissions/can';
+import { assertCan, can } from '@/domain/permissions/can';
 import { loadGangPermissionContext } from '@/server/permissions/gang-context';
 import { summarize, validateAdjustment, type AdjustmentType, type LedgerEntry } from '@/domain/billing/ledger';
 import { breakdownCharges } from '@/domain/billing/charge-breakdown';
@@ -220,10 +220,12 @@ export async function slipSignedUrl(paymentId: string): Promise<ApiResponse<{ ur
 
     if (!payment?.slip_url) throw new AppError('NOT_FOUND', 'ยังไม่มีสลิป');
 
-    const role = (await loadGangPermissionContext(payment.gang_id, user.id)).role;
+    const ctx = await loadGangPermissionContext(payment.gang_id, user.id);
     const isOwner = payment.payer_user_id === user.id;
 
-    if (!isOwner && !['owner', 'admin'].includes(role ?? '')) {
+    // เจ้าของสลิปดูของตัวเองได้เสมอ · ไม่ใช่ตัวเองต้องมีสิทธิ์ตรวจสลิปจริง (treasurer ที่ได้
+    // payment.verify ผ่าน delegation ก็เห็นได้ — ไม่ hardcode owner/admin แบบเดิม [CLAUDE.md §can() เท่านั้น]
+    if (!isOwner && !can(ctx, 'payment.verify')) {
       throw new AppError('FORBIDDEN', 'ดูสลิปนี้ไม่ได้');
     }
 
