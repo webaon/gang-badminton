@@ -62,6 +62,11 @@ const DESCRIPTORS: Record<string, Descriptor> = {
     title: 'ลงชื่อเข้าร่วม',
     detail: (p) => scalar(p, 'status'),
   },
+  // [WO-6.5c] event_type จริงที่ register_to_session() insert คือสองคีย์นี้ ไม่ใช่
+  // 'registration.created' ข้างบน (ของเดิมไม่ตรงกับ DB เลยมาตั้งแต่ต้น — คงคีย์เดิมไว้
+  // เผื่อมีข้อมูลเก่า/อ้างอิงที่อื่น แต่เพิ่มคีย์จริงให้ใช้งานได้จริงจากนี้)
+  'registration.confirmed': { title: 'ลงชื่อเข้าร่วม (ได้ที่เล่น)' },
+  'registration.waitlisted': { title: 'ลงชื่อเข้าร่วม (เข้าคิวรอ)' },
   'registration.cancelled': { title: 'ยกเลิกการลงชื่อ' },
   'registration.checked_in': { title: 'เช็คอิน' },
   'registration.no_show': {
@@ -79,7 +84,20 @@ const DESCRIPTORS: Record<string, Descriptor> = {
     },
   },
   'game.substituted': { title: 'สลับตัวผู้เล่น' },
+  // [WO-6.5c] event_type จริงจาก substitute_game_player() คือคีย์นี้ (ของเดิม 'game.substituted'
+  // ข้างบนไม่ตรงกับ DB เหมือนกัน — คงไว้เผื่อข้อมูลเก่า)
+  'game.player_substituted': { title: 'สลับตัวผู้เล่น' },
   'session.charges_committed': {
+    title: 'ปิดรอบและสร้างยอดเรียกเก็บ',
+    adminOnly: true,
+    detail: (p) => {
+      const count = scalar(p, 'charge_count');
+      return count ? `${count} รายการ` : null;
+    },
+  },
+  // [WO-6.5c] event_type จริงจาก close_session_with_charges() คือคีย์นี้ (ของเดิมข้างบนไม่ตรงกับ DB
+  // เหมือนกัน — คงไว้เผื่อข้อมูลเก่า)
+  'session.closed_with_charges': {
     title: 'ปิดรอบและสร้างยอดเรียกเก็บ',
     adminOnly: true,
     detail: (p) => {
@@ -108,7 +126,69 @@ const DESCRIPTORS: Record<string, Descriptor> = {
   'gang.join_approved': { title: 'รับเข้าก๊วน' },
   'gang.join_rejected': { title: 'ปฏิเสธคำขอเข้าก๊วน' },
   'gang.join_cancelled': { title: 'ผู้ขอยกเลิกคำขอเข้าก๊วน' },
+
+  // [WO-6.5c] เพิ่มจาก grep event_type จริงทั้งหมดเทียบ DESCRIPTORS (planner อนุมัติ 31 ต.ค. 2026) —
+  // event ของสมาชิก/สังคมทั่วไป (ไม่มีเงิน/ไม่ใช่ config ของแอดมิน) ⇒ adminOnly: false
+  'gang.created': { title: 'สร้างก๊วน' },
+  'gang.member_added': { title: 'เพิ่มสมาชิกใหม่' },
+  'gang.member_left': { title: 'ออกจากก๊วน' },
+  'gang.ownership_transferred': { title: 'โอนความเป็นเจ้าของก๊วน' },
+  'announcement.published': { title: 'เผยแพร่ประกาศ' },
+  'line.account_linked': { title: 'ผูกบัญชี LINE' },
+  'line.account_unlinked': { title: 'เลิกผูกบัญชี LINE' },
+
+  // [WO-6.5c] การตั้งค่า/ปฏิบัติการของแอดมิน (LINE credentials, block) ⇒ adminOnly: true
+  // (เครื่องมือแอดมิน ไม่ใช่เรื่องเงิน แต่ก็ไม่ใช่สิ่งที่สมาชิกทั่วไปต้องเห็นในไทม์ไลน์)
+  'gang.line_config_updated': { title: 'แก้ไขการตั้งค่า LINE', adminOnly: true },
+  'gang.line_toggled': { title: 'เปิด/ปิดการเชื่อม LINE', adminOnly: true },
+  'gang.line_config_cleared': { title: 'ลบการตั้งค่า LINE', adminOnly: true },
+  'gang.line_login_updated': { title: 'แก้ไขการตั้งค่า LINE Login', adminOnly: true },
+  'line.blocked': { title: 'ปิดกั้นบัญชี LINE', adminOnly: true },
+  'line.unblocked': { title: 'ปลดบล็อกบัญชี LINE', adminOnly: true },
+
+  // [WO-6.5c] audit.* ทุกตัว = ยอดเงิน/สิทธิ์ของคนอื่น ⇒ adminOnly: true เสมอ (กติกาเดียวกับที่
+  // DESCRIPTORS เดิมใช้กับ payment.*/session.charges_committed)
+  'audit.waitlist_promoted_by_admin': { title: 'แอดมินเลื่อนคิวรอให้', adminOnly: true },
+  'audit.registration_penalty_waived': { title: 'ยกเว้นค่าปรับยกเลิกให้', adminOnly: true },
+  'audit.credit_overpayment_recorded': {
+    title: 'บันทึกโอนเกินเข้าเครดิต',
+    adminOnly: true,
+    detail: (p) => {
+      const amount = scalar(p, 'amount');
+      return amount ? `${amount} บาท` : null;
+    },
+  },
+  'audit.credit_applied': { title: 'หักเครดิตชำระหนี้', adminOnly: true },
+  'audit.credit_topup': {
+    title: 'เติมเครดิตให้สมาชิก',
+    adminOnly: true,
+    detail: (p) => scalar(p, 'reason'),
+  },
+  'audit.credit_cash_payout': {
+    title: 'จ่ายคืนเครดิตเป็นเงินสด',
+    adminOnly: true,
+    detail: (p) => scalar(p, 'reason'),
+  },
+  'audit.credit_charge_returned': {
+    title: 'ลดหนี้ย้ายเข้าเครดิต',
+    adminOnly: true,
+    detail: (p) => scalar(p, 'reason'),
+  },
+  'audit.payment_received_amount_set': { title: 'บันทึกยอดที่โอนจริง', adminOnly: true },
+  'audit.role_assigned': {
+    title: 'มอบชุดสิทธิ์',
+    adminOnly: true,
+    detail: (p) => scalar(p, 'role_key'),
+  },
+  'audit.role_revoked': {
+    title: 'ถอนชุดสิทธิ์',
+    adminOnly: true,
+    detail: (p) => scalar(p, 'role_key'),
+  },
 };
+
+/** export เฉพาะให้เทสต์ drift-detector (tests/domain/timeline-event-coverage.test.ts) ใช้เทียบกับ event_type จริงใน DB — ไม่ใช่ public API ของโมดูลนี้ */
+export const DESCRIPTORS_FOR_TEST: Readonly<Record<string, Descriptor>> = DESCRIPTORS;
 
 /**
  * แปลง event เป็นรายการที่แสดงได้

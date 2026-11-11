@@ -85,6 +85,51 @@ describe('WO-3.C — แปลง event เป็นข้อความ', () =
   });
 });
 
+describe('WO-6.5c — descriptor ของ event_type จริงที่เพิ่มใหม่ (ไม่ใช่ key เดิมที่ไม่ตรง)', () => {
+  it('registration.confirmed/waitlisted (ของจริงจาก register_to_session) มีข้อความไทยแล้ว ไม่ fallback', () => {
+    expect(describeEvent(event({ eventType: 'registration.confirmed' })).title).toBe('ลงชื่อเข้าร่วม (ได้ที่เล่น)');
+    expect(describeEvent(event({ eventType: 'registration.waitlisted' })).title).toBe('ลงชื่อเข้าร่วม (เข้าคิวรอ)');
+  });
+
+  it('game.player_substituted / session.closed_with_charges (ของจริงจาก DB) มีข้อความไทยแล้ว', () => {
+    expect(describeEvent(event({ eventType: 'game.player_substituted' })).title).toBe('สลับตัวผู้เล่น');
+    const closed = describeEvent(event({ eventType: 'session.closed_with_charges', payload: { charge_count: 5 } }));
+    expect(closed.title).toBe('ปิดรอบและสร้างยอดเรียกเก็บ');
+    expect(closed.adminOnly).toBe(true);
+    expect(closed.detail).toBe('5 รายการ');
+  });
+
+  it('🔴 audit.* ทุกตัวเป็น adminOnly — สมาชิกทั่วไปไม่เห็นเลย', () => {
+    const auditEvents = [
+      'audit.waitlist_promoted_by_admin', 'audit.registration_penalty_waived',
+      'audit.credit_overpayment_recorded', 'audit.credit_applied', 'audit.credit_topup',
+      'audit.credit_cash_payout', 'audit.credit_charge_returned', 'audit.payment_received_amount_set',
+      'audit.role_assigned', 'audit.role_revoked',
+    ];
+    const items = buildTimeline(auditEvents.map((eventType) => event({ eventType })), false);
+    expect(items).toHaveLength(0);
+    expect(buildTimeline(auditEvents.map((eventType) => event({ eventType })), true)).toHaveLength(auditEvents.length);
+  });
+
+  it('event ของสมาชิกทั่วไป (สร้างก๊วน/เพิ่มสมาชิก/ประกาศ) ไม่ adminOnly', () => {
+    for (const eventType of ['gang.created', 'gang.member_added', 'gang.member_left', 'announcement.published', 'line.account_linked', 'line.account_unlinked']) {
+      expect(describeEvent(event({ eventType })).adminOnly, eventType).toBe(false);
+    }
+  });
+
+  it('การตั้งค่า LINE/บล็อกบัญชี เป็น adminOnly (เครื่องมือแอดมิน)', () => {
+    for (const eventType of ['gang.line_config_updated', 'gang.line_toggled', 'gang.line_config_cleared', 'gang.line_login_updated', 'line.blocked', 'line.unblocked']) {
+      expect(describeEvent(event({ eventType })).adminOnly, eventType).toBe(true);
+    }
+  });
+
+  it('audit.role_assigned/revoked อ่าน role_key จาก payload ได้ (whitelist)', () => {
+    const item = describeEvent(event({ eventType: 'audit.role_assigned', payload: { role_key: 'treasurer', permissions: ['a', 'b'] } }));
+    expect(item.detail).toBe('treasurer');
+    expect(JSON.stringify(item)).not.toContain('"a"');
+  });
+});
+
 describe('WO-3.C DoD — เรื่องเงินไม่ถึงสมาชิกทั่วไป', () => {
   const events = [
     event({ eventType: 'registration.checked_in' }),
