@@ -302,7 +302,8 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 - 🔴 **cloud push 0050–0053 ยังห้าม** — ต้องรอ 0047–0049 (ใบ 17–19 HOLD รอ Task04 test-env) · cloud ยังอยู่ที่ 0046
 - 6.5b ✅ QA ใบ 30 PASS (`1dfaa09` + `f56decc`): typecheck 0 error · lint 0 error · unit 625 passed / 1 skipped · default build ผ่าน · full Playwright 62/62 (QA rerun เอง)
 - 6.5b ✅ ปิดงาน · WO-6.6a เปิดแล้ว (แผน `b56fff5`) แต่ @gb-frontend ติด provider limit ถึง 10 พ.ย. 00:03
-- R-roles-3: ปลดพักแล้ว · @gb-backend กำลังทำ
+- R-roles-3 ✅ QA PASS (`ee3d10a` … `39635e0`) · ไม่มี migration · cloud ยังอยู่ที่ 0046 · context-db 9/9 · RLS 34/34 · coverage 12/12 · probe assign→revoke→regrant ทำงานจริง
+- 6.5c: scope ของ backend loader อนุมัติแล้ว (ห้ามใช้คำว่า "กำไร" · กราฟใช้คำว่า เงินเข้า/เงินออก โดย inflow−outflow = netCash · แก้ timeline descriptor ของ registration.confirmed/waitlisted) · @gb-backend กำลังทำ
 
 ลำดับที่ใช้จริง: **6.2 → 6.4 → 6.3** (แตก 6.4 เป็น 6.4a/6.4b และ 6.4a เป็นวันเล่นลำดับแรก) · ดูแผนที่ `docs/phase6-redesign-plan.md` §10
 
