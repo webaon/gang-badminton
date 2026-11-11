@@ -65,8 +65,8 @@ const DESCRIPTORS: Record<string, Descriptor> = {
   // [WO-6.5c] event_type จริงที่ register_to_session() insert คือสองคีย์นี้ ไม่ใช่
   // 'registration.created' ข้างบน (ของเดิมไม่ตรงกับ DB เลยมาตั้งแต่ต้น — คงคีย์เดิมไว้
   // เผื่อมีข้อมูลเก่า/อ้างอิงที่อื่น แต่เพิ่มคีย์จริงให้ใช้งานได้จริงจากนี้)
-  'registration.confirmed': { title: 'ลงชื่อเข้าร่วม (ได้ที่เล่น)' },
-  'registration.waitlisted': { title: 'ลงชื่อเข้าร่วม (เข้าคิวรอ)' },
+  'registration.confirmed': { title: 'ลงชื่อนัด' },
+  'registration.waitlisted': { title: 'เข้าคิวสำรอง' },
   'registration.cancelled': { title: 'ยกเลิกการลงชื่อ' },
   'registration.checked_in': { title: 'เช็คอิน' },
   'registration.no_show': {
@@ -74,7 +74,7 @@ const DESCRIPTORS: Record<string, Descriptor> = {
     detail: (p) => scalar(p, 'from_status'),
   },
   'registration.checkin_token_issued': { title: 'ออก QR เช็คอิน' },
-  'waitlist.promoted': { title: 'เลื่อนคิวรอขึ้นเป็นได้ที่' },
+  'waitlist.promoted': { title: 'เลื่อนจากคิวสำรอง' },
   'game.shuttles_corrected': {
     title: 'แก้จำนวนลูกที่ใช้',
     detail: (p) => {
@@ -122,20 +122,24 @@ const DESCRIPTORS: Record<string, Descriptor> = {
   },
   'membership.fees_generated': { title: 'ออกบิลค่าสมาชิกรายเดือน', adminOnly: true },
   // [WO-3.E] คำขอเข้าก๊วน — ไม่มีข้อความที่ผู้ขอพิมพ์อยู่ใน payload ตั้งแต่ต้นทางแล้ว
-  'gang.join_requested': { title: 'มีคนขอเข้าก๊วน' },
-  'gang.join_approved': { title: 'รับเข้าก๊วน' },
-  'gang.join_rejected': { title: 'ปฏิเสธคำขอเข้าก๊วน' },
-  'gang.join_cancelled': { title: 'ผู้ขอยกเลิกคำขอเข้าก๊วน' },
+  // [planner 31 ต.ค. 2026] คำขอของ "คนอื่น" ⇒ adminOnly:true (ไม่ใช่เรื่องเงิน แต่เป็นเรื่องของสมาชิกคนอื่น)
+  'gang.join_requested': { title: 'มีคนขอเข้าก๊วน', adminOnly: true },
+  'gang.join_approved': { title: 'รับเข้าก๊วน', adminOnly: true },
+  'gang.join_rejected': { title: 'ปฏิเสธคำขอเข้าก๊วน', adminOnly: true },
+  'gang.join_cancelled': { title: 'ผู้ขอยกเลิกคำขอเข้าก๊วน', adminOnly: true },
 
   // [WO-6.5c] เพิ่มจาก grep event_type จริงทั้งหมดเทียบ DESCRIPTORS (planner อนุมัติ 31 ต.ค. 2026) —
-  // event ของสมาชิก/สังคมทั่วไป (ไม่มีเงิน/ไม่ใช่ config ของแอดมิน) ⇒ adminOnly: false
+  // event ของสมาชิก/สังคมทั่วไป (ไม่มีเงิน/ไม่ใช่ config ของแอดมิน/ไม่ใช่ข้อมูลส่วนตัวของคนอื่น) ⇒ adminOnly: false
   'gang.created': { title: 'สร้างก๊วน' },
   'gang.member_added': { title: 'เพิ่มสมาชิกใหม่' },
   'gang.member_left': { title: 'ออกจากก๊วน' },
   'gang.ownership_transferred': { title: 'โอนความเป็นเจ้าของก๊วน' },
   'announcement.published': { title: 'เผยแพร่ประกาศ' },
-  'line.account_linked': { title: 'ผูกบัญชี LINE' },
-  'line.account_unlinked': { title: 'เลิกผูกบัญชี LINE' },
+
+  // [planner 31 ต.ค. 2026] line.account_* ทุกตัว (ผูก/เลิกผูก/บล็อก/ปลดบล็อก) = ข้อมูลส่วนตัวของสมาชิกคนนั้น
+  // ⇒ adminOnly:true ทั้งกลุ่ม (ไม่ใช่แค่ blocked/unblocked อย่างที่เคยแยกไว้)
+  'line.account_linked': { title: 'ผูกบัญชี LINE', adminOnly: true },
+  'line.account_unlinked': { title: 'เลิกผูกบัญชี LINE', adminOnly: true },
 
   // [WO-6.5c] การตั้งค่า/ปฏิบัติการของแอดมิน (LINE credentials, block) ⇒ adminOnly: true
   // (เครื่องมือแอดมิน ไม่ใช่เรื่องเงิน แต่ก็ไม่ใช่สิ่งที่สมาชิกทั่วไปต้องเห็นในไทม์ไลน์)
@@ -195,6 +199,10 @@ export const DESCRIPTORS_FOR_TEST: Readonly<Record<string, Descriptor>> = DESCRI
  *
  * ⚠️ event ที่ไม่รู้จัก **ไม่ทิ้ง** แต่ขึ้นข้อความกลางๆ พร้อมชื่อ type
  *    (ทิ้งไปเลยจะทำให้ timeline โกหกว่าไม่มีอะไรเกิดขึ้น)
+ *
+ * 🔴 [planner 31 ต.ค. 2026] event_type ที่ไม่มี descriptor เลย = **fail-closed**
+ *    (adminOnly = true เสมอ) ไม่ใช่ fail-open — ถ้า event ใหม่โผล่มาแล้วลืมเพิ่ม descriptor
+ *    (ซึ่ง drift-test ดักไว้แล้ว) ให้มันไปซ่อนจากสมาชิกทั่วไปก่อน ดีกว่าหลุดไปโดยไม่มีใครรู้ว่าควรซ่อน
  */
 export function describeEvent(event: TimelineEvent): TimelineItem {
   const descriptor = DESCRIPTORS[event.eventType];
@@ -205,7 +213,7 @@ export function describeEvent(event: TimelineEvent): TimelineItem {
     title: descriptor?.title ?? `เหตุการณ์: ${event.eventType}`,
     detail: descriptor?.detail?.(event.payload ?? {}) ?? null,
     actorName: event.actorName,
-    adminOnly: descriptor?.adminOnly ?? false,
+    adminOnly: descriptor ? (descriptor.adminOnly ?? false) : true,
   };
 }
 

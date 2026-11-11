@@ -55,7 +55,7 @@ describe('WO-3.C — แปลง event เป็นข้อความ', () =
     expect(item.detail).toBe('open → in_play');
   });
 
-  it('🔴 event ที่ไม่รู้จัก → ข้อความกลางๆ ไม่ใช่ payload ดิบ', () => {
+  it('🔴 event ที่ไม่รู้จัก → ข้อความกลางๆ ไม่ใช่ payload ดิบ + adminOnly=true แบบ fail-closed (ไม่ใช่ fail-open)', () => {
     const item = describeEvent(
       event({ eventType: 'something.new', payload: { secret: 'ห้ามโชว์' } }),
     );
@@ -63,6 +63,7 @@ describe('WO-3.C — แปลง event เป็นข้อความ', () =
     expect(item.title).toContain('something.new');
     expect(JSON.stringify(item)).not.toContain('ห้ามโชว์');
     expect(item.detail).toBeNull();
+    expect(item.adminOnly).toBe(true);
   });
 
   it('payload ที่เป็นค่าซ้อน (object/array) ไม่ถูกดึงมาแสดง', () => {
@@ -86,9 +87,10 @@ describe('WO-3.C — แปลง event เป็นข้อความ', () =
 });
 
 describe('WO-6.5c — descriptor ของ event_type จริงที่เพิ่มใหม่ (ไม่ใช่ key เดิมที่ไม่ตรง)', () => {
-  it('registration.confirmed/waitlisted (ของจริงจาก register_to_session) มีข้อความไทยแล้ว ไม่ fallback', () => {
-    expect(describeEvent(event({ eventType: 'registration.confirmed' })).title).toBe('ลงชื่อเข้าร่วม (ได้ที่เล่น)');
-    expect(describeEvent(event({ eventType: 'registration.waitlisted' })).title).toBe('ลงชื่อเข้าร่วม (เข้าคิวรอ)');
+  it('registration.confirmed/waitlisted/promoted (ของจริงจาก register_to_session/promote_waitlist) มีข้อความไทยสั้นแล้ว ไม่ fallback', () => {
+    expect(describeEvent(event({ eventType: 'registration.confirmed' })).title).toBe('ลงชื่อนัด');
+    expect(describeEvent(event({ eventType: 'registration.waitlisted' })).title).toBe('เข้าคิวสำรอง');
+    expect(describeEvent(event({ eventType: 'waitlist.promoted' })).title).toBe('เลื่อนจากคิวสำรอง');
   });
 
   it('game.player_substituted / session.closed_with_charges (ของจริงจาก DB) มีข้อความไทยแล้ว', () => {
@@ -111,14 +113,18 @@ describe('WO-6.5c — descriptor ของ event_type จริงที่เ�
     expect(buildTimeline(auditEvents.map((eventType) => event({ eventType })), true)).toHaveLength(auditEvents.length);
   });
 
-  it('event ของสมาชิกทั่วไป (สร้างก๊วน/เพิ่มสมาชิก/ประกาศ) ไม่ adminOnly', () => {
-    for (const eventType of ['gang.created', 'gang.member_added', 'gang.member_left', 'announcement.published', 'line.account_linked', 'line.account_unlinked']) {
+  it('event ของสมาชิกทั่วไป/สังคม (สร้างก๊วน/เพิ่มสมาชิก/ออกจากก๊วน/โอนเจ้าของ/ประกาศ) ไม่ adminOnly', () => {
+    for (const eventType of ['gang.created', 'gang.member_added', 'gang.member_left', 'gang.ownership_transferred', 'announcement.published']) {
       expect(describeEvent(event({ eventType })).adminOnly, eventType).toBe(false);
     }
   });
 
-  it('การตั้งค่า LINE/บล็อกบัญชี เป็น adminOnly (เครื่องมือแอดมิน)', () => {
-    for (const eventType of ['gang.line_config_updated', 'gang.line_toggled', 'gang.line_config_cleared', 'gang.line_login_updated', 'line.blocked', 'line.unblocked']) {
+  it('🔴 [planner 31 ต.ค. 2026] การตั้งค่า LINE/บล็อกบัญชี/ผูก-เลิกผูกบัญชี (ข้อมูลส่วนตัวของสมาชิกคนอื่น) + คำขอเข้าก๊วนของคนอื่น = adminOnly ทั้งหมด', () => {
+    for (const eventType of [
+      'gang.line_config_updated', 'gang.line_toggled', 'gang.line_config_cleared', 'gang.line_login_updated',
+      'line.blocked', 'line.unblocked', 'line.account_linked', 'line.account_unlinked',
+      'gang.join_requested', 'gang.join_approved', 'gang.join_rejected', 'gang.join_cancelled',
+    ]) {
       expect(describeEvent(event({ eventType })).adminOnly, eventType).toBe(true);
     }
   });
