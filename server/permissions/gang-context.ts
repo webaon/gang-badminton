@@ -17,11 +17,11 @@ import 'server-only';
  *    doesn't get a false "FORBIDDEN" from `can()` while the DB would have let them
  *    through, or a false allow that would just bounce off RLS anyway.
  *
- * 🔴 Phase 1 scope only (planner WO, R-roles-3): this file exists and is
- *    unit-tested, but is NOT wired into any `server/actions/*` call site yet.
- *    Call-site integration is Task 4/5/6, gated on QA runtime clearance for
- *    migrations 0050–0053 (planner instruction). Importing this from a call
- *    site before that clearance is out of scope for this WO.
+ * 🔴 Phase 1/2 scope (planner WO, R-roles-3): this loader is wired into every
+ *    non-Q2ก-exempt tenant+delegable `server/actions/*` guard site (Task 4/5/6),
+ *    confirmed against the real DB catalog (above). `server/actions/templates.ts`
+ *    stays on plain role by design (Q2ก) pending the future `session.template.manage`
+ *    action — see BACKLOG R-roles-4.
  *
  * 🔴 orgRole is intentionally left unset here (not `null`, simply never set).
  *    No current `server/actions/*` call site passes `orgRole` into `can()`/
@@ -38,13 +38,11 @@ import type { Action, GangFeatures, GangRole, PermissionContext } from '@/domain
 type MembershipRow = { role: string | null };
 type GangRow = { features: unknown };
 /**
- * 🔴 FK name assumed from default PostgreSQL naming (`<table>_<column>_fkey`) since
- *    migration `20260818000050_gang_roles_expand.sql` does not name the constraint
- *    on `gang_member_roles.role_id` explicitly. NOT yet confirmed against the live
- *    catalog (shared DB is held for QA runtime right now — plan Task 2 bullet 3:
- *    "verify actual FK names in the catalog" before trusting this in production).
- *    If `migration up --local` / a real query proves this wrong once the DB slot
- *    reopens, fix ONLY this constant — the rest of the loader is unaffected.
+ * ✅ FK name ยืนยันแล้วกับ catalog จริง (`tests/server/gang-permission-context-db.test.ts`,
+ *    R-roles-3 Phase 2 — DB slot ของ planner): `select conname from pg_constraint where
+ *    conrelid='public.gang_member_roles'::regclass and contype='f'` คืน
+ *    `gang_member_roles_role_id_fkey` ตรงกับค่า default ที่เดาไว้ (migration
+ *    `20260818000050_gang_roles_expand.sql` ไม่ได้ตั้งชื่อ constraint เอง) ไม่ต้องแก้
  */
 const GANG_MEMBER_ROLES_ROLE_ID_FKEY = 'gang_member_roles_role_id_fkey';
 
