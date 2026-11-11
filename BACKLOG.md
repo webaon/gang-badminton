@@ -553,3 +553,7 @@
 - [ ] 🟡 **[HC15 · กติกายกเลิก]** ค่าปรับแบบ fixed / percent แยก late กับ no-show ยัง implement ไม่ได้ · toggle waitlist ยังไม่มี ⚠️ **กติกาเงิน เจ้าของงานตัดสิน**
 - [ ] 🟢 **[HC16 · ตั้งค่าก๊วน]** feature toggle guest / stats / Elo และปุ่มลบก๊วน ยังไม่มีใน `updateGangSettings`
 - [ ] 🟡 **[6.6a DoD · ออกจากก๊วน]** `ApiFailure` ยังไม่มีช่อง `detail` ⇒ ส่ง reason จาก `leave_gang` (0049 `VALIDATION_ERROR` "เจ้าของก๊วนคนสุดท้ายออกไม่ได้") ไปถึง UI ไม่ได้ ⇒ จะเปิด **WO-B2.2** (backend เพิ่ม `detail.reason` แบบ additive) แล้วทำ UI ใน 6.6b
+
+## จาก QA 6.5c (static)
+
+- [ ] 🟢 **[dashboard · สิทธิ์เครดิต]** ยอดเครดิตคงค้างสำหรับคนที่มีแค่ `gang.finance.view` (ไม่มี `credit.read.other`) — ตอนนี้ซ่อนกล่อง (null) เพราะ RLS `credit_balances` (0051:256-264) · ถ้าต้องการ ให้ทำ RPC aggregate-only (security definer + `can` check) ใน WO แยก · **ห้ามใช้ service-role ใน loader**
