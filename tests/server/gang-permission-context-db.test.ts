@@ -141,6 +141,31 @@ describe('loadGangPermissionContext() — real DB, real PostgREST embed (no mock
     expect(ctx.extra).toEqual([]);
   });
 
+  it('🔴 no cache: revoke/regrant mid-session changes what the VERY NEXT call to the loader returns (planner Task 7 — "regrant/revoke มีผลกับ action ถัดไป")', async () => {
+    const w = await world();
+    const liveUser = await newUser();
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'member')`, [
+      w.gangId,
+      liveUser,
+    ]);
+
+    const before = await loadGangPermissionContext(w.gangId, liveUser);
+    expect(before.extra).toEqual([]);
+
+    await pool.query(`select public.assign_gang_role($1,$2,'treasurer',$3)`, [w.gangId, liveUser, w.owner]);
+    const afterAssign = await loadGangPermissionContext(w.gangId, liveUser);
+    expect(new Set(afterAssign.extra)).toEqual(new Set(ROLE_PRESETS.treasurer));
+
+    await pool.query(`select public.revoke_gang_role($1,$2,'treasurer',$3)`, [w.gangId, liveUser, w.owner]);
+    const afterRevoke = await loadGangPermissionContext(w.gangId, liveUser);
+    expect(afterRevoke.extra).toEqual([]);
+
+    // regrant คนละชุด (scheduler) ต้องไม่เห็นเศษของ treasurer เดิมค้าง — proves no stale cache, not just "empty after revoke"
+    await pool.query(`select public.assign_gang_role($1,$2,'scheduler',$3)`, [w.gangId, liveUser, w.owner]);
+    const afterRegrant = await loadGangPermissionContext(w.gangId, liveUser);
+    expect(new Set(afterRegrant.extra)).toEqual(new Set(ROLE_PRESETS.scheduler));
+  });
+
   it('departed member: role=null (gang_members.deleted_at filter works against the real row, not a mock default)', async () => {
     const w = await world();
     const ctx = await loadGangPermissionContext(w.gangId, w.departed);
