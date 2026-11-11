@@ -544,3 +544,12 @@
 - [ ] 🟢 **[test-strength · R-roles-3]** coverage test (`tests/security/permission-context-coverage.test.ts` ราว บรรทัด 335) ตรวจ `loadGangPermissionContext(` ระดับไฟล์ ไม่ใช่ต่อ guard site ⇒ ถ้า wire แค่บาง call ก็ยังผ่าน · ควรทำเป็น AST / ตรวจต่อ call site
 - [ ] 🟢 **[flake · R-roles-3]** หาสาเหตุ `template-generate.test.ts` ที่ล้มเฉพาะตอนรัน full sweep (510/511) · รันเดี่ยวผ่าน 13/13 · ยัง UNVERIFIED (ไม่มี raw log)
 
+
+## จาก gap ดีไซน์ 6.6a (HC11–HC16) — ดีไซน์มี แต่ระบบยังไม่มี (รับเข้าจาก planner)
+
+- [ ] 🟢 **[HC11 · โปรไฟล์สมาชิก]** ยังไม่มี skill / สถิติการมา / ยอดค้างต่อคน / วันเข้าก๊วน / เบอร์โทร (members loader ตอนนี้มีแค่ role / รายเดือน / ชื่อ)
+- [ ] 🟢 **[HC12 · ระดับฝีมือ]** ยังไม่มี drag เพื่อเรียงลำดับ / คำอธิบาย / จำนวนคนต่อระดับ (ตอนนี้มีแค่ add / remove + rank)
+- [ ] 🟢 **[HC13 · โมเดลคิดเงิน]** ค่าคอร์ทต่อชั่วโมง (ระบบใช้ `courtFeeTotal` ต่อนัด) · ตัวอย่างค่าใช้จ่ายต่อคน (ห้ามคำนวณใน UI — ถ้าทำต้องให้ server คำนวณ) · 14b หารค่าลูก · ⚠️ **ต้องให้เจ้าของงานตัดสินกติกาเงินก่อน**
+- [ ] 🟡 **[HC14 · กติกายกเลิก]** ค่าปรับแบบ fixed / percent แยก late กับ no-show ยัง implement ไม่ได้ · toggle waitlist ยังไม่มี ⚠️ **กติกาเงิน เจ้าของงานตัดสิน**
+- [ ] 🟢 **[HC15 · ตั้งค่าก๊วน]** feature toggle guest / stats / Elo และปุ่มลบก๊วน ยังไม่มีใน `updateGangSettings`
+- [ ] 🟡 **[HC16 · ปุ่มออกจากก๊วน]** `ApiFailure` ยังไม่มีช่อง `detail` ⇒ ส่ง reason จาก `leave_gang` (0049 `VALIDATION_ERROR` "เจ้าของก๊วนคนสุดท้ายออกไม่ได้") ไปถึง UI ไม่ได้ ⇒ จะเปิด **WO-B2.2** (backend เพิ่ม `detail.reason` แบบ additive) แล้วทำ UI ใน 6.6b
