@@ -81,6 +81,46 @@ export type FinanceReport = {
 };
 
 export function calculateFinanceReport(input: FinanceInput): FinanceReport {
+  const a = aggregate(input);
+
+  return {
+    charged: fromSatang(a.charged),
+    collected: fromSatang(a.collected),
+    overpaymentIn: fromSatang(a.overpaymentIn),
+    memberPayouts: fromSatang(a.memberPayouts),
+    outstanding: fromSatang(a.outstanding),
+    credit: fromSatang(a.credit),
+    roundingSurplus: fromSatang(sumSatang(input.charges.map((c) => toSatang(c.roundingSurplus)))),
+    otherIncome: fromSatang(a.otherIncome),
+    expense: fromSatang(a.expense),
+    netCash: fromSatang(a.collected + a.overpaymentIn + a.otherIncome - a.expense - a.memberPayouts),
+  };
+}
+
+/**
+ * [WO-6.5c] เงินเข้า/เงินออกแยกสองฝั่ง สำหรับกราฟแดชบอร์ด (H10) — **ไม่ใช่สูตรใหม่**
+ *
+ * รื้อ `collected` (ที่หัก refund ไว้แล้ว) กลับเป็นสองก้อนตามที่ planner อนุมัติไว้:
+ *   เงินเข้า = cashInBySession (ก่อนหัก refund) + overpaymentIn + otherIncome
+ *   เงินออก = refunds (ค่าสัมบูรณ์) + expense + memberPayouts
+ *
+ * พิสูจน์ด้วย identity test ว่า inflow − outflow === netCash ของ `calculateFinanceReport`
+ * ทุกกรณี (เพราะมาจาก `aggregate()` ตัวเดียวกัน ไม่ได้คำนวณแยกคนละทาง) — ห้ามรวมยอดใน
+ * loader/UI ตามคำสั่ง planner จึงต้องมีฟังก์ชัน pure ตัวนี้แทน
+ */
+export function calculateCashFlowSplit(input: FinanceInput): { inflow: string; outflow: string } {
+  const a = aggregate(input);
+  const cashInBySession = a.collected - a.refunded; // refunded เป็นค่าติดลบอยู่แล้ว ⇒ ลบคือ "คืนกลับ" ก่อนหัก
+  const refundsOut = -a.refunded; // พลิกกลับเป็นค่าบวก (ขนาดของเงินที่คืนออกไป)
+
+  return {
+    inflow: fromSatang(cashInBySession + a.overpaymentIn + a.otherIncome),
+    outflow: fromSatang(refundsOut + a.expense + a.memberPayouts),
+  };
+}
+
+/** รวมส่วนร่วมของ calculateFinanceReport/calculateCashFlowSplit ไว้ที่เดียว — กันสองฟังก์ชันคำนวณไม่ตรงกัน */
+function aggregate(input: FinanceInput) {
   const lines = input.charges.map((c) => ledgerLineOf(c));
 
   const charged = sumSatang(lines.map((l) => toSatang(l.charge)));
@@ -108,18 +148,7 @@ export function calculateFinanceReport(input: FinanceInput): FinanceReport {
   const otherIncome = sumSatang(input.otherIncomes.map(toSatang));
   const expense = sumSatang(input.expenses.map(toSatang));
 
-  return {
-    charged: fromSatang(charged),
-    collected: fromSatang(collected),
-    overpaymentIn: fromSatang(overpaymentIn),
-    memberPayouts: fromSatang(memberPayouts),
-    outstanding: fromSatang(outstanding),
-    credit: fromSatang(credit),
-    roundingSurplus: fromSatang(sumSatang(input.charges.map((c) => toSatang(c.roundingSurplus)))),
-    otherIncome: fromSatang(otherIncome),
-    expense: fromSatang(expense),
-    netCash: fromSatang(collected + overpaymentIn + otherIncome - expense - memberPayouts),
-  };
+  return { charged, allocated, creditPaid, refunded, outstanding, credit, collected, overpaymentIn, memberPayouts, otherIncome, expense };
 }
 
 /**

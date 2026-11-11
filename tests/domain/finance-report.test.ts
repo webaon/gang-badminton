@@ -9,9 +9,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   assertReportReconciles,
+  calculateCashFlowSplit,
   calculateFinanceReport,
   type ReportCharge,
 } from '@/domain/reports/finance';
+import { fromSatang, toSatang } from '@/domain/billing/money';
 
 function charge(overrides: Partial<ReportCharge> = {}): ReportCharge {
   return {
@@ -167,6 +169,78 @@ describe('WO-3.B DoD — reconcile ได้', () => {
       credit: '0.00',
       roundingSurplus: '0.00',
       netCash: '0.00',
+    });
+  });
+});
+
+describe('WO-6.5c — calculateCashFlowSplit(): เงินเข้า/เงินออกแยกสองฝั่ง ต้องตรงกับ netCash ของ calculateFinanceReport ทุกเคส', () => {
+  function expectIdentity(input: Parameters<typeof calculateFinanceReport>[0]) {
+    const report = calculateFinanceReport(input);
+    const split = calculateCashFlowSplit(input);
+    const inflowSatang = toSatang(split.inflow);
+    const outflowSatang = toSatang(split.outflow);
+    expect(fromSatang(inflowSatang - outflowSatang)).toBe(report.netCash);
+    return { report, split };
+  }
+
+  it('ไม่มีข้อมูลเลย → inflow=outflow=0, netCash=0', () => {
+    const { split } = expectIdentity({ charges: [], otherIncomes: [], expenses: [] });
+    expect(split).toEqual({ inflow: '0.00', outflow: '0.00' });
+  });
+
+  it('จ่ายครบไม่มี refund/overpayment/expense → inflow = ยอดที่จ่ายมา, outflow = 0', () => {
+    const { split } = expectIdentity({
+      charges: [charge({ allocated: ['200.00'] })],
+      otherIncomes: [],
+      expenses: [],
+    });
+    expect(split).toEqual({ inflow: '200.00', outflow: '0.00' });
+  });
+
+  it('🔴 มี refund → refund ไปอยู่ฝั่ง outflow ไม่ใช่หักจาก inflow เงียบๆ (ต่างจาก collected ของรายงานเดิม)', () => {
+    const { split } = expectIdentity({
+      charges: [
+        charge({ allocated: ['200.00'], adjustments: ['-50.00'], refunds: ['-50.00'] }),
+      ],
+      otherIncomes: [],
+      expenses: [],
+    });
+    // cashInBySession (ก่อนหัก refund) = allocated 200 (ไม่มี creditAllocated) → inflow = 200
+    expect(split.inflow).toBe('200.00');
+    // outflow = refund 50 (ค่าสัมบูรณ์)
+    expect(split.outflow).toBe('50.00');
+  });
+
+  it('ส่วนที่จ่ายด้วยเครดิตไม่ใช่เงินสดเข้า ⇒ ไม่เข้า inflow', () => {
+    const { split } = expectIdentity({
+      charges: [charge({ allocated: ['200.00'], creditAllocated: ['200.00'] })],
+      otherIncomes: [],
+      expenses: [],
+    });
+    expect(split.inflow).toBe('0.00');
+  });
+
+  it('โอนเกินเข้าเครดิต + รายรับอื่น เข้า inflow · รายจ่าย + เงินคืนสมาชิก เข้า outflow', () => {
+    const { split } = expectIdentity({
+      charges: [charge({ allocated: ['200.00'] })],
+      otherIncomes: ['500.00'],
+      expenses: ['100.00'],
+      overpayments: ['80.00'],
+      memberPayouts: ['-30.00'],
+    });
+    expect(split).toEqual({ inflow: '780.00', outflow: '130.00' });
+  });
+
+  it('เงินไม่ผ่าน float — สตางค์ยังตรงหลังบวกลบหลายชั้นทั้ง inflow/outflow', () => {
+    expectIdentity({
+      charges: [
+        charge({ amount: '333.33', allocated: ['111.11'], refunds: ['-10.01'] }),
+        charge({ amount: '66.67', allocated: ['66.67'] }),
+      ],
+      otherIncomes: ['0.10'],
+      expenses: ['0.03'],
+      overpayments: ['12.34'],
+      memberPayouts: ['-5.05'],
     });
   });
 });
