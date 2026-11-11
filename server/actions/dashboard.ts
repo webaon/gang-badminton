@@ -96,7 +96,7 @@ export async function dashboardOverview(gangId: string): Promise<ApiResponse<Das
     const thisMonthRange = financeRange(monthDateRange(thisYear, thisMonth));
 
     const [nextSession, memberCount, newMembersThisMonth, monthSessions] = await Promise.all([
-      loadNextSession(db, gangId),
+      loadNextSession(db, gangId, financeRange({ from: today, to: today }).startUtc),
       countRows(db, 'gang_members', (q) => q.eq('gang_id', gangId).is('deleted_at', null)),
       countRows(db, 'gang_members', (q) =>
         q.eq('gang_id', gangId).is('deleted_at', null)
@@ -190,11 +190,13 @@ async function countRows(
 
 /**
  * นัดถัดไป/กำลังเล่น — "ใกล้ที่สุด (เริ่มวันนี้ หรือกำลังเล่นอยู่)" [planner]
- * กำลังเล่นมาก่อนเสมอ (เร่งด่วนกว่า) ไม่งั้นเอานัด open ที่ starts_at ใกล้ที่สุด
+ * กำลังเล่นมาก่อนเสมอ (เร่งด่วนกว่า) ไม่งั้นเอานัด open ที่ starts_at ใกล้ที่สุด **นับจากวันนี้เป็นต้นไป**
+ * (ไม่ใช่นัด open ที่เก่าที่สุดเฉยๆ — นัดเก่าที่ค้างสถานะ open ไม่เคยถูกปิด ต้องไม่โผล่เป็น "นัดถัดไป")
  */
 async function loadNextSession(
   db: Awaited<ReturnType<typeof supabaseServer>>,
   gangId: string,
+  todayStartUtc: string,
 ): Promise<DashboardNextSession | null> {
   const common = 'id, title, starts_at, ends_at, status, court_count';
 
@@ -205,6 +207,7 @@ async function loadNextSession(
   const row = playing ?? (
     await db.from('sessions').select(common)
       .eq('gang_id', gangId).is('deleted_at', null).eq('status', 'open')
+      .gte('starts_at', todayStartUtc)
       .order('starts_at', { ascending: true }).limit(1).maybeSingle()
   ).data;
 
