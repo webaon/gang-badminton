@@ -66,6 +66,15 @@ describe('WO-3.C — แปลง event เป็นข้อความ', () =
     expect(item.adminOnly).toBe(true);
   });
 
+  it('🔴 [QA source review] event_type ที่ตรงกับ property ของ Object.prototype ต้อง fail-closed เหมือนกัน — ไม่ได้ property สืบทอดมาเป็น "descriptor" หลอกๆ', () => {
+    for (const poisonedEventType of ['toString', 'constructor', 'valueOf', 'hasOwnProperty', '__proto__', 'isPrototypeOf', 'propertyIsEnumerable', 'toLocaleString']) {
+      const item = describeEvent(event({ eventType: poisonedEventType, payload: { secret: 'ห้ามโชว์' } }));
+      expect(item.adminOnly, poisonedEventType).toBe(true);
+      expect(item.detail, poisonedEventType).toBeNull();
+      expect(JSON.stringify(item)).not.toContain('ห้ามโชว์');
+    }
+  });
+
   it('payload ที่เป็นค่าซ้อน (object/array) ไม่ถูกดึงมาแสดง', () => {
     const item = describeEvent(
       event({

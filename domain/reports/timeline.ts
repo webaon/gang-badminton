@@ -203,9 +203,16 @@ export const DESCRIPTORS_FOR_TEST: Readonly<Record<string, Descriptor>> = DESCRI
  * 🔴 [planner 31 ต.ค. 2026] event_type ที่ไม่มี descriptor เลย = **fail-closed**
  *    (adminOnly = true เสมอ) ไม่ใช่ fail-open — ถ้า event ใหม่โผล่มาแล้วลืมเพิ่ม descriptor
  *    (ซึ่ง drift-test ดักไว้แล้ว) ให้มันไปซ่อนจากสมาชิกทั่วไปก่อน ดีกว่าหลุดไปโดยไม่มีใครรู้ว่าควรซ่อน
+ *
+ * 🔴 [QA source review, 3246e9b] `DESCRIPTORS` เป็น plain object literal ⇒ มี property ที่สืบทอดจาก
+ *    `Object.prototype` เสมอ (`toString`, `constructor`, `valueOf`, `hasOwnProperty`, `__proto__`, ...)
+ *    ถ้า `event.eventType` ดันเป็นชื่อพวกนี้ `DESCRIPTORS[eventType]` จะได้ค่าที่สืบทอดมา (เช่น
+ *    `Object.prototype.toString` ซึ่งเป็น function — **truthy**!) ไม่ใช่ `undefined` ⇒ fail-closed
+ *    ด้านบนพังทันที (`descriptor` truthy แต่ `.adminOnly` เป็น undefined บน function ⇒ `?? false`
+ *    กลายเป็น fail-OPEN) ⇒ ต้องเช็ค **own property** เท่านั้นด้วย `Object.hasOwn()` ไม่ใช่แค่ truthy check
  */
 export function describeEvent(event: TimelineEvent): TimelineItem {
-  const descriptor = DESCRIPTORS[event.eventType];
+  const descriptor = Object.hasOwn(DESCRIPTORS, event.eventType) ? DESCRIPTORS[event.eventType] : undefined;
 
   return {
     id: event.id,

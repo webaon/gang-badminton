@@ -11,7 +11,7 @@ import { splitCashFlow } from '@/domain/reports/finance';
 import { buildTimeline, type TimelineEvent, type TimelineItem } from '@/domain/reports/timeline';
 import { fromSatang, sumSatang, toSatang } from '@/domain/billing/money';
 import { thaiToday, thaiMonthOf, monthDateRange, last6Months } from '@/server/sessions/dashboard-dates';
-import { uuid } from '@/server/payments/admin-read';
+import { ADMIN_READ_PAGE, allById, uuid } from '@/server/payments/admin-read';
 import { financeRange } from '@/server/payments/report-range';
 import { adminLedger } from './payment-admin';
 import { adminPaymentList } from './payment-list';
@@ -123,9 +123,26 @@ export async function dashboardOverview(gangId: string): Promise<ApiResponse<Das
     let monthlyCashFlow: DashboardOverview['monthlyCashFlow'] = null;
 
     if (can(ctx, 'gang.finance.view')) {
-      const thisMonthReport = await financeReport(gangId, { from: thisMonthRange.from, to: thisMonthRange.to });
-      if (!thisMonthReport.success) throw thisMonthReport.error;
-      netCashThisMonth = thisMonthReport.data.report.netCash;
+      // 🔴 [QA source review, 3246e9b] financeReport() เดือนปัจจุบันเคยถูกเรียก 2 ครั้ง (การ์ด netCash
+      // + รอบใน last6Months) — ไม่ใช่สูตรผิด แต่ถ้ามีเงินเข้า/ออกระหว่าง 2 calls ตัวเลขอาจไม่ตรงกันเอง
+      // ภายใน response เดียว ⇒ เรียกเดือนปัจจุบันครั้งเดียว (อยู่ใน months loop ด้านล่างนี้แหละ เพราะ
+      // last6Months() คืนเดือนปัจจุบันเป็นตัวสุดท้ายอยู่แล้ว) แล้ว reuse ผลลัพธ์เดียวกันให้ทั้งการ์ดและกราฟ
+      const startedAt = Date.now();
+      const months = last6Months(today); // เก่า→ใหม่ — ตัวสุดท้ายคือเดือนปัจจุบันเสมอ
+      const monthReports = await Promise.all(
+        months.map(async ({ year, month }) => {
+          const res = await financeReport(gangId, monthDateRange(year, month));
+          if (!res.success) throw res.error;
+          return { year, month, data: res.data };
+        }),
+      );
+      const elapsedMs = Date.now() - startedAt;
+      if (elapsedMs > 1500) {
+        console.warn(`[dashboardOverview] monthlyCashFlow (6x financeReport) ใช้เวลา ${elapsedMs}ms เกิน 1.5s`, { gangId, correlationId });
+      }
+
+      const currentMonth = monthReports[monthReports.length - 1];
+      netCashThisMonth = currentMonth.data.report.netCash;
 
       // [planner 31 ต.ค. 2026] ถอนการอนุมัติเดิมที่ให้ gang.finance.view เห็น creditOutstanding ได้เลย —
       // RLS ของ credit_balances (0051:256-264) อนุญาตแค่ credit.read.other หรือแถวของตัวเอง เท่านั้น
@@ -133,27 +150,17 @@ export async function dashboardOverview(gangId: string): Promise<ApiResponse<Das
       // พร้อมกัน ไม่งั้นคืน null (ให้ UI ซ่อน) ไม่ใช่เลขที่โกหก ห้าม service-role/migration ตามคำสั่ง
       creditOutstanding = can(ctx, 'credit.read.other') ? await loadCreditOutstanding(db, gangId) : null;
 
-      const startedAt = Date.now();
-      monthlyCashFlow = await Promise.all(
-        last6Months(today).map(async ({ year, month }) => {
-          const range = monthDateRange(year, month);
-          const res = await financeReport(gangId, range);
-          if (!res.success) throw res.error;
-          const split = splitCashFlow({
-            transferIn: res.data.transferIn,
-            refunds: res.data.refunds,
-            overpaymentIn: res.data.report.overpaymentIn,
-            otherIncome: res.data.report.otherIncome,
-            expense: res.data.report.expense,
-            memberPayouts: res.data.report.memberPayouts,
-          });
-          return { month: `${year}-${String(month).padStart(2, '0')}`, ...split };
-        }),
-      );
-      const elapsedMs = Date.now() - startedAt;
-      if (elapsedMs > 1500) {
-        console.warn(`[dashboardOverview] monthlyCashFlow (6x financeReport) ใช้เวลา ${elapsedMs}ms เกิน 1.5s`, { gangId, correlationId });
-      }
+      monthlyCashFlow = monthReports.map(({ year, month, data }) => {
+        const split = splitCashFlow({
+          transferIn: data.transferIn,
+          refunds: data.refunds,
+          overpaymentIn: data.report.overpaymentIn,
+          otherIncome: data.report.otherIncome,
+          expense: data.report.expense,
+          memberPayouts: data.report.memberPayouts,
+        });
+        return { month: `${year}-${String(month).padStart(2, '0')}`, ...split };
+      });
     }
 
     const recentActivity = await loadRecentActivity(db, gangId, can(ctx, 'payment.verify'));
@@ -205,22 +212,32 @@ async function loadNextSession(
   // [fix] ต้องเป็น string literal ตรงๆ ใน .select(...) ไม่ใช่ตัวแปร — tests/postgrest/embeds.test.ts
   // สแกนด้วย regex หา .select('...') เป็น literal เท่านั้น ถ้าใช้ตัวแปรมันจะข้ามไปจับคู่ .from()
   // ตัวนี้กับ .select('...') literal ตัวถัดไปใน source ผิดตัว (เจอจริงจากเทสต์ 19/08) ⇒ ไม่ย่อด้วยตัวแปร
-  const { data: playing } = await db.from('sessions').select('id, title, starts_at, ends_at, status, court_count')
+  //
+  // 🔴 [QA source review, 3246e9b] ทุก query ต้องเช็ค error แล้ว throw — ห้ามปล่อยให้ query error
+  // หลุดไปเป็น "ไม่มีข้อมูล" (คืน null/[]) เงียบๆ ซึ่งขัด CLAUDE.md §5 (fail loud ไม่ fail quiet)
+  const { data: playing, error: playingError } = await db.from('sessions')
+    .select('id, title, starts_at, ends_at, status, court_count')
     .eq('gang_id', gangId).is('deleted_at', null).eq('status', 'in_play')
     .order('starts_at', { ascending: true }).limit(1).maybeSingle();
+  if (playingError) throw playingError;
 
-  const row = playing ?? (
-    await db.from('sessions').select('id, title, starts_at, ends_at, status, court_count')
+  let row = playing;
+  if (!row) {
+    const { data: open, error: openError } = await db.from('sessions')
+      .select('id, title, starts_at, ends_at, status, court_count')
       .eq('gang_id', gangId).is('deleted_at', null).eq('status', 'open')
       .gte('starts_at', todayStartUtc)
-      .order('starts_at', { ascending: true }).limit(1).maybeSingle()
-  ).data;
+      .order('starts_at', { ascending: true }).limit(1).maybeSingle();
+    if (openError) throw openError;
+    row = open;
+  }
 
   if (!row) return null;
 
-  const { data: regs } = await db.from('session_registrations')
+  const { data: regs, error: regsError } = await db.from('session_registrations')
     .select('status, user_id')
     .eq('session_id', row.id as string).is('deleted_at', null);
+  if (regsError) throw regsError;
 
   const rows = (regs ?? []) as { status: string; user_id: string | null }[];
   const seated = rows.filter((r) => isSeated(r.status));
@@ -238,31 +255,42 @@ async function loadNextSession(
   };
 }
 
-/** นัดในเดือนนี้ (เวลาไทย) ที่ไม่ cancelled — ตัวหารของ "เฉลี่ยคน/นัด" [planner #3(ก)] */
+/** นัดในเดือนนี้ (เวลาไทย) ที่ไม่ cancelled — ตัวหารของ "เฉลี่ยคน/นัด" [planner #3(ก)]
+ *  🔴 [QA source review, 3246e9b] เดิม fetch ครั้งเดียวไม่แบ่งหน้า โดน PostgREST max_rows=1000 ตัดได้
+ *  เหมือน credit_balances — ใช้ `allById()` เดิมตรงๆได้เลยเพราะ sessions มีคอลัมน์ `id` จริง (ต่างจาก
+ *  credit_balances ที่ PK composite ไม่มี id) */
 async function loadMonthSessions(
   db: Awaited<ReturnType<typeof supabaseServer>>,
   gangId: string,
   range: ReturnType<typeof financeRange>,
 ): Promise<{ id: string }[]> {
-  const { data, error } = await db.from('sessions').select('id')
-    .eq('gang_id', gangId).is('deleted_at', null).neq('status', 'cancelled')
-    .gte('starts_at', range.startUtc).lt('starts_at', range.endUtcExclusive);
-  if (error) throw error;
-  return (data ?? []) as { id: string }[];
+  return allById<{ id: string }>((after) => {
+    let q = db.from('sessions').select('id')
+      .eq('gang_id', gangId).is('deleted_at', null).neq('status', 'cancelled')
+      .gte('starts_at', range.startUtc).lt('starts_at', range.endUtcExclusive)
+      .order('id').limit(ADMIN_READ_PAGE);
+    if (after) q = q.gt('id', after);
+    return q;
+  });
 }
 
-/** เฉลี่ยคน/นัด — นับ "ลงชื่อแล้ว" ด้วย `isSeated()` เดียวกับ roster/console [planner #3(ก)] ไม่หารในนี้ */
+/** เฉลี่ยคน/นัด — นับ "ลงชื่อแล้ว" ด้วย `isSeated()` เดียวกับ roster/console [planner #3(ก)] ไม่หารในนี้
+ *  🔴 [QA source review, 3246e9b] แบ่งหน้าเหมือน loadMonthSessions ด้านบน — นัดเดือนเดียวกันมี
+ *  registration รวมกันได้เกิน 1000 แถวง่ายกว่า sessions เองมาก (หลายคนต่อนัด × หลายนัด) */
 async function attendeesOf(
   db: Awaited<ReturnType<typeof supabaseServer>>,
   sessions: { id: string }[],
 ): Promise<{ totalSeated: number; sessionCount: number }> {
   if (sessions.length === 0) return { totalSeated: 0, sessionCount: 0 };
-  const { data, error } = await db.from('session_registrations')
-    .select('status')
-    .in('session_id', sessions.map((s) => s.id))
-    .is('deleted_at', null);
-  if (error) throw error;
-  const totalSeated = ((data ?? []) as { status: string }[]).filter((r) => isSeated(r.status)).length;
+  const sessionIds = sessions.map((s) => s.id);
+  const regs = await allById<{ id: string; status: string }>((after) => {
+    let q = db.from('session_registrations').select('id, status')
+      .in('session_id', sessionIds).is('deleted_at', null)
+      .order('id').limit(ADMIN_READ_PAGE);
+    if (after) q = q.gt('id', after);
+    return q;
+  });
+  const totalSeated = regs.filter((r) => isSeated(r.status)).length;
   return { totalSeated, sessionCount: sessions.length };
 }
 

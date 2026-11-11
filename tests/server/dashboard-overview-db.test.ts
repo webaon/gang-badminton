@@ -307,6 +307,29 @@ describe('dashboardOverview() — creditOutstanding ต้องมีทั้�
     expect(data.outstanding).not.toBeNull(); // #4 ยังใช้ gang.finance.view เดี่ยวๆตามที่อนุมัติไว้เดิม ไม่กระทบ
   });
 
+  it('🔴 [QA source review] treasurer ที่ถูกถอน credit.read.other ออก (revoke_gang_role) — creditOutstanding ต้องกลับเป็น null ทันที ไม่ใช่ยอดค้างจาก cache/สถานะเก่า', async () => {
+    const owner = await newUser();
+    const {
+      rows: [gang],
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-revoked-${crypto.randomUUID()}`]);
+    const gangId = gang.id;
+    const revokedTreasurer = await newUser();
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'member')`, [gangId, revokedTreasurer]);
+    await pool.query(`select public.assign_gang_role($1, $2, 'treasurer', $3)`, [gangId, revokedTreasurer, owner]);
+
+    // ก่อนถอน: มี credit.read.other จริง (เป็นส่วนหนึ่งของ preset treasurer) — เห็น creditOutstanding
+    h.userId = revokedTreasurer;
+    const before = unwrap(await dashboardOverview(gangId));
+    expect(before.creditOutstanding).not.toBeNull();
+
+    await pool.query(`select public.revoke_gang_role($1, $2, 'treasurer', $3)`, [gangId, revokedTreasurer, owner]);
+
+    const after = unwrap(await dashboardOverview(gangId));
+    expect(after.creditOutstanding).toBeNull();
+    // widget อื่นที่ไม่เกี่ยวกับ credit.read.other ก็ต้องหายไปด้วย (ไม่มี gang.finance.view อีกแล้วหลัง revoke)
+    expect(after.netCashThisMonth).toBeNull();
+  });
+
   it('🔴 [ไม่ mock DB] client ของ treasurer จริง (JWT เซ็นเอง ผ่าน PostgREST+RLS จริง ไม่ใช่ serviceClient) ต้องได้ยอดรวมทั้งก๊วน', async () => {
     const owner = await newUser();
     const {
@@ -339,4 +362,43 @@ describe('dashboardOverview() — creditOutstanding ต้องมีทั้�
       h.asUserId = null; // คืนเป็น serviceClient() เสมอ ไม่ให้รั่วไปเทสต์ถัดไป
     }
   });
+});
+
+describe('dashboardOverview() — avgAttendeesThisMonth ต้องแบ่งหน้าเหมือน creditOutstanding (QA source review, 3246e9b)', () => {
+  it('🔴 session_registrations รวมกันเกิน 1000 แถวในเดือนนี้ (หลายนัด × guest เยอะ) ต้องนับได้ครบ ไม่ใช่โดน max_rows ตัด', async () => {
+    const owner = await newUser();
+    const {
+      rows: [gang],
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-regpaginate-${crypto.randomUUID()}`]);
+    const gangId = gang.id;
+    const admin = await newUser();
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'admin')`, [gangId, admin]);
+
+    // 2 นัดในเดือนนี้ (future-ish, ภายในวันนี้) นัดละ 503 guest confirmed รวม 1006 > max_rows 1000
+    const startIso = new Date(Date.now() + 2 * 3600_000).toISOString();
+    const endIso = new Date(Date.now() + 4 * 3600_000).toISOString();
+    let totalRegs = 0;
+    for (let s = 0; s < 2; s++) {
+      const {
+        rows: [session],
+      } = await pool.query<{ id: string }>(
+        `insert into public.sessions (gang_id, title, starts_at, ends_at, max_players, status)
+         values ($1, $2, $3, $4, 1000, 'open') returning id`,
+        [gangId, `นัดทดสอบ pagination ${s}`, startIso, endIso],
+      );
+      const N = 503;
+      await pool.query(
+        `insert into public.session_registrations (session_id, guest_name, status)
+         select $1, 'เกสต์ ' || gs, 'confirmed' from generate_series(1, $2) gs`,
+        [session.id, N],
+      );
+      totalRegs += N;
+    }
+    expect(totalRegs).toBeGreaterThan(1000);
+
+    h.userId = admin;
+    const data = unwrap(await dashboardOverview(gangId));
+    expect(data.sessionsThisMonth).toBe(2);
+    expect(data.avgAttendeesThisMonth).toEqual({ totalSeated: totalRegs, sessionCount: 2 });
+  }, 30_000);
 });
