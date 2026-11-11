@@ -559,3 +559,7 @@
 - [ ] 🟢 **[dashboard · สิทธิ์เครดิต]** ยอดเครดิตคงค้างสำหรับคนที่มีแค่ `gang.finance.view` (ไม่มี `credit.read.other`) — ตอนนี้ซ่อนกล่อง (null) เพราะ RLS `credit_balances` (0051:256-264) · ถ้าต้องการ ให้ทำ RPC aggregate-only (security definer + `can` check) ใน WO แยก · **ห้ามใช้ service-role ใน loader · ตอนนี้ widget เงินทุกตัวใช้ gate `canSeeGangMoney` = `finance.view` + `payment.verify` + `credit.read.other`**
 
 - [ ] 🟡 **[security · event_logs RLS privacy drift]** SQL `0039:44-47` ยังไม่ได้จัด `line.*` / `gang.join_*` / `session.closed_with_charges` เป็น admin-only ตาม DESCRIPTORS ใหม่ (`timeline.ts`, 6.5c) ⇒ สมาชิกอ่าน raw event ผ่าน API ได้ แม้ dashboard จะกรองไว้แล้ว · ต้องทำเป็น **WO แยก** พร้อม migration ใหม่ (ต่อคิวหลัง 0053) และทำให้ RLS ตรงกับ DESCRIPTORS พร้อมเทสต์ `event-log-privacy` · ที่มา: QA static 6.5c (RLS chain review)
+
+## จาก backend 6.5c (`5f35b56`)
+
+- [ ] 🟢 **[timeline · หน้า session detail]** `features/sessions/SessionDetailPage.tsx:159` ยังเรียก `buildTimeline()` แบบ 2-arg เดิม (`canSeeOtherAdminOnly = canSeeMoney`) ⇒ ต้องย้ายไปใช้ 2 แกนแบบเดียวกับ dashboard 6.5c (event เงินใช้ `finance.view` · adminOnly อื่นใช้ `gang.member.manage`) · ทำใน frontend ตอนแก้หน้า session (6.6b) หรือ 6.9
