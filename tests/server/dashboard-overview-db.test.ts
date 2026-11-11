@@ -233,7 +233,7 @@ describe('dashboardOverview() — real DB role matrix (no mock DB queries)', () 
 });
 
 describe('dashboardOverview() — creditOutstanding paginates past PostgREST max_rows (planner review, 31 ต.ค. 2026)', () => {
-  it('🔴 เครดิตคงค้าง > 500 แถว (1 แถว/คน) ต้องรวมได้ครบทุกแถว ไม่ใช่แค่หน้าแรก', async () => {
+  it('🔴 เครดิตคงค้าง > 1000 แถว (1 แถว/คน) ต้องรวมได้ครบทุกแถว ไม่ใช่แค่ max_rows ของ PostgREST (1000)', async () => {
     const owner = await newUser();
     const {
       rows: [gang],
@@ -242,10 +242,12 @@ describe('dashboardOverview() — creditOutstanding paginates past PostgREST max
     const admin = await newUser();
     await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'admin')`, [gangId, admin]);
 
-    // สร้างสมาชิก 520 คน (เกิน PostgREST max_rows=1000 ครึ่งแถวกำลังดี — ถ้าทดสอบโค้ดเก่าที่ไม่แบ่งหน้า
-    // จะยังผ่านเพราะ 520<1000 เลยทดสอบด้วย PAGE=500 ของ loadCreditOutstanding เอง ซึ่งคือจุดที่พังจริง
-    // ถ้าไม่แบ่งหน้า loop) — 1.00 บาท/คน ⇒ ยอดรวมต้องเป็น 520.00 เป๊ะ ไม่ใช่ 500.00 (หน้าแรกเท่านั้น)
-    const N = 520;
+    // [planner แก้ 31 ต.ค. 2026] 520 แถวไม่พอ — PostgREST max_rows คือ 1000 ไม่ใช่ PAGE=500 ของโค้ดเรา
+    // ⇒ โค้ดเดิมที่ไม่แบ่งหน้าเลย (single select ไม่มี .limit()) ก็ได้ 520.00 ถูกเหมือนกันเพราะ
+    // PostgREST คืนครบใน 1 request อยู่แล้วตอน<1000 แถว เทสต์เดิมจับ regression ไม่ได้จริง
+    // ⇒ ต้อง > 1000 แถว ถึงจะพิสูจน์ได้ว่า "ไม่ได้พึ่ง max_rows ของ PostgREST เพียวๆ" — 1.00 บาท/คน
+    // ⇒ ยอดรวมต้องเป็น 1005.00 เป๊ะ ไม่ใช่ 1000.00 (ถ้าพังจะโผล่เป็น 1000.00 ไม่ใช่ error)
+    const N = 1005;
     const {
       rows: memberRows,
     } = await pool.query<{ id: string }>(
