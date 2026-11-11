@@ -119,6 +119,30 @@ export function calculateCashFlowSplit(input: FinanceInput): { inflow: string; o
   };
 }
 
+/** [WO-6.5c] เงินเข้า/เงินออกจากค่าที่ `financeReport()` (server action) คำนวณไว้แล้ว — **ไม่ใช่สูตรใหม่**
+ *  ไม่รับ FinanceInput ดิบ เพราะ loader ของ H10 เรียก `financeReport()` action ทีละเดือน (ตามที่ planner
+ *  สั่ง "ใช้ financeReport เดือนละ 1 ครั้ง") ซึ่งคืนค่าที่รวมแล้วเท่านั้น — รวมยอดที่นี่ ไม่ใช่ใน loader/UI
+ *  ตามคำสั่ง "ห้ามรวมยอดใน loader/UI" */
+export function splitCashFlow(parts: {
+  /** `financeReport()` result.transferIn — เงินสดเข้าจากการจ่ายหนี้ ก่อนหัก refund */
+  transferIn: string;
+  /** `financeReport()` result.refunds — ค่าสัมบูรณ์ของเงินที่คืนออกไปในช่วงนั้น */
+  refunds: string;
+  overpaymentIn: string;
+  otherIncome: string;
+  expense: string;
+  memberPayouts: string;
+}): { inflow: string; outflow: string } {
+  return {
+    inflow: fromSatang(
+      toSatang(parts.transferIn) + toSatang(parts.overpaymentIn) + toSatang(parts.otherIncome),
+    ),
+    outflow: fromSatang(
+      toSatang(parts.refunds) + toSatang(parts.expense) + toSatang(parts.memberPayouts),
+    ),
+  };
+}
+
 /** รวมส่วนร่วมของ calculateFinanceReport/calculateCashFlowSplit ไว้ที่เดียว — กันสองฟังก์ชันคำนวณไม่ตรงกัน */
 function aggregate(input: FinanceInput) {
   const lines = input.charges.map((c) => ledgerLineOf(c));
