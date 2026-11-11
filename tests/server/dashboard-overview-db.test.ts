@@ -15,12 +15,36 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { pool, serviceClient, userClient, reloadPostgrestSchema } from '../helpers/db';
 
 /** `asUserId` ตั้งแล้ว ⇒ supabaseServer() คืน client ของ user จริงนั้น (RLS มีผลจริง ผ่าน PostgREST)
- *  แทน serviceClient() — ใช้เฉพาะเทสต์ที่ต้อง "ไม่ mock DB เลย" (ดู describe RLS จริงด้านล่าง) */
-const h = vi.hoisted(() => ({ userId: '', asUserId: null as string | null }));
+ *  แทน serviceClient() — ใช้เฉพาะเทสต์ที่ต้อง "ไม่ mock DB เลย" (ดู describe RLS จริงด้านล่าง)
+ *  `poisonTable` ตั้งแล้ว ⇒ ทุก `.from(poisonTable)` บน client ที่คืนออกไปจะได้ error เสมอ (ทุกจุดอื่นยังเป็น
+ *  real DB จริง) — ใช้พิสูจน์ [planner F2] ว่า loadNextSession()/loadMonthSessions() ฯลฯ throw จริง
+ *  เมื่อ query fail ไม่ใช่คืน null/0 แบบเงียบๆ */
+const h = vi.hoisted(() => ({ userId: '', asUserId: null as string | null, poisonTable: null as string | null }));
+
+/** ห่อ client จริงไว้ — table ที่ตรงกับ poisonTable คืน error เสมอทุก terminal call (.maybeSingle/.single/await ตรงๆ) */
+function poisonedClient(real: ReturnType<typeof serviceClient>, poisonTable: string) {
+  const injected = { data: null, error: { message: 'injected test failure', code: 'XX000', details: null, hint: null } };
+  return {
+    from(table: string) {
+      if (table !== poisonTable) return real.from(table);
+      const chain: Record<string, unknown> = {};
+      const self = () => chain;
+      for (const m of ['select', 'eq', 'is', 'neq', 'gte', 'gt', 'lt', 'lte', 'in', 'order', 'limit']) chain[m] = self;
+      chain.maybeSingle = () => Promise.resolve(injected);
+      chain.single = () => Promise.resolve(injected);
+      chain.then = (resolve: (v: typeof injected) => unknown, reject?: (e: unknown) => unknown) =>
+        Promise.resolve(injected).then(resolve, reject);
+      return chain;
+    },
+  } as unknown as ReturnType<typeof serviceClient>;
+}
 
 vi.mock('@/lib/supabase/auth', () => ({ requireUser: async () => ({ id: h.userId }) }));
 vi.mock('@/lib/supabase/server', () => ({
-  supabaseServer: async () => (h.asUserId ? userClient(h.asUserId) : serviceClient()),
+  supabaseServer: async () => {
+    const base = h.asUserId ? userClient(h.asUserId) : serviceClient();
+    return h.poisonTable ? poisonedClient(base, h.poisonTable) : base;
+  },
 }));
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
@@ -28,6 +52,8 @@ import { dashboardOverview } from '@/server/actions/dashboard';
 import { adminLedger } from '@/server/actions/payment-admin';
 import { adminPaymentList } from '@/server/actions/payment-list';
 import { financeReport } from '@/server/actions/finance-report';
+import { thaiToday, thaiMonthOf, monthDateRange } from '@/server/sessions/dashboard-dates';
+import { financeRange } from '@/server/payments/report-range';
 
 beforeAll(async () => {
   await reloadPostgrestSchema();
@@ -401,4 +427,127 @@ describe('dashboardOverview() — avgAttendeesThisMonth ต้องแบ่ง
     expect(data.sessionsThisMonth).toBe(2);
     expect(data.avgAttendeesThisMonth).toEqual({ totalSeated: totalRegs, sessionCount: 2 });
   }, 30_000);
+});
+
+describe('dashboardOverview() — [planner F2] query error ต้อง throw จริง ไม่ใช่คืน null/0 แบบเงียบๆ', () => {
+  it('🔴 sessions table query fail (loadNextSession playing/open + loadMonthSessions) → ApiResponse ต้อง success=false ไม่ใช่ nextSession=null แบบปกติ', async () => {
+    const owner = await newUser();
+    const {
+      rows: [gang],
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-poison-sessions-${crypto.randomUUID()}`]);
+    const gangId = gang.id;
+    const admin = await newUser();
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'admin')`, [gangId, admin]);
+
+    h.userId = admin;
+    h.poisonTable = 'sessions';
+    try {
+      const res = await dashboardOverview(gangId);
+      expect(res.success).toBe(false);
+      if (!res.success) expect(res.error.code).toBe('INTERNAL_ERROR');
+    } finally {
+      h.poisonTable = null;
+    }
+  });
+
+  it('🔴 session_registrations query fail (loadNextSession regs + attendeesOf) → ApiResponse ต้อง success=false ไม่ใช่ seatedCount/avg=0 แบบปกติ', async () => {
+    const owner = await newUser();
+    const {
+      rows: [gang],
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-poison-regs-${crypto.randomUUID()}`]);
+    const gangId = gang.id;
+    const admin = await newUser();
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'admin')`, [gangId, admin]);
+    // ต้องมีนัด 'open' ของวันนี้อยู่จริง ไม่งั้น loadNextSession คืน null ก่อนจะเรียก regs query เลย (ไม่ทดสอบจุดที่ต้องการ)
+    const startIso = new Date(Date.now() + 2 * 3600_000).toISOString();
+    const endIso = new Date(Date.now() + 4 * 3600_000).toISOString();
+    await pool.query(
+      `insert into public.sessions (gang_id, title, starts_at, ends_at, max_players, status)
+       values ($1, 'นัดทดสอบ poison regs', $2, $3, 20, 'open')`,
+      [gangId, startIso, endIso],
+    );
+
+    h.userId = admin;
+    h.poisonTable = 'session_registrations';
+    try {
+      const res = await dashboardOverview(gangId);
+      expect(res.success).toBe(false);
+      if (!res.success) expect(res.error.code).toBe('INTERNAL_ERROR');
+    } finally {
+      h.poisonTable = null;
+    }
+  });
+});
+
+describe('dashboardOverview() — [planner] ขอบเวลา เที่ยงคืนเวลาไทย (23:59/00:00) และช่วงสิ้นเดือน', () => {
+  it('🔴 นัดที่ 23:59:59.999 เวลาไทยของ "เมื่อวาน" ต้องไม่ถูกนับเป็นนัดถัดไปของวันนี้ — นัดที่ 00:00:00.000 เวลาไทยของวันนี้ต้องถูกนับ', async () => {
+    const owner = await newUser();
+    const {
+      rows: [gang],
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-midnight-${crypto.randomUUID()}`]);
+    const gangId = gang.id;
+    const admin = await newUser();
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'admin')`, [gangId, admin]);
+
+    const today = thaiToday();
+    const todayStartUtc = financeRange({ from: today, to: today }).startUtc; // = เที่ยงคืนเวลาไทยของวันนี้ แปลงเป็น UTC แล้ว
+    const todayStartMs = new Date(todayStartUtc).getTime();
+
+    const yesterdayLateIso = new Date(todayStartMs - 1).toISOString(); // 23:59:59.999 เวลาไทยของเมื่อวาน
+    const todayMidnightIso = new Date(todayStartMs).toISOString(); // 00:00:00.000 เวลาไทยของวันนี้พอดี
+    const endLate = new Date(todayStartMs - 1 + 3600_000).toISOString();
+    const endMidnight = new Date(todayStartMs + 3600_000).toISOString();
+
+    await pool.query(
+      `insert into public.sessions (gang_id, title, starts_at, ends_at, max_players, status)
+       values ($1, 'นัดเมื่อวาน 23:59:59.999 ไทย', $2, $3, 10, 'open')`,
+      [gangId, yesterdayLateIso, endLate],
+    );
+    const {
+      rows: [todaySession],
+    } = await pool.query<{ id: string }>(
+      `insert into public.sessions (gang_id, title, starts_at, ends_at, max_players, status)
+       values ($1, 'นัดวันนี้ 00:00:00.000 ไทยพอดี', $2, $3, 10, 'open') returning id`,
+      [gangId, todayMidnightIso, endMidnight],
+    );
+
+    h.userId = admin;
+    const data = unwrap(await dashboardOverview(gangId));
+    expect(data.nextSession).not.toBeNull();
+    expect(data.nextSession?.id).toBe(todaySession.id); // ต้องเป็นนัดวันนี้ ไม่ใช่นัดเมื่อวานที่ใกล้เที่ยงคืนมาก
+  });
+
+  it('🔴 นัดที่วินาทีสุดท้ายของเดือนนี้ (เวลาไทย) ต้องถูกนับเป็น "เดือนนี้" — นัดที่วินาทีแรกของเดือนหน้าต้องไม่ถูกนับ', async () => {
+    const owner = await newUser();
+    const {
+      rows: [gang],
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-monthend-${crypto.randomUUID()}`]);
+    const gangId = gang.id;
+    const admin = await newUser();
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'admin')`, [gangId, admin]);
+
+    const today = thaiToday();
+    const { year, month } = thaiMonthOf(today);
+    const range = monthDateRange(year, month);
+    const thisMonthRange = financeRange(range); // .endUtcExclusive = เที่ยงคืนเวลาไทยของวันที่ 1 เดือนหน้า
+    const monthEndExclusiveMs = new Date(thisMonthRange.endUtcExclusive).getTime();
+
+    const lastInstantOfMonthIso = new Date(monthEndExclusiveMs - 1).toISOString(); // วินาทีสุดท้ายของเดือนนี้
+    const firstInstantOfNextMonthIso = new Date(monthEndExclusiveMs).toISOString(); // วินาทีแรกของเดือนหน้าพอดี
+
+    await pool.query(
+      `insert into public.sessions (gang_id, title, starts_at, ends_at, max_players, status)
+       values ($1, 'นัดวินาทีสุดท้ายของเดือนนี้', $2, $3, 10, 'open')`,
+      [gangId, lastInstantOfMonthIso, new Date(monthEndExclusiveMs - 1 + 3600_000).toISOString()],
+    );
+    await pool.query(
+      `insert into public.sessions (gang_id, title, starts_at, ends_at, max_players, status)
+       values ($1, 'นัดวินาทีแรกของเดือนหน้า', $2, $3, 10, 'open')`,
+      [gangId, firstInstantOfNextMonthIso, new Date(monthEndExclusiveMs + 3600_000).toISOString()],
+    );
+
+    h.userId = admin;
+    const data = unwrap(await dashboardOverview(gangId));
+    expect(data.sessionsThisMonth).toBe(1); // นับแค่นัดวินาทีสุดท้ายของเดือนนี้ ไม่ใช่นัดเดือนหน้า
+  });
 });

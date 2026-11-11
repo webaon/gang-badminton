@@ -278,3 +278,32 @@ describe('🔴 [QA source review, 3246e9b] scratch-fixture tests ของ extra
     expect(missing).toEqual(['unmanifested.totally_new']);
   });
 });
+
+describe('🔴 [planner F3] mutation test — migration สมมติที่มี event_type ใหม่ 1 ตัว ต้องทำให้ drift-check ตัวจริง (เทียบกับ DESCRIPTORS_FOR_TEST จริง ไม่ใช่ fake) fail จริง', () => {
+  it('event_type ใหม่ที่แน่ชัดว่าไม่มีใน DESCRIPTORS จริง ต้องโผล่เป็น "missing" เมื่อเทียบกับ DESCRIPTORS_FOR_TEST ของจริง', async () => {
+    const { DESCRIPTORS_FOR_TEST } = await import('@/domain/reports/timeline');
+
+    // migration สมมติ — จำลองรูปแบบ SQL จริงของโปรเจกต์นี้ (multi-row + comment ปนอยู่) แต่มี event_type
+    // ใหม่ 1 ตัวที่ไม่มีทางมีอยู่ใน DESCRIPTORS จริง (ชื่อ mutation-test เฉพาะ กันชนกับของจริงโดยบังเอิญ)
+    const simulatedNewMigration = `
+      -- migration สมมติสำหรับ mutation test เท่านั้น ไม่ได้ apply จริง
+      insert into public.event_logs (gang_id, event_type, payload) values
+        ($1, 'registration.confirmed', '{}'::jsonb), -- key ที่มี descriptor อยู่แล้ว ต้องไม่ติด missing
+        ($1, 'mutation_test.unmanifested_future_event_zzz', '{}'::jsonb); -- key ใหม่ที่ไม่มี descriptor
+    `;
+
+    const extracted = extractEventTypesFromSql(simulatedNewMigration);
+    expect(extracted).toEqual(new Set(['registration.confirmed', 'mutation_test.unmanifested_future_event_zzz']));
+
+    // ใช้ "missing" filter ตัวเดียวกันเป๊ะกับที่ describe บนสุดใช้จริงกับ DESCRIPTORS_FOR_TEST จริง (ไม่ใช่ fake)
+    const missing = Array.from(extracted).filter((t) => !(t in DESCRIPTORS_FOR_TEST));
+    expect(missing).toEqual(['mutation_test.unmanifested_future_event_zzz']);
+    // พิสูจน์ด้วยว่า assertion สไตล์ท็อปของจริง (toEqual([])) จะ "fail" กับ input นี้จริงๆ ไม่ใช่ผ่านมั่วๆ
+    expect(missing).not.toEqual([]);
+  });
+
+  // [planner F3 fallback note] ถ้า parser ด้านบนแม่นยากเกินไปในอนาคต ให้เปลี่ยนไปอ่าน event_type จาก
+  // DB catalog จริงของ local (`select pg_get_functiondef(oid) from pg_proc where proname = ...` หรือ
+  // grep `distinct event_type` จาก `event_logs` ตารางจริงหลัง seed/migration up) แทนการ grep source —
+  // ไม่ใช่เทสต์ที่ต้องรันตอนนี้เพราะ parser ผ่านครบ 10 scratch fixtures + mutation test ข้างบนแล้ว
+});
