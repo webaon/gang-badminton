@@ -14,6 +14,7 @@
  */
 import { Pool, type PoolClient } from 'pg';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createHmac } from 'node:crypto';
 
 /** connection string ผ่าน pooler — user ต้องเป็น `postgres.<tenant>` (tenant local = pooler-dev) */
 export const POOLED_URL =
@@ -26,6 +27,14 @@ export const SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY ??
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
 
+/** anon key ของ local supabase — ใช้คู่กับ JWT ของ user จริงใน `userClient()` (ต่างจาก SERVICE_ROLE_KEY ที่ bypass RLS) */
+export const ANON_KEY =
+  process.env.SUPABASE_ANON_KEY ?? 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
+
+/** `supabase status` JWT_SECRET ของ local dev — เอกสาร Supabase ระบุว่าค่านี้คงที่ทุกโปรเจกต์ local ใหม่ ไม่ใช่ secret จริง */
+export const JWT_SECRET =
+  process.env.SUPABASE_JWT_SECRET ?? 'super-secret-jwt-token-with-at-least-32-characters-long';
+
 /**
  * pool ที่ทุกเทสต์ใช้ร่วมกัน — max ต้องมากพอให้ request ที่ยิงพร้อมกัน
  * ได้ connection คนละเส้นจริง ไม่งั้นจะกลายเป็นรันเรียงกันแล้วเทสต์ผ่านแบบหลอกๆ
@@ -34,6 +43,32 @@ export const pool = new Pool({ connectionString: POOLED_URL, max: 20 });
 
 export function serviceClient(): SupabaseClient {
   return createClient(API_URL, SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+/**
+ * [WO-6.5c, planner 31 ต.ค. 2026] client ของ **user จริง** ที่ RLS มีผลจริง — ต่างจาก `asRole()`
+ * ข้างบนที่สวม role ที่ระดับ raw Postgres connection (ข้าม PostgREST ไปเลย) ตัวนี้เซ็น JWT ด้วย
+ * `JWT_SECRET` ของ local dev แล้วยิงผ่าน PostgREST จริงด้วย anon key + `Authorization: Bearer`
+ * — เส้นทางเดียวกับที่ production ใช้ (`supabaseServer()` คือ client ที่ตั้ง header นี้จาก session
+ * cookie) เอาไว้พิสูจน์ RLS end-to-end ให้ server action ตัวที่ไม่ได้ mock DB query เลย
+ *
+ * HS256 เซ็นมือด้วย `node:crypto` ไม่พึ่ง lib JWT เพิ่ม (payload เล็ก ไม่มี deps ให้ลดความเสี่ยง)
+ */
+function signLocalJwt(payload: Record<string, unknown>): string {
+  const b64url = (s: string) => Buffer.from(s).toString('base64url');
+  const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const body = b64url(JSON.stringify(payload));
+  const sig = createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64url');
+  return `${header}.${body}.${sig}`;
+}
+
+export function userClient(userId: string): SupabaseClient {
+  const now = Math.floor(Date.now() / 1000);
+  const jwt = signLocalJwt({ sub: userId, role: 'authenticated', aud: 'authenticated', iat: now, exp: now + 3600 });
+  return createClient(API_URL, ANON_KEY, {
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }

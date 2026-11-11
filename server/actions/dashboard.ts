@@ -67,7 +67,7 @@ export type DashboardOverview = {
   pendingSlips: { count: number; oldestDays: number | null } | null;
   /** null = ไม่มีสิทธิ์ gang.finance.view — ห้ามเรียกว่า "กำไร" */
   netCashThisMonth: string | null;
-  /** null = ไม่มีสิทธิ์ gang.finance.view */
+  /** null = ไม่มีสิทธิ์ gang.finance.view AND credit.read.other (RLS ของ credit_balances ต้องการ credit.read.other เสมอ — มีแค่ finance.view ไม่พอ) */
   creditOutstanding: string | null;
   /** null = ไม่มีสิทธิ์ gang.finance.view — เรียงเก่า→ใหม่ 6 เดือน ป้าย "เงินเข้า/เงินออก" เท่านั้น */
   monthlyCashFlow: { month: string; inflow: string; outflow: string }[] | null;
@@ -127,7 +127,11 @@ export async function dashboardOverview(gangId: string): Promise<ApiResponse<Das
       if (!thisMonthReport.success) throw thisMonthReport.error;
       netCashThisMonth = thisMonthReport.data.report.netCash;
 
-      creditOutstanding = await loadCreditOutstanding(db, gangId);
+      // [planner 31 ต.ค. 2026] ถอนการอนุมัติเดิมที่ให้ gang.finance.view เห็น creditOutstanding ได้เลย —
+      // RLS ของ credit_balances (0051:256-264) อนุญาตแค่ credit.read.other หรือแถวของตัวเอง เท่านั้น
+      // คนที่มี gang.finance.view อย่างเดียวจะได้ 0/บางส่วนแบบเงียบๆ ไม่ใช่ FORBIDDEN ⇒ ต้องเช็คสองสิทธิ์
+      // พร้อมกัน ไม่งั้นคืน null (ให้ UI ซ่อน) ไม่ใช่เลขที่โกหก ห้าม service-role/migration ตามคำสั่ง
+      creditOutstanding = can(ctx, 'credit.read.other') ? await loadCreditOutstanding(db, gangId) : null;
 
       const startedAt = Date.now();
       monthlyCashFlow = await Promise.all(
@@ -198,14 +202,15 @@ async function loadNextSession(
   gangId: string,
   todayStartUtc: string,
 ): Promise<DashboardNextSession | null> {
-  const common = 'id, title, starts_at, ends_at, status, court_count';
-
-  const { data: playing } = await db.from('sessions').select(common)
+  // [fix] ต้องเป็น string literal ตรงๆ ใน .select(...) ไม่ใช่ตัวแปร — tests/postgrest/embeds.test.ts
+  // สแกนด้วย regex หา .select('...') เป็น literal เท่านั้น ถ้าใช้ตัวแปรมันจะข้ามไปจับคู่ .from()
+  // ตัวนี้กับ .select('...') literal ตัวถัดไปใน source ผิดตัว (เจอจริงจากเทสต์ 19/08) ⇒ ไม่ย่อด้วยตัวแปร
+  const { data: playing } = await db.from('sessions').select('id, title, starts_at, ends_at, status, court_count')
     .eq('gang_id', gangId).is('deleted_at', null).eq('status', 'in_play')
     .order('starts_at', { ascending: true }).limit(1).maybeSingle();
 
   const row = playing ?? (
-    await db.from('sessions').select(common)
+    await db.from('sessions').select('id, title, starts_at, ends_at, status, court_count')
       .eq('gang_id', gangId).is('deleted_at', null).eq('status', 'open')
       .gte('starts_at', todayStartUtc)
       .order('starts_at', { ascending: true }).limit(1).maybeSingle()
@@ -281,11 +286,16 @@ async function loadPendingSlips(gangId: string): Promise<{ count: number; oldest
 
 /**
  * เครดิตสมาชิกคงค้างทั้งก๊วน (#6 ส่วนที่สอง) — sum ตรงๆแบบเดียวกับที่ `listGangCredits()` ทำภายใน
- * (ไม่เรียก `listGangCredits()` ตรงๆ เพราะมันล็อกด้วย `credit.read.other` ไม่ใช่ `gang.finance.view`
- * ตามที่ planner กำหนดไว้สำหรับ widget นี้ — เรียกแล้วจะ throw FORBIDDEN ให้คนที่มี gang.finance.view
- * อย่างเดียวทั้งที่ควรเห็นได้ ⇒ sum ตรงจาก credit_balances เอง ด้วยสิทธิ์ตามที่ widget นี้กำหนด)
+ * (ไม่เรียก `listGangCredits()` ตรงๆ เพราะต้องการแค่ยอดรวม ไม่ใช่รายชื่อสมาชิกทีละคน — เรียกจะ fetch
+ * ชื่อ/breakdown เกินจำเป็น ⇒ sum ตรงจาก credit_balances เอง)
  *
- * 🔴 [planner 31 ต.ค. 2026] แบ่งหน้าด้วย keyset cursor บน `user_id` — PostgREST มี max_rows=1000
+ * 🔴 [planner 31 ต.ค. 2026] **เรียกได้ต่อเมื่อผู้ใช้มี `credit.read.other` ด้วย** ไม่ใช่แค่
+ * `gang.finance.view` — ผู้เรียกต้องเช็คเองก่อนเรียกฟังก์ชันนี้ (ดู caller ด้านบน) เพราะ RLS ของ
+ * `credit_balances` (0051:256-264) อนุญาตแค่ `credit.read.other` หรือแถวของตัวเองเท่านั้น คนที่มีแค่
+ * `gang.finance.view` เรียกฟังก์ชันนี้ตรงๆจะได้ยอดไม่ครบ (RLS กรองแถวออกเงียบๆ ไม่ throw) — เคยอนุมัติ
+ * ให้ใช้ gang.finance.view อย่างเดียวได้ แต่ planner ถอนคำอนุมัตินั้นหลัง QA เจอช่องโหว่นี้
+ *
+ * 🔴 แบ่งหน้าด้วย keyset cursor บน `user_id` — PostgREST มี max_rows=1000
  * เป็น default เสมอ (ไม่ใช่แค่ตัวที่ตั้ง `head:true` ไว้) ก๊วนที่มีสมาชิกเกิน 1 หน้าจะได้ยอดไม่ครบถ้าดึง
  * ครั้งเดียว `credit_balances` PK คือ (gang_id, user_id) ไม่มีคอลัมน์ `id` ⇒ ใช้ `allById()` เดิม
  * (ที่ต้องมี `id: string`) ไม่ได้ตรงๆ จึงเขียน loop cursor บน user_id เองแทน — ตรรกะเดียวกัน

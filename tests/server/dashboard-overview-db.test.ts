@@ -12,12 +12,16 @@
  * financeReport()/adminLedger() of the same period.
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { pool, serviceClient, reloadPostgrestSchema } from '../helpers/db';
+import { pool, serviceClient, userClient, reloadPostgrestSchema } from '../helpers/db';
 
-const h = vi.hoisted(() => ({ userId: '' }));
+/** `asUserId` ตั้งแล้ว ⇒ supabaseServer() คืน client ของ user จริงนั้น (RLS มีผลจริง ผ่าน PostgREST)
+ *  แทน serviceClient() — ใช้เฉพาะเทสต์ที่ต้อง "ไม่ mock DB เลย" (ดู describe RLS จริงด้านล่าง) */
+const h = vi.hoisted(() => ({ userId: '', asUserId: null as string | null }));
 
 vi.mock('@/lib/supabase/auth', () => ({ requireUser: async () => ({ id: h.userId }) }));
-vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => serviceClient() }));
+vi.mock('@/lib/supabase/server', () => ({
+  supabaseServer: async () => (h.asUserId ? userClient(h.asUserId) : serviceClient()),
+}));
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
 import { dashboardOverview } from '@/server/actions/dashboard';
@@ -272,4 +276,67 @@ describe('dashboardOverview() — creditOutstanding paginates past PostgREST max
     const data = unwrap(await dashboardOverview(gangId));
     expect(data.creditOutstanding).toBe(`${N}.00`);
   }, 30_000);
+});
+
+describe('dashboardOverview() — creditOutstanding ต้องมีทั้ง gang.finance.view AND credit.read.other (planner ถอนอนุมัติเดิม, 31 ต.ค. 2026)', () => {
+  it('🔴 custom role ที่มีแค่ gang.finance.view (ไม่มี credit.read.other): creditOutstanding = null แต่ netCash/กราฟยังได้ปกติ', async () => {
+    const owner = await newUser();
+    const {
+      rows: [gang],
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-financeonly-${crypto.randomUUID()}`]);
+    const gangId = gang.id;
+    const financeOnlyUser = await newUser();
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'member')`, [gangId, financeOnlyUser]);
+
+    // role ต่อก๊วน (ไม่ใช่ preset ระบบ treasurer/scheduler) มีแค่ gang.finance.view ตัวเดียว —
+    // ยืนยันว่าช่องโหว่นี้ไม่ใช่แค่ "treasurer เท่านั้นที่ถูกต้อง" แต่ action-level จริงๆ
+    await pool.query(
+      `insert into public.gang_roles (gang_id, key, name, permissions, is_system)
+       values ($1, 'finance_view_only', 'ดูการเงินอย่างเดียว', array['gang.finance.view']::text[], false)`,
+      [gangId],
+    );
+    await pool.query(`select public.assign_gang_role($1, $2, 'finance_view_only', $3)`, [gangId, financeOnlyUser, owner]);
+
+    h.userId = financeOnlyUser;
+    const data = unwrap(await dashboardOverview(gangId));
+
+    expect(data.creditOutstanding).toBeNull();
+    expect(data.netCashThisMonth).not.toBeNull();
+    expect(data.monthlyCashFlow).not.toBeNull();
+    expect(data.monthlyCashFlow).toHaveLength(6);
+    expect(data.outstanding).not.toBeNull(); // #4 ยังใช้ gang.finance.view เดี่ยวๆตามที่อนุมัติไว้เดิม ไม่กระทบ
+  });
+
+  it('🔴 [ไม่ mock DB] client ของ treasurer จริง (JWT เซ็นเอง ผ่าน PostgREST+RLS จริง ไม่ใช่ serviceClient) ต้องได้ยอดรวมทั้งก๊วน', async () => {
+    const owner = await newUser();
+    const {
+      rows: [gang],
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-realjwt-${crypto.randomUUID()}`]);
+    const gangId = gang.id;
+    const treasurer = await newUser();
+    const other = await newUser();
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'member')`, [gangId, treasurer]);
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'member')`, [gangId, other]);
+    await pool.query(`select public.assign_gang_role($1, $2, 'treasurer', $3)`, [gangId, treasurer, owner]);
+
+    // เครดิตคงค้างของสมาชิก "คนอื่น" (ไม่ใช่ตัวเอง) — ถ้า RLS/credit.read.other ไม่ทำงานจริง
+    // treasurer จะเห็นแค่แถวตัวเอง (0 เพราะไม่มีเครดิต) ไม่ใช่ยอดรวมทั้งก๊วน (150+25=175)
+    await pool.query(
+      `insert into public.credit_balances (gang_id, user_id, balance) values ($1, $2, 150.00)`,
+      [gangId, other],
+    );
+    await pool.query(
+      `insert into public.credit_balances (gang_id, user_id, balance) values ($1, $2, 25.00)`,
+      [gangId, treasurer],
+    );
+
+    h.userId = treasurer;
+    h.asUserId = treasurer; // <- ตัวนี้คือหัวใจของเทสต์: supabaseServer() คืน client ของ treasurer จริง ไม่ใช่ serviceClient()
+    try {
+      const data = unwrap(await dashboardOverview(gangId));
+      expect(data.creditOutstanding).toBe('175.00'); // ยอดรวมทั้งก๊วน ไม่ใช่แค่ 25.00 ของตัวเอง
+    } finally {
+      h.asUserId = null; // คืนเป็น serviceClient() เสมอ ไม่ให้รั่วไปเทสต์ถัดไป
+    }
+  });
 });
