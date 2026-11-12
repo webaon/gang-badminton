@@ -29,12 +29,11 @@ export const API_URL = process.env.SUPABASE_API_URL ?? 'http://127.0.0.1:54321';
  * ให้เรียก `npx supabase status -o env` สดๆตอนรัน (memoize ในหน่วยความจำ ไม่เขียนลงดิสก์/ไม่ log ค่า
  * ออกไปที่ไหนเลย) เท่านั้น — ไม่มี fallback literal ใดๆในซอร์สโค้ด
  *
- * 🔴 เหตุผลที่ย้ายมาแบบนี้ (ไม่ใช่แค่ตามคำสั่ง): ของเดิมมี `SERVICE_ROLE_KEY` fallback เป็น
- * `'eyJhbG...81IU'` ซึ่งเป็น **ของพัง** — เกิดจาก copy ค่าที่ `supabase status -o env` เอง REDACT ไว้
- * ด้วย `...` กลางสตริงตอนพิมพ์ขึ้น terminal (เทียบ `ANON_KEY="eyJhbG...n_I0"` ในเอาต์พุตจริง) ไม่ใช่ค่า
- * ที่ใช้งานได้จริงเลย — บั๊กนี้ไม่เคยโผล่มาตลอด session เพราะ shell ที่รันเทสต์มักมี
- * `SUPABASE_SERVICE_ROLE_KEY` ถูก export ไว้จาก build verification ก่อนหน้าเสมอ ⇒ ไม่เคยตกไปใช้
- * fallback พังตัวนี้จริงๆ การเลิก hardcode ทั้งหมดแก้บั๊กนี้ไปด้วยในตัว (ไม่มี literal ให้พังอีก)
+ * 🔴 เหตุผลที่ย้ายมาแบบนี้ (ไม่ใช่แค่ตามคำสั่ง): ไม่ว่า fallback literal เดิมของ `SERVICE_ROLE_KEY`
+ * จะใช้งานได้จริงหรือไม่ก็ตาม (เรื่องนี้มีความเห็นต่างกันระหว่างรอบตรวจ — แจ้ง planner/QA แยกแล้วให้ไป
+ * ยืนยันกันเอง ไม่ใช่สิ่งที่ต้องตัดสินในคอมเมนต์นี้) หลักการของ WO นี้คือ **ไม่ hardcode secret-shaped
+ * literal ไว้ในซอร์สเลยไม่ว่ากรณีใด** — อ่านจาก env หรือ live `supabase status` เท่านั้น ไม่มี fallback
+ * literal ใน git ให้ตรวจสอบ/โต้แย้งได้อีกต่อไป
  */
 let cachedSupabaseStatusEnv: Readonly<Record<string, string>> | null = null;
 
@@ -52,8 +51,8 @@ function supabaseStatusEnv(): Readonly<Record<string, string>> {
   return parsed;
 }
 
-/** `supabase status -o env`'s legacy `SERVICE_ROLE_KEY`/`ANON_KEY` fields come back REDACTED
- *  (`"eyJhbG...xyz"`) — the newer `SECRET_KEY`/`PUBLISHABLE_KEY` fields are the full, usable value
+/** `supabase status -o env`'s legacy `SERVICE_ROLE_KEY`/`ANON_KEY` fields come back redacted in
+ *  terminal output — the newer `SECRET_KEY`/`PUBLISHABLE_KEY` fields are the full, usable value
  *  for the same role; prefer those when reading live, exactly as used successfully for `npm run build`
  *  earlier this session. */
 function requiredLocalSecret(envVarNames: readonly string[], statusKeys: readonly string[], label: string): string {
