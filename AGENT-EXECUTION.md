@@ -1752,7 +1752,8 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | 6.5a | loaders แอดมินเงิน: adminPaymentDetail/adminLedger/chargeHistory `79844ca` · financeReport + listGangCredits | @gb-integrations | ✅ QA ใบ 24 — static + runtime payment-admin 9 / payment-list 5 / finance-cash 7 / finance-range 10 = 31/31 |
 | 6.5b | H32/33/34 + กระเป๋าเครดิต + reports | @gb-frontend | ✅ `1dfaa09` + `f56decc` QA ใบ 30 PASS — typecheck 0 error · lint 0 error · unit 625 passed / 1 skipped · default build ผ่าน · full Playwright 62/62 (QA rerun เอง) |
 | 6.6a | WO-6.6a เปิดแล้ว (แผน `b56fff5`) · ⏸ @gb-frontend ติด provider limit ถึง 10 พ.ย. 00:03 | @gb-frontend | ⏸ |
-| 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ |
+| 6.5c | backend loader สำหรับ dashboard H10 (ส่วน backend · UI ยังไม่ทำ → frontend) — commit `fc274be`→`bad5e09`→`a21f71b`→`d835e17`→`1f0a82f`→`4d22abe`→`3246e9b`→`84e5848`→`0cfd5a5`→`2c15a1d`→`ea06835`→`5f35b56`→`f40252f`→`bf57a24` | @gb-backend | ✅ QA PASS ที่ `bf57a24` (push แล้ว) · ไม่มี migration · cloud ยัง 0046 · dashboard-overview-db 19/19 ×3 · timeline 20/20 · drift/mutation 13/13 · finance-domain 19/19 · RLS 34/34 · finance 30/30 · embeds 2/2 · coverage 12/12 · unit 674 pass / 1 skip · build ผ่าน |
+| 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ (loader 6.5c ✅ · UI dashboard รอ frontend) |
 | 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
 | 6.7 | Auth + onboarding | @gb-frontend | ⏳ |
 | 6.8 | Growth screens + หน้าแรก | @gb-frontend | ⏳ |

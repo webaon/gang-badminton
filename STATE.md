@@ -288,7 +288,7 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 | 6.4a | วันเล่น (ลำดับแรกหลัง 6.2) | @gb-frontend | 🔄 |
 | 6.4b | วันเล่น (ส่วนที่เหลือ) | @gb-frontend | ⏳ |
 | 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) — ทำหลัง 6.4 | @gb-frontend | ⏳ |
-| 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ |
+| 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ⏳ (loader 6.5c ✅ `bf57a24` · UI dashboard รอ frontend) |
 | 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
 | 6.7 | Auth + onboarding | @gb-frontend | ⏳ |
 | 6.8 | Growth screens + หน้าแรก | @gb-frontend | ⏳ |
@@ -303,7 +303,10 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 - 6.5b ✅ QA ใบ 30 PASS (`1dfaa09` + `f56decc`): typecheck 0 error · lint 0 error · unit 625 passed / 1 skipped · default build ผ่าน · full Playwright 62/62 (QA rerun เอง)
 - 6.5b ✅ ปิดงาน · WO-6.6a เปิดแล้ว (แผน `b56fff5`) แต่ @gb-frontend ติด provider limit ถึง 10 พ.ย. 00:03
 - R-roles-3 ✅ QA PASS (`ee3d10a` … `39635e0`) · ไม่มี migration · cloud ยังอยู่ที่ 0046 · context-db 9/9 · RLS 34/34 · coverage 12/12 · probe assign→revoke→regrant ทำงานจริง
-- 6.5c: scope ของ backend loader อนุมัติแล้ว (ห้ามใช้คำว่า "กำไร" · กราฟใช้คำว่า เงินเข้า/เงินออก โดย inflow−outflow = netCash · แก้ timeline descriptor ของ registration.confirmed/waitlisted) · @gb-backend กำลังทำ
+- 6.5c ✅ QA PASS ที่ `bf57a24` (push แล้ว) — ส่วน backend loader (UI dashboard ยังไม่ทำ → frontend) · ไม่มี migration · cloud ยัง 0046 · dashboard-overview-db 19/19 ×3 · timeline 20/20 · drift/mutation 13/13 · finance-domain 19/19 · RLS 34/34 · finance 30/30 · coverage 12/12 · unit 674 pass / 1 skip · build ผ่าน
+- กติกาที่ตัดสินแล้ว (6.5c): widget เงินทุกตัวใช้ `canSeeGangMoney` = `finance.view` + `payment.verify` + `credit.read.other` · pendingSlips = verify + finance · timeline แยก 2 แกน (event เงินใช้ `finance.view`, adminOnly อื่นใช้ `gang.member.manage`) · event ที่ไม่รู้จักเป็น adminOnly · ห้ามใช้คำว่า "กำไร" ใช้ "เงินเข้า/เงินออก"
+- security: ค่าที่เคย hardcode ใน `tests/helpers/db.ts` เป็นค่า default สาธารณะของ supabase local ไม่ใช่ค่า cloud (QA audit) · ลบแล้ว `f40252f`
+- ข้อจำกัด 6.5c: drift parser อ่านได้เฉพาะ VALUES (ยังไม่รองรับ INSERT…SELECT) · boundary test ใช้วันที่ relative ไม่ใช่ fake clock เต็มรูปแบบ
 
 ลำดับที่ใช้จริง: **6.2 → 6.4 → 6.3** (แตก 6.4 เป็น 6.4a/6.4b และ 6.4a เป็นวันเล่นลำดับแรก) · ดูแผนที่ `docs/phase6-redesign-plan.md` §10
 
