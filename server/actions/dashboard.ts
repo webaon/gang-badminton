@@ -125,7 +125,11 @@ export async function dashboardOverview(gangId: string): Promise<ApiResponse<Das
     const outstanding = canSeeMoney ? await loadOutstanding(gangId) : null;
     // 🔴 [planner G2] pendingSlips(#5) ต้อง payment.verify && gang.finance.view (ไม่ใช่ payment.verify
     // เดี่ยวๆ) เพราะ payment-list.ts (adminPaymentList) อ่าน session_charges ด้วย ซึ่งต้อง finance.view
-    const pendingSlips = (can(ctx, 'payment.verify') && can(ctx, 'gang.finance.view'))
+    // แยกคนละบรรทัดตั้งใจ — ให้ guard-site drift test (tests/security/permission-context-coverage.test.ts)
+    // เห็น can() 2 ตัวนี้เป็น 2 call site ที่ไม่ชนกัน (manifest key คือ file:line เดี่ยวๆ)
+    const canVerify = can(ctx, 'payment.verify');
+    const canSeeFinanceForSlips = can(ctx, 'gang.finance.view');
+    const pendingSlips = (canVerify && canSeeFinanceForSlips)
       ? await loadPendingSlips(gangId)
       : null;
 
@@ -177,7 +181,10 @@ export async function dashboardOverview(gangId: string): Promise<ApiResponse<Das
     // เหมือนรอบก่อน เพราะ RLS เปิดให้คนมี gang.finance.view เห็นได้แม้ไม่ใช่แอดมิน) ส่วน adminOnly อื่น
     // (line.*/gang.join_*/audit.role_* ฯลฯ — TS เข้มกว่า SQL โดยตั้งใจ ไม่ใช่สโคปที่แก้ในใบนี้) gate ด้วย
     // permission ที่ NEVER_DELEGABLE (gang.member.manage — เทียบเท่า is_gang_admin() ของ SQL โดยไม่ใช้ role===)
-    const recentActivity = await loadRecentActivity(db, gangId, can(ctx, 'gang.finance.view'), can(ctx, 'gang.member.manage'));
+    // แยกคนละบรรทัดตั้งใจเหมือน pendingSlips ด้านบน — กัน manifest key (file:line) ชนกัน
+    const canSeeFinanceForTimeline = can(ctx, 'gang.finance.view');
+    const canSeeOtherAdminOnly = can(ctx, 'gang.member.manage');
+    const recentActivity = await loadRecentActivity(db, gangId, canSeeFinanceForTimeline, canSeeOtherAdminOnly);
 
     return {
       nextSession,

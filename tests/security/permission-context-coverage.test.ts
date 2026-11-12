@@ -136,6 +136,14 @@ const MANIFEST: readonly ManifestEntry[] = [
   { file: 'server/actions/billing.ts', line: 219, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['billing.close'], delegable: true },
   { file: 'server/actions/billing.ts', line: 342, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['billing.close'], delegable: true },
 
+  // ---- server/actions/dashboard.ts (WO-6.5c H10 admin dashboard aggregate loader — can()→null, not assertCan; read-only widget data, no mutation) ----
+  { file: 'server/actions/dashboard.ts', line: 109, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['billing.close'], delegable: true, note: 'unclosedSessionsCount widget — null if missing' },
+  { file: 'server/actions/dashboard.ts', line: 114, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['gang.join_request.manage'], delegable: false, note: 'joinRequestsPending widget — NEVER_DELEGABLE' },
+  { file: 'server/actions/dashboard.ts', line: 130, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true, note: 'pendingSlips widget (G2) — combined with :131 via &&; split onto its own line on purpose so this file:line key does not collide with the other half of the gate' },
+  { file: 'server/actions/dashboard.ts', line: 131, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['gang.finance.view'], delegable: true, note: 'pendingSlips widget (G2), other half of the :130 && gate — payment-list.ts (adminPaymentList) reads session_charges which also needs finance.view' },
+  { file: 'server/actions/dashboard.ts', line: 185, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['gang.finance.view'], delegable: true, note: 'timeline G3 canSeeFinance — payment.*/audit.credit_* events in buildTimeline(); combined with :186 via loadRecentActivity() 2 args, split onto its own line for the same reason as :130/:131' },
+  { file: 'server/actions/dashboard.ts', line: 186, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['gang.member.manage'], delegable: false, note: 'timeline G3 canSeeOtherAdminOnly — every other adminOnly event type (line.*/gang.join_*/audit.role_* etc); NEVER_DELEGABLE chosen deliberately (is_gang_admin()-equivalent, not role===), reported to planner' },
+
   // ---- server/actions/announcements.ts ----
   { file: 'server/actions/announcements.ts', line: 31, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['announcement.manage'], delegable: true },
 
@@ -322,14 +330,14 @@ describe('R-roles-3 — guard-site inventory + Phase-2 wiring verification (no D
       public: byCategory('public'),
       ui: byCategory('ui'),
       total: MANIFEST.length,
-    }).toEqual({ tenant: 50, self: 7, org: 0, public: 0, ui: 18, total: 75 });
+    }).toEqual({ tenant: 56, self: 7, org: 0, public: 0, ui: 18, total: 81 });
   });
 
   it('Phase-2 scope: tenant-category sites needing the loader (delegable true/mixed, excluding Q2ก-exempt templates.ts)', () => {
     const needsLoader = MANIFEST.filter(
       (e) => e.category === 'tenant' && e.delegable !== false && !e.exempt,
     );
-    expect(needsLoader.length).toBe(35);
+    expect(needsLoader.length).toBe(39);
   });
 
   it('🔴 every tenant site needing the loader is ACTUALLY wired — not just classified (Phase 2 done, not just inventoried)', () => {
