@@ -304,6 +304,7 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 - 6.5b ✅ ปิดงาน · WO-6.6a เปิดแล้ว (แผน `b56fff5`) แต่ @gb-frontend ติด provider limit ถึง 10 พ.ย. 00:03
 - R-roles-3 ✅ QA PASS (`ee3d10a` … `39635e0`) · ไม่มี migration · cloud ยังอยู่ที่ 0046 · context-db 9/9 · RLS 34/34 · coverage 12/12 · probe assign→revoke→regrant ทำงานจริง
 - 6.5c ✅ QA PASS ที่ `bf57a24` (push แล้ว) — ส่วน backend loader (UI dashboard ยังไม่ทำ → frontend) · ไม่มี migration · cloud ยัง 0046 · dashboard-overview-db 19/19 ×3 · timeline 20/20 · drift/mutation 13/13 · finance-domain 19/19 · RLS 34/34 · finance 30/30 · coverage 12/12 · unit 674 pass / 1 skip · build ผ่าน
+- **Decision (12 พ.ย. 2026):** ออกจากก๊วนเมื่อมีนัดเลย cutoff = ★ก — สมาชิกออกไม่ได้จนกว่านัดจะผ่านไปหรือแอดมินยกเลิกให้ · ไม่มี ADR / migration · UI แสดงเหตุผลกับนัดที่ติด (WO-B2.2)
 - กติกาที่ตัดสินแล้ว (6.5c): widget เงินทุกตัวใช้ `canSeeGangMoney` = `finance.view` + `payment.verify` + `credit.read.other` · pendingSlips = verify + finance · timeline แยก 2 แกน (event เงินใช้ `finance.view`, adminOnly อื่นใช้ `gang.member.manage`) · event ที่ไม่รู้จักเป็น adminOnly · ห้ามใช้คำว่า "กำไร" ใช้ "เงินเข้า/เงินออก"
 - security: ค่าที่เคย hardcode ใน `tests/helpers/db.ts` เป็นค่า default สาธารณะของ supabase local ไม่ใช่ค่า cloud (QA audit) · ลบแล้ว `f40252f`
 - ข้อจำกัด 6.5c: drift parser อ่านได้เฉพาะ VALUES (ยังไม่รองรับ INSERT…SELECT) · boundary test ใช้วันที่ relative ไม่ใช่ fake clock เต็มรูปแบบ
