@@ -236,8 +236,8 @@ const MANIFEST: readonly ManifestEntry[] = [
   { file: 'app/gangs/[gangId]/announcements/page.tsx', line: 48, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['announcement.view'], delegable: false, deferred: 'frontend-page-gate' },
   { file: 'app/gangs/[gangId]/announcements/page.tsx', line: 81, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['announcement.manage'], delegable: true, deferred: 'frontend-page-gate', note: 'extra not passed yet; scheduler-visible "manage" UI is future UI work, not this WO' },
   { file: 'app/gangs/[gangId]/templates/page.tsx', line: 41, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['session.create'], delegable: true, exempt: 'Q2ก', note: 'same intentional non-delegation as server/actions/templates.ts' },
-  { file: 'app/gangs/[gangId]/members/page.tsx', line: 64, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['gang.member.manage'], delegable: false, deferred: 'frontend-page-gate' },
-  { file: 'app/gangs/[gangId]/settings/page.tsx', line: 58, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['gang.update'], delegable: false, deferred: 'frontend-page-gate' },
+  { file: 'server/gangs/members-loader.ts', line: 20, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['gang.member.manage'], delegable: false, note: 'WO-6.6a page gate moved to server-only loader and wired to permission context' },
+  { file: 'server/gangs/settings-loader.ts', line: 24, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['gang.update'], delegable: false, note: 'WO-6.6a page gate moved to server-only loader and wired to permission context' },
   { file: 'app/gangs/[gangId]/liff/page.tsx', line: 57, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['line.link.self'], delegable: false, deferred: 'frontend-page-gate' },
   { file: 'app/gangs/[gangId]/stats/page.tsx', line: 50, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['statistics.view'], delegable: false, deferred: 'frontend-page-gate', note: 'self-view, not statistics.view.all' },
   { file: 'app/gangs/[gangId]/stats/page.tsx', line: 102, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['gang.finance.view'], delegable: true, deferred: 'frontend-page-gate' },
@@ -355,9 +355,14 @@ describe('R-roles-3 — guard-site inventory + Phase-2 wiring verification (no D
     ).toBe(false);
   });
 
-  it('11 app/*.tsx page-gate sites are deferred to a frontend WO (planner decision, not permanently exempt) — all in app/, none in server/', () => {
+  it('remaining app page-gate sites are deferred; WO-6.6a members/settings moved to wired loaders', () => {
     const deferred = MANIFEST.filter((e) => e.deferred === 'frontend-page-gate');
-    expect(deferred.length).toBe(11);
+    expect(deferred.length).toBe(9);
+    for (const file of ['server/gangs/members-loader.ts', 'server/gangs/settings-loader.ts']) {
+      expect(MANIFEST.some(e => e.file === file && !e.deferred)).toBe(true);
+      expect(stripComments(read(file))).toContain('loadGangPermissionContext(gangId, user.id)');
+      expect(stripComments(read(file))).toMatch(/can\(ctx,/);
+    }
     for (const e of deferred) expect(e.file.startsWith('app/'), e.file).toBe(true);
     // templates.ts page คนละเหตุผล (Q2ก ถาวร) — ต้องไม่ถูกแตะโดย flag ชั่วคราวนี้
     expect(deferred.some((e) => e.file.includes('templates/page.tsx'))).toBe(false);

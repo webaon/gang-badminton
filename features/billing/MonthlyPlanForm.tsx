@@ -2,7 +2,10 @@
 
 import { actionError } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
+import { Card } from '@astryxdesign/core/Card';
+import { Text } from '@astryxdesign/core/Text';
+import { VStack } from '@astryxdesign/core/VStack';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
 import { TextInput } from '@astryxdesign/core/TextInput';
@@ -28,55 +31,61 @@ export function MonthlyPlanForm({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [pending, setPending] = useState(false);
+  const submitRef = useRef(false);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (submitRef.current) return;
+    submitRef.current = true;
     setPending(true);
     setError(null);
     setSaved(false);
 
-    const result = await upsertMonthlyPlan(gangId, fee, plan?.id);
-
-    if (result.success) {
-      setSaved(true);
-      router.refresh();
-    } else {
-      setError(actionError(result.error));
+    try {
+      const result = await upsertMonthlyPlan(gangId, fee, plan?.id);
+      if (result.success) {
+        setSaved(true);
+        router.refresh();
+      } else {
+        setError(actionError(result.error));
+      }
+    } catch {
+      setError(actionError({ code: 'INTERNAL_ERROR' }));
+    } finally {
+      submitRef.current = false;
+      setPending(false);
     }
-    setPending(false);
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate>
-      <h2 className="mb-2 text-base font-semibold">ค่าสมาชิกรายเดือน</h2>
-
-      <div className="flex items-end gap-2">
-        <div className="flex-1">
-          <TextInput
-            label="ค่าสมาชิกต่อเดือน (บาท)"
-            value={fee}
-            onChange={setFee}
-            description="ออกบิลอัตโนมัติต้นเดือนสำหรับเดือนนั้น · สมัครกลางเดือนคิดเต็มเดือน"
-          />
-        </div>
-        <Button type="submit" variant="primary" label="บันทึก" isLoading={pending} />
-      </div>
-
-      {error ? (
-        <div className="mt-3">
-          <Banner status="error" title={error} />
-        </div>
-      ) : null}
-      {saved ? (
-        <div className="mt-3">
-          <Banner
-            status="success"
-            title="บันทึกค่าสมาชิกรายเดือนแล้ว"
-            isDismissable
-            onDismiss={() => setSaved(false)}
-          />
-        </div>
-      ) : null}
-    </form>
+    <VStack as="section" id="monthly-settings" gap={3} className="scroll-mt-24" aria-labelledby="monthly-settings-title">
+      <h2 id="monthly-settings-title" className="text-lg font-semibold">ค่าสมาชิกรายเดือน</h2>
+      <Text as="p" color="secondary" size="sm">แผนรายเดือนแยกจากแผนราคาต่อนัด</Text>
+      <Card padding={5}>
+        <form onSubmit={onSubmit} noValidate>
+          <VStack gap={4}>
+            <TextInput
+              size="lg"
+              label="ค่าสมาชิกต่อเดือน (บาท)"
+              value={fee}
+              onChange={setFee}
+              description="ออกบิลอัตโนมัติต้นเดือนสำหรับเดือนนั้น · สมัครกลางเดือนคิดเต็มเดือน"
+            />
+            {error ? <Banner status="error" title={error} /> : null}
+            {saved ? (
+              <Banner
+                status="success"
+                title="บันทึกค่าสมาชิกรายเดือนแล้ว"
+                isDismissable
+                onDismiss={() => setSaved(false)}
+              />
+            ) : null}
+            <Button type="submit" variant="secondary" label="บันทึก" isLoading={pending} className="min-h-11 w-full sm:w-auto sm:self-start">
+              <Text color="primary">บันทึก</Text>
+            </Button>
+          </VStack>
+        </form>
+      </Card>
+    </VStack>
   );
 }
