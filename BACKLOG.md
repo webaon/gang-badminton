@@ -563,3 +563,7 @@
 ## จาก backend 6.5c (`5f35b56`)
 
 - [ ] 🟢 **[timeline · หน้า session detail]** `features/sessions/SessionDetailPage.tsx:159` ยังเรียก `buildTimeline()` แบบ 2-arg เดิม (`canSeeOtherAdminOnly = canSeeMoney`) ⇒ ต้องย้ายไปใช้ 2 แกนแบบเดียวกับ dashboard 6.5c (event เงินใช้ `finance.view` · adminOnly อื่นใช้ `gang.member.manage`) · ทำใน frontend ตอนแก้หน้า session (6.6b) หรือ 6.9
+
+## จาก backend 59c406b
+
+- [ ] 🟢 **[test · Windows path] `tests/security/rate-limit.test.ts` drift test fail บน Windows** เพราะ path separator (`\` กับ `/`) ใน `sourceFiles()` ⇒ ต้อง normalize path ก่อนเทียบ · **ห้ามลด assert** เพื่อให้ผ่าน
