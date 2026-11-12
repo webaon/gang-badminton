@@ -9,8 +9,10 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { moneyFromDb } from '@/lib/supabase/money';
 import { assertCan } from '@/domain/permissions/can';
 import { GANG_ROLES, type GangRole } from '@/domain/permissions/types';
+import { mapLeaveGangError, type LeaveGangFailureReason } from '@/domain/gangs/leave-gang-error';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { AppError, assertOne, runAction, unwrap } from '@/shared/action';
+import { toErrorCode } from '@/shared/errors';
 
 async function cid(): Promise<string> {
   return correlationIdFrom(await headers());
@@ -141,10 +143,10 @@ export type LeaveGangResult = {
  * ⚠️ ผู้ออกอ่านรายการหนี้ของตัวเองไม่ได้อีกหลังออก (RLS) ⇒ ผลลัพธ์นี้คือการแจ้งยอดครั้งสุดท้าย
  *    UI ต้องแสดงถ้า `outstandingCharges > 0`
  */
-export async function leaveGang(gangId: string): Promise<ApiResponse<LeaveGangResult>> {
+export async function leaveGang(gangId: string): Promise<ApiResponse<LeaveGangResult, LeaveGangFailureReason>> {
   const correlationId = await cid();
 
-  return runAction(correlationId, async () => {
+  return runAction<LeaveGangResult, LeaveGangFailureReason>(correlationId, async () => {
     const user = await requireUser();
     assertCan({ role: await roleInGang(gangId, user.id) }, 'gang.leave.self');
 
@@ -154,7 +156,14 @@ export async function leaveGang(gangId: string): Promise<ApiResponse<LeaveGangRe
       p_correlation_id: correlationId,
     });
 
-    if (error) throw error;
+    if (error) {
+      // [WO-B2.2] ให้ UI บอกสาเหตุจริงได้ (ไม่ใช่แค่ code เดิมที่ VALIDATION_ERROR ใช้ร่วมกันสองเคส) —
+      // mapLeaveGangError() เป็น pure function ล้วน อ่านแค่ message/details ของ error เอง ไม่แก้
+      // business logic ของ leave_gang()/cancel_registration() เลย (ตามที่ planner สั่งห้ามในใบนี้)
+      const { reason, reasonMeta } = mapLeaveGangError(error);
+      const { code, message } = toErrorCode(error);
+      throw new AppError(code, message, { cause: error, reason, reasonMeta });
+    }
 
     const result = data as {
       member_id: string;

@@ -140,3 +140,21 @@ server ที่ตีความเอง:
 จะ **สำเร็จโดยไม่ error** และคืน `rowCount = 0` ⇒ ถ้าไม่เช็ค `rowCount` จะตอบผู้ใช้ว่า
 "บันทึกแล้ว" ทั้งที่ไม่มีอะไรเปลี่ยน — มีเทสต์คุมเคสนี้ใน `tests/rls/write-guards.test.ts`
 - TypeScript `ErrorCode` union จะถูก generate/เขียนที่ `shared/` ตอน WO ที่ต้องใช้จริงครั้งแรก
+
+### ✅ ผลการยืนยันจาก WO-B2.2 (31 ต.ค. 2026) — `reason`/`reasonMeta` ไม่ใช่ `ErrorCode` ใหม่
+
+🔴 **ไม่ใช่การเพิ่ม code ใหม่ในตารางนี้** — ตารางด้านบนยังเป็น single source of `error.code` เหมือนเดิม
+100% การเปลี่ยนนี้คือฟิลด์ **เสริม** (`error.reason?`/`error.reasonMeta?`) ใน `ApiFailure` สำหรับตอนที่
+`code` เดียวแปลความหมายได้สองอย่าง (เช่น `VALIDATION_ERROR` ของ `leave_gang()` มีทั้ง "ลืมส่ง field"
+กับ "เจ้าของคนสุดท้ายออกไม่ได้" ซึ่ง code เดิมแยกไม่ได้เลย)
+
+- `ApiFailure<R extends string = never>` (`shared/api.ts`) — generic เสริม default เป็น `never` ⇒
+  action ที่ไม่ประกาศ `R` ของตัวเอง (ของเดิมทุกตัว) **ไม่มีทางได้ reason ที่มีค่าจริงที่ type-level เลย**
+- action แรกที่ใช้: `leaveGang()` (`server/actions/members.ts`) → `ApiResponse<LeaveGangResult,
+  LeaveGangFailureReason>` — mapping อยู่ที่ `domain/gangs/leave-gang-error.ts`'s `mapLeaveGangError()`
+  (pure function, มี doc comment ตารางเต็มในไฟล์นั้นเอง ไม่ซ้ำที่นี่)
+- `reasonMeta` ต้องผ่าน whitelist ของ mapping function เองเสมอ — **ห้ามส่ง PG `DETAIL` ดิบหรือ id ของ
+  resource อื่น (เช่น `registration_id`) ไปให้ client เด็ดขาด** แม้ตัว `DETAIL` เองจะมีข้อมูลนั้นอยู่แล้ว
+- ถ้า action ถัดไปต้องการ `reason` แบบนี้ด้วย ให้สร้าง mapping function แยกต่างหากของตัวเอง (เหมือน
+  `mapLeaveGangError()`) อย่าพยายามทำ mapping ทั่วไปแบบ dynamic ที่อ่าน `DETAIL` ตรงๆใน `shared/` —
+  จะทำให้ whitelist หลุดง่ายเมื่อ action ใหม่มี shape ของ `DETAIL` ต่างกัน

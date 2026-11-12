@@ -99,8 +99,18 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
  *
  * 🔴 ถ้าเทียบไม่ตรงตัวไหนเลย = `INTERNAL_ERROR` และ **ต้อง log ต้นฉบับเต็ม**
  *    ห้าม swallow (CLAUDE.md §5) — ผู้เรียกมีหน้าที่ log `cause` ที่คืนไปด้วย
+ *
+ * [WO-B2.2] `reason`/`reasonMeta` เป็นฟิลด์เสริมแบบ additive — มีค่าเฉพาะเมื่อ error ที่โยนมาเป็น
+ * `AppError` ที่ตั้ง `.reason`/`.reasonMeta` ไว้ตอนสร้าง (ดู `shared/action.ts`) เคสอื่นทั้งหมด (error
+ * ดิบจาก Postgrest, Error ธรรมดา, ฯลฯ) ได้ `undefined` เหมือนเดิมทุกประการ — ไม่กระทบ action อื่นเลย
  */
-export function toErrorCode(err: unknown): { code: ErrorCode; message: string; cause: unknown } {
+export function toErrorCode(err: unknown): {
+  code: ErrorCode;
+  message: string;
+  cause: unknown;
+  reason?: string;
+  reasonMeta?: Record<string, unknown>;
+} {
   const raw =
     typeof err === 'object' && err !== null && 'message' in err
       ? String((err as { message: unknown }).message)
@@ -109,7 +119,17 @@ export function toErrorCode(err: unknown): { code: ErrorCode; message: string; c
   // AppError (shared/action.ts) ถือ code ของตัวเองใน `.code` — ต้องหยิบก่อนเทียบ message
   // ไม่งั้น `new AppError('VALIDATION_ERROR', 'ต้องระบุชื่อนัด')` (message ≠ code) ตกเป็น INTERNAL_ERROR ทุกครั้ง
   if (typeof err === 'object' && err !== null && 'code' in err && isErrorCode((err as { code: unknown }).code)) {
-    return { code: (err as { code: ErrorCode }).code, message: raw, cause: err };
+    const reason =
+      'reason' in err && typeof (err as { reason: unknown }).reason === 'string'
+        ? (err as { reason: string }).reason
+        : undefined;
+    const reasonMeta =
+      'reasonMeta' in err &&
+      typeof (err as { reasonMeta: unknown }).reasonMeta === 'object' &&
+      (err as { reasonMeta: unknown }).reasonMeta !== null
+        ? (err as { reasonMeta: Record<string, unknown> }).reasonMeta
+        : undefined;
+    return { code: (err as { code: ErrorCode }).code, message: raw, cause: err, reason, reasonMeta };
   }
 
   if (isErrorCode(raw)) {

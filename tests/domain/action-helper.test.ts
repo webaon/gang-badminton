@@ -136,6 +136,49 @@ describe('runAction — ตอบตาม API response contract เสมอ', 
     expect(logged.correlationId).toBe('cid-3');
     expect(logged.cause).toBe(boom);
   });
+
+  it('🔴 [WO-B2.2] AppError ที่มี reason/reasonMeta → ApiFailure.error.reason/reasonMeta ตรงตัว (additive)', async () => {
+    const res = await runAction<{ id: number }, 'OWNER_MUST_TRANSFER'>('cid-4', async () => {
+      throw new AppError('VALIDATION_ERROR', 'VALIDATION_ERROR', {
+        reason: 'OWNER_MUST_TRANSFER',
+        reasonMeta: { startsAt: '2026-11-01T18:00:00+07:00', cutoffAt: '2026-11-01T10:00:00+07:00' },
+      });
+    });
+    expect(res.success).toBe(false);
+    if (!res.success) {
+      expect(res.error.code).toBe('VALIDATION_ERROR');
+      expect(res.error.reason).toBe('OWNER_MUST_TRANSFER');
+      expect(res.error.reasonMeta).toEqual({
+        startsAt: '2026-11-01T18:00:00+07:00',
+        cutoffAt: '2026-11-01T10:00:00+07:00',
+      });
+    }
+  });
+
+  it('🔴 [WO-B2.2] AppError ธรรมดา (ไม่ตั้ง reason) → error.reason เป็น undefined เหมือนของเดิมทุกประการ — ไม่กระทบ action อื่น', async () => {
+    const res = await runAction('cid-5', async () => {
+      throw new AppError('SESSION_FULL');
+    });
+    expect(res.success).toBe(false);
+    if (!res.success) {
+      expect(res.error.code).toBe('SESSION_FULL');
+      expect(res.error.reason).toBeUndefined();
+      expect(res.error.reasonMeta).toBeUndefined();
+    }
+  });
+
+  it('🔴 [WO-B2.2] error ดิบจาก Postgrest (ไม่ใช่ AppError) ไม่มี reason ติดมาด้วยเลย แม้จะดัน .reason เข้าไปใน object เอง', async () => {
+    const res = await runAction('cid-6', async () => {
+      // จำลอง error ที่ "เผลอ" มี key ชื่อ reason อยู่แล้ว (เช่นมาจากไลบรารีอื่น) — ต้องไม่ผ่านมาได้
+      // เพราะ toErrorCode() เช็ค 'code' in err ก่อน (err นี้ไม่มี .code ที่ตรง ErrorCode) จึงไม่ใช่กิ่งที่อ่าน reason
+      throw { message: 'บางอย่างพัง', reason: 'ไม่ควรเห็นค่านี้' };
+    });
+    expect(res.success).toBe(false);
+    if (!res.success) {
+      expect(res.error.code).toBe('INTERNAL_ERROR');
+      expect(res.error.reason).toBeUndefined();
+    }
+  });
 });
 
 describe('storage paths [D-15] — สิทธิ์ขึ้นกับ path จึงต้องประกอบที่เดียว', () => {

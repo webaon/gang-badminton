@@ -15,14 +15,27 @@
 import { ok, fail, type ApiResponse } from './api';
 import { toErrorCode, type ErrorCode } from './errors';
 
-/** error ที่รู้ code ของตัวเอง — `toErrorCode()` จะหยิบ code ไปใช้ตรงๆ */
+/** error ที่รู้ code ของตัวเอง — `toErrorCode()` จะหยิบ code ไปใช้ตรงๆ
+ *
+ * [WO-B2.2] `reason`/`reasonMeta` เป็น field เสริมแบบ additive (optional, default undefined) — ใช้ตอนที่
+ * action เดียวต้องการแยกเหตุผลย่อยภายใต้ ErrorCode เดียวกัน (เช่น leaveGang: VALIDATION_ERROR มีทั้ง
+ * "ลืมส่ง field" กับ "เจ้าของคนสุดท้ายออกไม่ได้" ซึ่ง code เดิมแยกไม่ได้) ไม่ตั้งสองตัวนี้ = พฤติกรรมเดิมเป๊ะ
+ * ห้ามใส่ PG detail ดิบหรือ id ภายใน — reasonMeta ต้องเป็นค่าที่ผ่าน whitelist ของ caller เองแล้วเท่านั้น */
 export class AppError extends Error {
   readonly code: ErrorCode;
+  readonly reason?: string;
+  readonly reasonMeta?: Record<string, unknown>;
 
-  constructor(code: ErrorCode, message?: string, options?: { cause?: unknown }) {
-    super(message ?? code, options);
+  constructor(
+    code: ErrorCode,
+    message?: string,
+    options?: { cause?: unknown; reason?: string; reasonMeta?: Record<string, unknown> },
+  ) {
+    super(message ?? code, options?.cause !== undefined ? { cause: options.cause } : undefined);
     this.name = 'AppError';
     this.code = code;
+    this.reason = options?.reason;
+    this.reasonMeta = options?.reasonMeta;
   }
 }
 
@@ -58,11 +71,15 @@ function isSignInPath(destination: string): boolean {
  *
  * ต่างจาก `respond()` ตรงที่คืน object ธรรมดา ไม่ใช่ `Response`
  * เพราะ server action ถูกเรียกจาก React ไม่ใช่ผ่าน HTTP โดยตรง
+ *
+ * [WO-B2.2] `R` เป็น generic เสริมแบบ additive (default `never`) — action ที่ไม่ประกาศ R (ของเดิมทุกตัว)
+ * ไม่มีทางได้ `reason` ที่มีค่าจริงเลย (type-level เท่ากับพฤติกรรมเดิมเป๊ะ) เฉพาะ action ที่ต้องแยกเหตุผล
+ * ย่อยใต้ code เดียว (เช่น leaveGang) ที่จะ instantiate `runAction<T, SpecificReasonUnion>(...)` ตรงๆ
  */
-export async function runAction<T>(
+export async function runAction<T, R extends string = never>(
   correlationId: string,
   run: () => Promise<T>,
-): Promise<ApiResponse<T>> {
+): Promise<ApiResponse<T, R>> {
   try {
     return ok(await run());
   } catch (err) {
@@ -81,16 +98,16 @@ export async function runAction<T>(
     // notFound() / forbidden() / unauthorized() ของ Next ก็เป็น control-flow exception เหมือนกัน — rethrow ไม่กลืน
     if (isNextControlFlowError(err)) throw err;
 
-    const { code, message, cause } = toErrorCode(err);
+    const { code, message, cause, reason, reasonMeta } = toErrorCode(err);
 
     if (code === 'INTERNAL_ERROR') {
       // 🔴 ห้าม swallow — ต้องเห็นต้นฉบับเต็มพร้อม correlation id (CLAUDE.md §5)
       console.error('[action] unhandled error', { correlationId, message, cause });
     } else {
-      console.warn('[action] handled error', { correlationId, code, message });
+      console.warn('[action] handled error', { correlationId, code, message, reason });
     }
 
-    return fail(code, message);
+    return fail(code, message, reason as R | undefined, reasonMeta);
   }
 }
 
