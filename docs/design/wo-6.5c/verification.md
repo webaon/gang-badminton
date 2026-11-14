@@ -2,7 +2,7 @@
 
 ## Fresh focused verification after planner's slot extension
 
-Planner extended the slot for the current-member identity fix and a populated dashboard fixture, then requested a fresh build plus focused members/dashboard checks before returning the slot. This supersedes the earlier plan to repeat the full suite; the historical full-suite caveat below still applies.
+Planner extended the slot for the current-member identity fix and a populated dashboard fixture, then requested a fresh build plus focused members/dashboard checks before returning the slot. Planner later confirmed the original full run had no overlapping build; no full rerun is needed (see timing clarification below).
 
 - `currentUserId` now comes from the existing authenticated user in the members loader and is passed to MembersPanel; no new query or permission change.
 - Member loader/source tests reproduced the omission (three failing assertions), then passed: 34/34 including permission-context coverage. Typecheck and lint passed.
@@ -15,11 +15,13 @@ Planner extended the slot for the current-member identity fix and a populated da
 - Four populated screenshots visually inspected: `populated/h10-populated-{390,1280}-{light,dark}.png`. No measured contrast claim. New images complement the empty-state captures below.
 - Slot returned immediately after focused rerun completed. No full-suite rerun on this identity-fix snapshot; independent QA acceptance remains pending. Theme freshness issue is assigned to BACKLOG by planner and was not modified.
 
-## Historical runtime evidence qualification
+## Planner clarification: original full-suite evidence remains valid
 
-After this run completed and the slot was returned, planner reported that backend ran a build and DB tests during frontend's allocated slot. Shared `.next` may therefore have been overwritten. The results and images below remain actual observations, but **do not establish exclusive, pinned-build runtime verification**. No test failed in this run; interference timing and its effect are not established. A fresh build followed by focused dashboard tests/screenshots and the full suite is required. Frontend requested explicit slot reassignment because the slot had already been returned for QA; no rerun has started.
+Planner subsequently corrected the delayed overlap warning: backend's build at `f4aefc3` finished before frontend received the slot at 12:58. Frontend then built again, and no other agent wrote `.next` during its browser run. The earlier potential-contamination qualification is therefore withdrawn on the planner's explicit timing clarification; the observed **64/64 full-suite pass at f4aefc3 remains valid**. No full-suite rerun was requested.
 
-Runtime performed 2026-11-14 after planner granted DB/.next use; actual exclusivity was subsequently disputed as described above. Slot returned immediately after the full suite completed. No push or deploy.
+The later identity fix and populated fixture were separately verified by a fresh build and focused members/dashboard 3/3, as recorded above. The original full-suite pass does not claim full-suite coverage of that later identity-fix snapshot.
+
+Runtime performed 2026-11-14 with planner-granted DB/.next ownership. Both requested followups are complete in separate commits: identity fix `37636b875f109cd333185ef62aa8d034b1e29ba8`; populated fixture/spec `2966e57d5d255e0cc8cc80b67ceaac6d0c0f43d6`. Slot returned after the focused run. No push or deploy.
 
 ## Snapshot
 
