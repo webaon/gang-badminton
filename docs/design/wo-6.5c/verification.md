@@ -1,6 +1,25 @@
 # WO-6.5c dashboard UI — owner verification
 
-Runtime performed 2026-11-14 after planner explicitly granted exclusive DB/.next use. Slot returned immediately after the full suite completed. No push or deploy.
+## Fresh focused verification after planner's slot extension
+
+Planner extended the slot for the current-member identity fix and a populated dashboard fixture, then requested a fresh build plus focused members/dashboard checks before returning the slot. This supersedes the earlier plan to repeat the full suite; the historical full-suite caveat below still applies.
+
+- `currentUserId` now comes from the existing authenticated user in the members loader and is passed to MembersPanel; no new query or permission change.
+- Member loader/source tests reproduced the omission (three failing assertions), then passed: 34/34 including permission-context coverage. Typecheck and lint passed.
+- Full unit at this point: 717 passed, 1 skipped, 2 failed in backend's uncommitted `tests/domain/leave-gang-error.test.ts` at 131/140 (unknown/empty reason). Those files were not modified by frontend; this is not an all-unit-green claim.
+- Fresh default Turbopack build with required env: exit 0, log `wo65c-populated-build.log`.
+- Initial focused run: 2 passed, 1 failed due to an incorrect fixture query for `session_charges.user_id`. The helper was corrected to join `session_registrations` via `registration_id`; no application change or weakened assertion.
+- Focused rerun: **3/3 passed in 24.2s**, log `wo65c-populated-focused-r2.log`, traces `.playwright/wo65c-populated-r2/`. Includes empty dashboard/outsider case, populated dashboard, and settings/members with the current member's exact name plus `(คุณ)` and only one self label.
+- Populated fixture is implemented in `e2e-browser/dashboard-fixture.ts`; it creates an isolated gang, real registrations, charges through the close UI, submitted/verified payments via DB functions, credit, expense, join request and activity. No manual DB patch or mocked dashboard response was used.
+- Browser assertions cover all 12 widget headings, 3 members, outstanding ฿150.00, one pending slip, net cash ฿130.00, credit ฿25.00, one pending join request, one unclosed session, next session with two seated players, nonempty activity and cash-flow table ฿150.00 in / ฿20.00 out.
+- Four populated screenshots visually inspected: `populated/h10-populated-{390,1280}-{light,dark}.png`. No measured contrast claim. New images complement the empty-state captures below.
+- Slot returned immediately after focused rerun completed. No full-suite rerun on this identity-fix snapshot; independent QA acceptance remains pending. Theme freshness issue is assigned to BACKLOG by planner and was not modified.
+
+## Historical runtime evidence qualification
+
+After this run completed and the slot was returned, planner reported that backend ran a build and DB tests during frontend's allocated slot. Shared `.next` may therefore have been overwritten. The results and images below remain actual observations, but **do not establish exclusive, pinned-build runtime verification**. No test failed in this run; interference timing and its effect are not established. A fresh build followed by focused dashboard tests/screenshots and the full suite is required. Frontend requested explicit slot reassignment because the slot had already been returned for QA; no rerun has started.
+
+Runtime performed 2026-11-14 after planner granted DB/.next use; actual exclusivity was subsequently disputed as described above. Slot returned immediately after the full suite completed. No push or deploy.
 
 ## Snapshot
 
