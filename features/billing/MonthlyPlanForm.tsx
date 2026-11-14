@@ -58,11 +58,11 @@ export function MonthlyPlanForm({
   }
 
   return (
+    <form onSubmit={onSubmit} noValidate aria-labelledby="monthly-settings-title">
     <VStack as="section" id="monthly-settings" gap={3} className="scroll-mt-24" aria-labelledby="monthly-settings-title">
       <h2 id="monthly-settings-title" className="text-lg font-semibold">ค่าสมาชิกรายเดือน</h2>
       <Text as="p" color="secondary" size="sm">แผนรายเดือนแยกจากแผนราคาต่อนัด</Text>
       <Card padding={5}>
-        <form onSubmit={onSubmit} noValidate>
           <VStack gap={4}>
             <TextInput
               size="lg"
@@ -84,8 +84,8 @@ export function MonthlyPlanForm({
               <Text color="primary">บันทึก</Text>
             </Button>
           </VStack>
-        </form>
       </Card>
     </VStack>
+    </form>
   );
 }
