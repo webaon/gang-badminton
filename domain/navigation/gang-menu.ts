@@ -48,7 +48,7 @@ export type MenuItem = {
   icon: NavIconKey;
   /**
    * `false` = ลิงก์ที่ไปหน้าเดียวกับเมนูอื่น จึงไม่ขึ้นสถานะ "กำลังเปิดอยู่" ซ้ำ
-   * (แดชบอร์ดชี้ไป `sessions` ไปก่อน จนกว่าหน้า #10 จะเสร็จใน WO-6.5)
+   * แต่ละเมนูที่มี route ของตัวเองใช้ค่า true เพื่อระบุหน้าที่กำลังเปิด
    */
   selectable: boolean;
 };
@@ -80,8 +80,7 @@ const SIDE_DEFS: readonly Def[] = [
     label: 'แดชบอร์ด',
     icon: 'home',
     action: 'gang.finance.view',
-    path: 'sessions',
-    selectable: false,
+    path: 'dashboard',
   },
   { id: 'sessions', label: 'นัด', icon: 'calendar', action: 'session.view', path: 'sessions' },
   { id: 'templates', label: 'ตารางประจำ', icon: 'repeat', action: 'session.create', path: 'templates' },

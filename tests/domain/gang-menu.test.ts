@@ -187,7 +187,9 @@ describe('activeMenuId', () => {
     expect(activeMenuId('/gangs/g2/sessions', m.side)).toBeNull();
   });
 
-  it('แดชบอร์ดชี้ไปหน้า sessions แต่ไม่ถูก highlight ซ้ำกับ "นัด"', () => {
+  it('แดชบอร์ดมี route ของตัวเองและไม่ถูก highlight ซ้ำกับ "นัด"', () => {
+    expect(activeMenuId('/gangs/g1/dashboard', m.side)).toBe('dashboard');
+    expect(m.side.find(item => item.id === 'dashboard')?.href).toBe('/gangs/g1/dashboard');
     expect(activeMenuId('/gangs/g1/sessions', m.side)).not.toBe('dashboard');
   });
 
