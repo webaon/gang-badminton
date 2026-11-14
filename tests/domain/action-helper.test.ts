@@ -138,25 +138,48 @@ describe('runAction — ตอบตาม API response contract เสมอ', 
     expect(logged.cause).toBe(boom);
   });
 
-  it('🔴 [WO-B2.2] AppError ที่มี reason/reasonMeta + reason อยู่ใน allowlist จริง → ApiFailure.error.reason/reasonMeta ตรงตัว (additive)', async () => {
-    const res = await runAction<{ id: number }, 'OWNER_MUST_TRANSFER'>(
+  it('🔴 [WO-B2.2] AppError ที่มี reason/reasonMeta + reason อยู่ใน allowlist จริง → ApiFailure.error.reason/reasonMeta ตรงตัว (additive) — ใช้ HAS_LATE_CANCEL_REGISTRATION เพราะเป็นตัวเดียวที่มี meta จริงตาม whitelist', async () => {
+    const res = await runAction<{ id: number }, 'HAS_LATE_CANCEL_REGISTRATION'>(
       'cid-4',
       async () => {
-        throw new AppError('VALIDATION_ERROR', 'VALIDATION_ERROR', {
-          reason: 'OWNER_MUST_TRANSFER',
+        throw new AppError('CANCEL_CUTOFF_PASSED', 'CANCEL_CUTOFF_PASSED', {
+          reason: 'HAS_LATE_CANCEL_REGISTRATION',
           reasonMeta: { startsAt: '2026-11-01T18:00:00+07:00', cutoffAt: '2026-11-01T10:00:00+07:00' },
         });
       },
-      { reasons: ['OWNER_MUST_TRANSFER'], reasonMetaKeys: { OWNER_MUST_TRANSFER: ['startsAt', 'cutoffAt'] } },
+      {
+        reasons: ['HAS_LATE_CANCEL_REGISTRATION'],
+        reasonMetaKeys: { HAS_LATE_CANCEL_REGISTRATION: ['startsAt', 'cutoffAt'] },
+      },
     );
     expect(res.success).toBe(false);
     if (!res.success) {
-      expect(res.error.code).toBe('VALIDATION_ERROR');
-      expect(res.error.reason).toBe('OWNER_MUST_TRANSFER');
+      expect(res.error.code).toBe('CANCEL_CUTOFF_PASSED');
+      expect(res.error.reason).toBe('HAS_LATE_CANCEL_REGISTRATION');
       expect(res.error.reasonMeta).toEqual({
         startsAt: '2026-11-01T18:00:00+07:00',
         cutoffAt: '2026-11-01T10:00:00+07:00',
       });
+    }
+  });
+
+  it('🔴 [QA, WO-B2.2 · F1 เพิ่มเติม] OWNER_MUST_TRANSFER + reasonMeta ติดมาด้วย (แม้มี object จริงอยู่) → ถูก strip meta ทิ้งเสมอ เพราะ reason นี้ไม่มี key ไหนอยู่ใน whitelist เลย (LEAVE_GANG_REASON_META_KEYS ไม่มี entry ของ OWNER_MUST_TRANSFER)', async () => {
+    const res = await runAction<{ id: number }, 'OWNER_MUST_TRANSFER'>(
+      'cid-4h',
+      async () => {
+        throw new AppError('VALIDATION_ERROR', 'VALIDATION_ERROR', {
+          reason: 'OWNER_MUST_TRANSFER',
+          // มี object จริงติดมาด้วย (เช่น โค้ด action พลาดแปะ meta ที่ไม่ควรมี) — ต้องไม่หลุดออกไปเลย
+          reasonMeta: { startsAt: '2026-11-01T18:00:00+07:00', cutoffAt: '2026-11-01T10:00:00+07:00' },
+        });
+      },
+      { reasons: ['OWNER_MUST_TRANSFER'] }, // ไม่ส่ง reasonMetaKeys มาเลย ⇒ ไม่มี key ไหนได้รับอนุญาต
+    );
+    expect(res.success).toBe(false);
+    if (!res.success) {
+      expect(res.error.code).toBe('VALIDATION_ERROR');
+      expect(res.error.reason).toBe('OWNER_MUST_TRANSFER'); // reason เองยังผ่าน (อยู่ใน allowlist)
+      expect(res.error.reasonMeta).toBeUndefined(); // แต่ meta ต้องหายไปทั้งหมด
     }
   });
 
