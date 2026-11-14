@@ -122,6 +122,24 @@ describe('mapLeaveGangError() — ทุกแถวของตาราง WO-
     ).toEqual({});
   });
 
+  it('🔴 [WO-B2.2 · QA static review c159bd3 · F2] VALIDATION_ERROR ที่ไม่มี field แต่ reason เป็น string ที่ "ไม่ตรง" literal ของ leave_gang:142 เป๊ะ → {} ไม่เดา (เดิมรับทุก string ผิด — error ชนิดนี้อาจมาจาก raise site อื่นที่บังเอิญไม่มี field ก็ได้ ไม่ใช่สัญญาณว่าเป็น dev-guard ของ leave_gang)', () => {
+    expect(
+      mapLeaveGangError({
+        message: 'VALIDATION_ERROR',
+        details: JSON.stringify({ reason: 'unrelated validation message that is not leave_gang dev-guard at all' }),
+      }),
+    ).toEqual({});
+  });
+
+  it('🔴 [WO-B2.2 · QA static review c159bd3 · F2] VALIDATION_ERROR ที่ไม่มี field แต่ reason เป็น empty string → {} ไม่เดา (empty string ก็เป็น string จริง — typeof check เดิมหลุดเคสนี้ไปด้วย)', () => {
+    expect(
+      mapLeaveGangError({
+        message: 'VALIDATION_ERROR',
+        details: JSON.stringify({ reason: '' }),
+      }),
+    ).toEqual({});
+  });
+
   it('🔴 [WO-B2.2 · QA fail-closed fix] NOT_FOUND ที่ details หายไปเลย → {} ไม่เดา (ไม่ใช่ RETRY แบบเหมา)', () => {
     expect(mapLeaveGangError({ message: 'NOT_FOUND' })).toEqual({});
   });
@@ -141,7 +159,7 @@ describe('mapLeaveGangError() — ทุกแถวของตาราง WO-
     ];
     const produced = new Set<string>();
     for (const [message, details] of [
-      ['VALIDATION_ERROR', JSON.stringify({ reason: 'x' })],
+      ['VALIDATION_ERROR', JSON.stringify({ reason: 'ต้องระบุก๊วนและผู้ใช้' })],
       ['NOT_FOUND', JSON.stringify({ entity: 'gang' })],
       ['NOT_GANG_MEMBER', undefined],
       ['VALIDATION_ERROR', JSON.stringify({ field: 'role' })],

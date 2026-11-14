@@ -16,6 +16,11 @@ import {
 } from '@/shared/action';
 import type { ApiFailure } from '@/shared/api';
 import { safeFileName, paymentSlipPath, avatarPath, tenantKeyOf } from '@/lib/storage/paths';
+import {
+  LEAVE_GANG_REASONS,
+  LEAVE_GANG_REASON_META_KEYS,
+  type LeaveGangFailureReason,
+} from '@/domain/gangs/leave-gang-error';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -138,8 +143,8 @@ describe('runAction — ตอบตาม API response contract เสมอ', 
     expect(logged.cause).toBe(boom);
   });
 
-  it('🔴 [WO-B2.2] AppError ที่มี reason/reasonMeta + reason อยู่ใน allowlist จริง → ApiFailure.error.reason/reasonMeta ตรงตัว (additive) — ใช้ HAS_LATE_CANCEL_REGISTRATION เพราะเป็นตัวเดียวที่มี meta จริงตาม whitelist', async () => {
-    const res = await runAction<{ id: number }, 'HAS_LATE_CANCEL_REGISTRATION'>(
+  it('🔴 [WO-B2.2] AppError ที่มี reason/reasonMeta + reason อยู่ใน allowlist จริง → ApiFailure.error.reason/reasonMeta ตรงตัว (additive) — ใช้ HAS_LATE_CANCEL_REGISTRATION เพราะเป็นตัวเดียวที่มี meta จริงตาม whitelist [QA wob22-static-followup-f4aefc3: ผูกกับ contract จริงของ leaveGang() ด้วย LEAVE_GANG_REASONS/LEAVE_GANG_REASON_META_KEYS ที่ export จริง ไม่เขียน options ปลอมขึ้นมาเอง]', async () => {
+    const res = await runAction<{ id: number }, LeaveGangFailureReason>(
       'cid-4',
       async () => {
         throw new AppError('CANCEL_CUTOFF_PASSED', 'CANCEL_CUTOFF_PASSED', {
@@ -147,10 +152,7 @@ describe('runAction — ตอบตาม API response contract เสมอ', 
           reasonMeta: { startsAt: '2026-11-01T18:00:00+07:00', cutoffAt: '2026-11-01T10:00:00+07:00' },
         });
       },
-      {
-        reasons: ['HAS_LATE_CANCEL_REGISTRATION'],
-        reasonMetaKeys: { HAS_LATE_CANCEL_REGISTRATION: ['startsAt', 'cutoffAt'] },
-      },
+      { reasons: LEAVE_GANG_REASONS, reasonMetaKeys: LEAVE_GANG_REASON_META_KEYS },
     );
     expect(res.success).toBe(false);
     if (!res.success) {
@@ -163,8 +165,8 @@ describe('runAction — ตอบตาม API response contract เสมอ', 
     }
   });
 
-  it('🔴 [QA, WO-B2.2 · F1 เพิ่มเติม] OWNER_MUST_TRANSFER + reasonMeta ติดมาด้วย (แม้มี object จริงอยู่) → ถูก strip meta ทิ้งเสมอ เพราะ reason นี้ไม่มี key ไหนอยู่ใน whitelist เลย (LEAVE_GANG_REASON_META_KEYS ไม่มี entry ของ OWNER_MUST_TRANSFER)', async () => {
-    const res = await runAction<{ id: number }, 'OWNER_MUST_TRANSFER'>(
+  it('🔴 [QA, WO-B2.2 · F1 เพิ่มเติม] OWNER_MUST_TRANSFER + reasonMeta ติดมาด้วย (แม้มี object จริงอยู่) → ถูก strip meta ทิ้งเสมอ เพราะ reason นี้ไม่มี key ไหนอยู่ใน whitelist เลย (LEAVE_GANG_REASON_META_KEYS ไม่มี entry ของ OWNER_MUST_TRANSFER) [QA wob22-static-followup-f4aefc3: ผูกกับ contract จริงด้วย LEAVE_GANG_REASONS/LEAVE_GANG_REASON_META_KEYS object จริง ไม่ใช่แค่ไม่ส่ง reasonMetaKeys เลย]', async () => {
+    const res = await runAction<{ id: number }, LeaveGangFailureReason>(
       'cid-4h',
       async () => {
         throw new AppError('VALIDATION_ERROR', 'VALIDATION_ERROR', {
@@ -173,7 +175,9 @@ describe('runAction — ตอบตาม API response contract เสมอ', 
           reasonMeta: { startsAt: '2026-11-01T18:00:00+07:00', cutoffAt: '2026-11-01T10:00:00+07:00' },
         });
       },
-      { reasons: ['OWNER_MUST_TRANSFER'] }, // ไม่ส่ง reasonMetaKeys มาเลย ⇒ ไม่มี key ไหนได้รับอนุญาต
+      // ส่ง object จริง (LEAVE_GANG_REASON_META_KEYS) ไม่ใช่แค่ไม่ส่งมาเลย — object จริงนี้เองที่ไม่มี
+      // entry ของ OWNER_MUST_TRANSFER จึงพิสูจน์ contract จริง ไม่ใช่แค่ "ไม่ได้ส่ง opts มา"
+      { reasons: LEAVE_GANG_REASONS, reasonMetaKeys: LEAVE_GANG_REASON_META_KEYS },
     );
     expect(res.success).toBe(false);
     if (!res.success) {

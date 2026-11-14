@@ -107,13 +107,15 @@ export function mapLeaveGangError(err: LeaveGangErrorLike): LeaveGangErrorMappin
     case 'VALIDATION_ERROR':
       // leave_gang:184 มี field==='role' — เจาะจง, มั่นใจได้
       if (detail?.field === 'role') return { reason: 'OWNER_MUST_TRANSFER' };
-      // leave_gang:142 (dev-guard) มี detail={reason:string} โดย**ไม่มี** 'field' เลย — เจาะจงพอ
-      // [WO-B2.2 · QA fail-closed fix] VALIDATION_ERROR เป็น message ที่ใช้ร่วมกันทั่วทั้งโปรเจกต์
-      // (เช่น apply_credit ก็ raise message เดียวกันนี้ด้วย field คนละชุด) — shape อื่นที่ไม่ตรงทั้งสอง
-      // เคสที่รู้จักจริงข้างบน (detail หาย/parse ไม่ได้/มี field ไม่รู้จัก) ต้องไม่เดา ไม่งั้นเสี่ยง label
-      // ผิดถ้า error ที่มาไม่ใช่จาก leave_gang()'s 2 raise sites นี้จริงๆ — คืน {} ให้ fallback เป็น
-      // code เดิมเฉยๆปลอดภัยกว่า
-      if (detail && !('field' in detail) && typeof detail.reason === 'string') {
+      // leave_gang:142 (dev-guard) มี detail={reason:string} โดย**ไม่มี** 'field' เลย — [WO-B2.2 · QA
+      // static review c159bd3 · F2] ต้อง match literal ของ dev-guard จริงเป๊ะ ('ต้องระบุก๊วนและผู้ใช้')
+      // ไม่ใช่ "เป็น string อะไรก็ได้" แบบเดิม (เดิมรับ string ว่าง/string ไม่เกี่ยวข้องมาแปะ
+      // MISSING_REQUIRED_FIELDS ผิดๆด้วย) VALIDATION_ERROR เป็น message ที่ใช้ร่วมกันทั่วทั้งโปรเจกต์
+      // (เช่น apply_credit ก็ raise message เดียวกันนี้ด้วย field/reason คนละชุด) — shape อื่นที่ไม่ตรง
+      // literal นี้เป๊ะ (detail หาย/parse ไม่ได้/มี field ไม่รู้จัก/reason เป็นค่าอื่น/reason เป็น empty
+      // string) ต้องไม่เดา ไม่งั้นเสี่ยง label ผิดถ้า error ที่มาไม่ใช่จาก leave_gang()'s raise site นี้
+      // จริงๆ — คืน {} ให้ fallback เป็น code เดิมเฉยๆปลอดภัยกว่า
+      if (detail && !('field' in detail) && detail.reason === 'ต้องระบุก๊วนและผู้ใช้') {
         return { reason: 'MISSING_REQUIRED_FIELDS' };
       }
       return {};
