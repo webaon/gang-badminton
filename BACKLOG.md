@@ -576,3 +576,7 @@
 
 - [ ] 🟢 **[H10 · กราฟเงินเข้า/เงินออก 6 เดือน]** ตอนนี้แสดงเป็นตาราง เพราะ UI ห้าม parse เงินมาวาดกราฟ ⇒ ต้องให้ loader `dashboardOverview` ส่ง **ratio 0..1 ที่คำนวณบน server** มาด้วย
 - [ ] 🟢 **[H10 · DTO ขาด field ตามดีไซน์]** ยังขาด `maxPlayers` ของนัดถัดไป · ชื่อหรือเลขคอร์ท · นัดลำดับที่สอง · ชื่อผู้ใช้สำหรับ greeting ⇒ ตอนนี้ UI แสดงเฉพาะที่มีจริงและ **ไม่มีค่าปลอม**
+
+## จาก frontend 6.5c UI runtime
+
+- [ ] 🟢 **[theme · --check] `theme --check` FAIL: 4 outputs stale** (คำสั่งเดียวกับ `theme:build` + `--check`) ที่ HEAD `f4aefc3` · ยังไม่รู้สาเหตุ ⇒ **ต้องหา diff ก่อน ห้าม rebuild theme เพื่อให้ผ่านโดยไม่รู้สาเหตุ** (ที่มา: frontend 6.5c UI runtime)
