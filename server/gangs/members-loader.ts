@@ -27,5 +27,5 @@ export async function loadGangMembers(gangId: string) {
     id: row.id, userId: row.user_id, displayName: row.profiles.display_name,
     role: row.role, isMonthlyMember: row.is_monthly_member,
   }));
-  return { gangId, name: gang.name as string, members, canManage };
+  return { gangId, name: gang.name as string, members, canManage, currentUserId: user.id };
 }

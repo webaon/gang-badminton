@@ -11,7 +11,7 @@ export default async function GangMembersPage({ params }: { params: Promise<{ ga
     <VStack as="section" gap={5} padding={4} className="mx-auto w-full max-w-5xl">
       <Heading level={1}>สมาชิก · {data.name}</Heading>
       <Text color="secondary">รายชื่อ บทบาทพื้นฐาน และสถานะสมาชิกรายเดือน</Text>
-      <MembersPanel gangId={gangId} members={data.members} canManage={data.canManage} />
+      <MembersPanel gangId={gangId} members={data.members} canManage={data.canManage} currentUserId={data.currentUserId} />
     </VStack>
   );
 }

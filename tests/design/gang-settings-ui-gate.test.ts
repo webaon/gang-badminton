@@ -34,6 +34,11 @@ describe('WO-6.6a settings/member UI boundaries', () => {
     expect(loader).not.toContain(".select('role')");
   });
 
+  it('passes the authenticated actor identity to the members panel', () => {
+    expect(source('features/gangs/GangMembersPage.tsx')).toContain('currentUserId={data.currentUserId}');
+    expect(source('features/gangs/MembersPanel.tsx')).toContain('member.userId === currentUserId');
+  });
+
   it('read data sources are the existing page queries, not finance/profile enrichment', () => {
     const tables = (text: string) => [...text.matchAll(/\.from\('([^']+)'\)/g)].map(match => match[1]);
     expect(tables(source('server/gangs/settings-loader.ts'))).toEqual(['gangs', 'gang_pricing_plans', 'gang_pricing_plans', 'gang_skill_levels']);

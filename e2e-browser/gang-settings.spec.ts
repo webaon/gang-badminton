@@ -82,7 +82,8 @@ test('gang settings: supported fields persist; members and outsiders retain thei
       expect(box!.height).toBeGreaterThanOrEqual(44);
     }
     await memberPage.goto(`/gangs/${gangId}/members`);
-    await expect(memberPage.getByText(member.displayName, { exact: true })).toBeVisible();
+    await expect(memberPage.getByText(`${member.displayName} (คุณ)`, { exact: true })).toBeVisible();
+    await expect(memberPage.getByText(/\(คุณ\)$/)).toHaveCount(1);
     await expect(memberPage.getByRole('textbox', { name: 'เพิ่มสมาชิกด้วยอีเมล', exact: true })).toHaveCount(0);
     await memberPage.goto(`/gangs/${gangId}/settings`);
     await expect(memberPage.getByText('เฉพาะแอดมินของก๊วนเท่านั้นที่แก้ตั้งค่าได้', { exact: true })).toBeVisible();

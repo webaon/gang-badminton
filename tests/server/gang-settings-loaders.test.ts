@@ -77,6 +77,7 @@ describe('WO-6.6a loader contracts — mocked, no live RLS claim', () => {
     h.ctx = { role };
     const result = await loadGangMembers('gang');
     expect(result.canManage).toBe(role === 'admin');
+    expect(result.currentUserId).toBe('actor');
     expect(result.members).toEqual([{ id: 'member', userId: 'actor', displayName: 'ผู้เล่น', role: 'member', isMonthlyMember: false }]);
     expect(h.permission).toHaveBeenCalledWith('gang', 'actor');
     expect(h.calls).toContainEqual({ table: 'gang_members', op: 'eq', args: ['gang_id', 'gang'] });
