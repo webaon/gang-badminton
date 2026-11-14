@@ -100,27 +100,34 @@ describe('mapLeaveGangError() — ทุกแถวของตาราง WO-
     expect(mapLeaveGangError({ message: 'FORBIDDEN' })).toEqual({});
   });
 
-  it('🔴 VALIDATION_ERROR ที่ details หายไปเลย (undefined/null) → fallback MISSING_REQUIRED_FIELDS (ไม่ throw)', () => {
-    expect(mapLeaveGangError({ message: 'VALIDATION_ERROR' })).toEqual({ reason: 'MISSING_REQUIRED_FIELDS' });
-    expect(mapLeaveGangError({ message: 'VALIDATION_ERROR', details: null })).toEqual({
-      reason: 'MISSING_REQUIRED_FIELDS',
-    });
+  it('🔴 [WO-B2.2 · QA fail-closed fix] VALIDATION_ERROR ที่ details หายไปเลย (undefined/null) → {} ไม่เดา (ไม่ใช่ shape ที่รู้จักทั้งสองแบบ)', () => {
+    expect(mapLeaveGangError({ message: 'VALIDATION_ERROR' })).toEqual({});
+    expect(mapLeaveGangError({ message: 'VALIDATION_ERROR', details: null })).toEqual({});
   });
 
-  it('🔴 VALIDATION_ERROR ที่ details พังพาร์สไม่ได้ (ไม่ใช่ JSON ที่ถูกต้อง) → fallback MISSING_REQUIRED_FIELDS (ไม่ throw)', () => {
-    expect(mapLeaveGangError({ message: 'VALIDATION_ERROR', details: '{not valid json' })).toEqual({
-      reason: 'MISSING_REQUIRED_FIELDS',
-    });
+  it('🔴 [WO-B2.2 · QA fail-closed fix] VALIDATION_ERROR ที่ details พังพาร์สไม่ได้ (ไม่ใช่ JSON ที่ถูกต้อง) → {} ไม่เดา ไม่ throw', () => {
+    expect(mapLeaveGangError({ message: 'VALIDATION_ERROR', details: '{not valid json' })).toEqual({});
   });
 
-  it('🔴 VALIDATION_ERROR ที่ details เป็น JSON array (ไม่ใช่ object) → fallback MISSING_REQUIRED_FIELDS ไม่ crash', () => {
-    expect(mapLeaveGangError({ message: 'VALIDATION_ERROR', details: JSON.stringify(['x', 'y']) })).toEqual({
-      reason: 'MISSING_REQUIRED_FIELDS',
-    });
+  it('🔴 [WO-B2.2 · QA fail-closed fix] VALIDATION_ERROR ที่ details เป็น JSON array (ไม่ใช่ object) → {} ไม่เดา ไม่ crash', () => {
+    expect(mapLeaveGangError({ message: 'VALIDATION_ERROR', details: JSON.stringify(['x', 'y']) })).toEqual({});
   });
 
-  it('🔴 NOT_FOUND ที่ details หายไปเลย → fallback RETRY (ไม่ใช่ GANG_NOT_FOUND แบบมั่วๆ)', () => {
-    expect(mapLeaveGangError({ message: 'NOT_FOUND' })).toEqual({ reason: 'RETRY' });
+  it('🔴 [WO-B2.2 · QA fail-closed fix] VALIDATION_ERROR ที่มี detail แต่ field เป็นค่าที่ไม่รู้จัก (ไม่ใช่ role, ไม่ตรง dev-guard shape) → {} ไม่เดา เพราะอาจเป็น raise จากฟังก์ชันอื่นที่ไม่ใช่ leave_gang เลย', () => {
+    expect(
+      mapLeaveGangError({
+        message: 'VALIDATION_ERROR',
+        details: JSON.stringify({ field: 'amount', reason: 'ต้องเป็นยอดบวก' }), // ตัวอย่างจริงจาก apply_credit — ไม่ใช่ของ leave_gang
+      }),
+    ).toEqual({});
+  });
+
+  it('🔴 [WO-B2.2 · QA fail-closed fix] NOT_FOUND ที่ details หายไปเลย → {} ไม่เดา (ไม่ใช่ RETRY แบบเหมา)', () => {
+    expect(mapLeaveGangError({ message: 'NOT_FOUND' })).toEqual({});
+  });
+
+  it('🔴 [WO-B2.2 · QA fail-closed fix] NOT_FOUND ที่มี entity เป็นค่าที่ไม่รู้จัก (ไม่ใช่ gang/session) → {} ไม่เดาว่าเป็น RETRY', () => {
+    expect(mapLeaveGangError({ message: 'NOT_FOUND', details: JSON.stringify({ entity: 'payment' }) })).toEqual({});
   });
 
   it('exhaustiveness: ทุก reason ที่ map ออกมาต้องอยู่ใน LeaveGangFailureReason union จริง (กัน typo เงียบๆ)', () => {

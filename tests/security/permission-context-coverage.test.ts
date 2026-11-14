@@ -174,9 +174,9 @@ const MANIFEST: readonly ManifestEntry[] = [
   // ---- server/actions/members.ts ----
   { file: 'server/actions/members.ts', line: 49, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.member.manage'], delegable: false, note: 'NEVER_DELEGABLE' },
   { file: 'server/actions/members.ts', line: 78, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.member.manage'], delegable: false, note: 'NEVER_DELEGABLE' },
-  { file: 'server/actions/members.ts', line: 151, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['gang.leave.self'], delegable: false },
-  { file: 'server/actions/members.ts', line: 206, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.ownership.transfer'], delegable: false, note: 'NEVER_DELEGABLE' },
-  { file: 'server/actions/members.ts', line: 236, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.member.manage'], delegable: false, note: 'NEVER_DELEGABLE' },
+  { file: 'server/actions/members.ts', line: 153, fn: 'assertCan', category: 'self', actionKind: 'literal', actions: ['gang.leave.self'], delegable: false },
+  { file: 'server/actions/members.ts', line: 212, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.ownership.transfer'], delegable: false, note: 'NEVER_DELEGABLE' },
+  { file: 'server/actions/members.ts', line: 242, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.member.manage'], delegable: false, note: 'NEVER_DELEGABLE' },
 
   // ---- server/actions/membership.ts ----
   { file: 'server/actions/membership.ts', line: 59, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['gang.pricing.manage'], delegable: false, note: 'NEVER_DELEGABLE' },

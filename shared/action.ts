@@ -13,31 +13,14 @@
  * ⇒ ทุก mutation ต้องผ่าน `assertAffected()` เสมอ
  */
 import { ok, fail, type ApiResponse } from './api';
-import { toErrorCode, type ErrorCode } from './errors';
+import { AppError, toErrorCode, type ErrorCode } from './errors';
 
-/** error ที่รู้ code ของตัวเอง — `toErrorCode()` จะหยิบ code ไปใช้ตรงๆ
- *
- * [WO-B2.2] `reason`/`reasonMeta` เป็น field เสริมแบบ additive (optional, default undefined) — ใช้ตอนที่
- * action เดียวต้องการแยกเหตุผลย่อยภายใต้ ErrorCode เดียวกัน (เช่น leaveGang: VALIDATION_ERROR มีทั้ง
- * "ลืมส่ง field" กับ "เจ้าของคนสุดท้ายออกไม่ได้" ซึ่ง code เดิมแยกไม่ได้) ไม่ตั้งสองตัวนี้ = พฤติกรรมเดิมเป๊ะ
- * ห้ามใส่ PG detail ดิบหรือ id ภายใน — reasonMeta ต้องเป็นค่าที่ผ่าน whitelist ของ caller เองแล้วเท่านั้น */
-export class AppError extends Error {
-  readonly code: ErrorCode;
-  readonly reason?: string;
-  readonly reasonMeta?: Record<string, unknown>;
-
-  constructor(
-    code: ErrorCode,
-    message?: string,
-    options?: { cause?: unknown; reason?: string; reasonMeta?: Record<string, unknown> },
-  ) {
-    super(message ?? code, options?.cause !== undefined ? { cause: options.cause } : undefined);
-    this.name = 'AppError';
-    this.code = code;
-    this.reason = options?.reason;
-    this.reasonMeta = options?.reasonMeta;
-  }
-}
+/**
+ * [WO-B2.2] `AppError` ย้ายไปอยู่ `shared/errors.ts` จริงแล้ว (ให้ `toErrorCode()` ทำ `instanceof` ได้
+ * โดยไม่ circular import) — ไฟล์นี้ re-export ต่อให้ไฟล์เดิม 30+ ไฟล์ที่ `import { AppError } from
+ * '@/shared/action'` อยู่แล้วไม่ต้องแก้ import ทุกจุด
+ */
+export { AppError };
 
 /**
  * อ่าน redirect error ของ Next จาก `digest` (รูปแบบ `NEXT_REDIRECT;<type>;<url>;<status>;`)
@@ -73,12 +56,36 @@ function isSignInPath(destination: string): boolean {
  * เพราะ server action ถูกเรียกจาก React ไม่ใช่ผ่าน HTTP โดยตรง
  *
  * [WO-B2.2] `R` เป็น generic เสริมแบบ additive (default `never`) — action ที่ไม่ประกาศ R (ของเดิมทุกตัว)
- * ไม่มีทางได้ `reason` ที่มีค่าจริงเลย (type-level เท่ากับพฤติกรรมเดิมเป๊ะ) เฉพาะ action ที่ต้องแยกเหตุผล
- * ย่อยใต้ code เดียว (เช่น leaveGang) ที่จะ instantiate `runAction<T, SpecificReasonUnion>(...)` ตรงๆ
+ * ไม่มีทางได้ `reason` ที่มีค่าจริงเลย เฉพาะ action ที่ต้องแยกเหตุผลย่อยใต้ code เดียว (เช่น leaveGang)
+ * ที่จะ instantiate `runAction<T, SpecificReasonUnion>(...)` ตรงๆ
+ *
+ * [planner, WO-B2.2 · F1] ไม่ใช่แค่ `{allowReason:true}` boolean เฉยๆ (เวอร์ชันแรกที่ QA ยังตีว่าไม่พอ) —
+ * ต้องส่ง **allowlist จริงของ reason ที่อนุญาต** มาด้วย (`opts.reasons`) แล้วเช็คว่า reason ที่ได้จาก
+ * `toErrorCode()` (ซึ่งมาจาก `err instanceof AppError` ที่ตรวจแล้วว่าเป็น own property จริง — ดู
+ * `shared/errors.ts`) **อยู่ใน list นั้นจริง** ก่อนส่งต่อ — ไม่งั้น strip ทิ้ง ป้องกันเคสที่ action ส่ง
+ * `{allowReason:true}` มาเฉยๆ (ไม่ได้บอกว่า reason ไหนบ้างที่ตัวเองรองรับ) แล้ว error object ที่โยนออกมา
+ * จาก `run()` บังเอิญเป็น `AppError` ที่มี `.reason` เป็นค่าอะไรก็ได้ (ไม่ตรงกับที่ action นี้ตั้งใจส่งจริง)
+ * หลุดออกไปได้อยู่ดี — allowlist ปิดช่องนี้เพราะต้องตรงกับ**ค่า**ที่ระบุไว้ล่วงหน้า ไม่ใช่แค่ "มีสิทธิ์
+ * มี reason บ้าง" `opts.reasonMetaKeys` (ถ้ามี) คือการ pick key ของ `reasonMeta` ซ้ำอีกชั้นตาม whitelist
+ * เฉพาะของ reason นั้นๆ ตอน serialize — **ไม่เชื่อ mapper ว่า whitelist ไว้ถูกแล้วเฉยๆ** เป็น defense-in-
+ * depth ชั้นที่สอง ถ้า mapper มีบั๊กแล้วแปะ key แปลกปลอม (เช่น `registration_id`) มาด้วย ชั้นนี้จะกรองออก
+ *
+ * (implementation ผ่าน function overload 2 แบบ — ไม่ใช่ conditional-tuple rest param: ลองแบบนั้นมาก่อน
+ * แล้วพัง TS inference ของ**ทุก**call site เดิมที่ไม่ส่ง type arg เลย เพราะ R ไม่มี anchor ให้ infer
+ * จาก argument ไหนเลย TS เลย treat เป็น `never` ของ unresolved generic ตรงๆไม่ใช่ default ที่ตั้งไว้
+ * — overload แก้ตรงนี้ได้สะอาดกว่า: overload แรกไม่มี type param เลย บังคับ `ApiResponse<T, never>`
+ * ให้ call site เดิมทุกตัวที่เขียน `runAction(cid, fn)` เฉยๆ ตรงเป๊ะ ไม่ต้องแก้อะไร)
  */
+export async function runAction<T>(correlationId: string, run: () => Promise<T>): Promise<ApiResponse<T, never>>;
+export async function runAction<T, R extends string>(
+  correlationId: string,
+  run: () => Promise<T>,
+  opts: { reasons: readonly R[]; reasonMetaKeys?: Partial<Record<R, readonly string[]>> },
+): Promise<ApiResponse<T, R>>;
 export async function runAction<T, R extends string = never>(
   correlationId: string,
   run: () => Promise<T>,
+  opts?: { reasons?: readonly R[]; reasonMetaKeys?: Partial<Record<R, readonly string[]>> },
 ): Promise<ApiResponse<T, R>> {
   try {
     return ok(await run());
@@ -100,14 +107,31 @@ export async function runAction<T, R extends string = never>(
 
     const { code, message, cause, reason, reasonMeta } = toErrorCode(err);
 
+    // [planner, WO-B2.2 · F1] reason ต้องอยู่ใน allowlist ของ call site นี้จริงๆ (ไม่ใช่แค่ "มี reason
+    // มาบ้าง") — `Array.includes` เทียบค่าตรงตัว ปฏิเสธทั้ง reason ที่ไม่รู้จักและ action ที่ไม่ได้ส่ง
+    // opts.reasons มาเลย (`opts?.reasons` เป็น undefined ⇒ `.includes` ไม่ถูกเรียก ⇒ ไม่มี reason หลุด)
+    const allowedReason: R | undefined =
+      reason !== undefined && opts?.reasons?.includes(reason as R) ? (reason as R) : undefined;
+
+    // reasonMeta: pick key ซ้ำตาม whitelist เฉพาะของ reason นั้น (ชั้นที่สอง ไม่เชื่อ mapper เฉยๆ) —
+    // key ที่ reasonMeta ของจริงไม่มี (`Object.hasOwn`) ก็ไม่ติดมาด้วย แม้ whitelist จะอนุญาตชื่อนั้นก็ตาม
+    const allowedMetaKeys = allowedReason ? opts?.reasonMetaKeys?.[allowedReason] : undefined;
+    const pickedMeta: Record<string, unknown> | undefined =
+      allowedReason && reasonMeta && allowedMetaKeys && allowedMetaKeys.length > 0
+        ? Object.fromEntries(
+            allowedMetaKeys.filter((key) => Object.hasOwn(reasonMeta, key)).map((key) => [key, reasonMeta[key]]),
+          )
+        : undefined;
+    const finalMeta = pickedMeta && Object.keys(pickedMeta).length > 0 ? pickedMeta : undefined;
+
     if (code === 'INTERNAL_ERROR') {
       // 🔴 ห้าม swallow — ต้องเห็นต้นฉบับเต็มพร้อม correlation id (CLAUDE.md §5)
       console.error('[action] unhandled error', { correlationId, message, cause });
     } else {
-      console.warn('[action] handled error', { correlationId, code, message, reason });
+      console.warn('[action] handled error', { correlationId, code, message, reason: allowedReason });
     }
 
-    return fail(code, message, reason as R | undefined, reasonMeta);
+    return fail(code, message, allowedReason, finalMeta);
   }
 }
 

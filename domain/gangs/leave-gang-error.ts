@@ -37,6 +37,30 @@ export type LeaveGangFailureReason =
   | 'RETRY'
   | 'MISSING_REQUIRED_FIELDS';
 
+/**
+ * [planner, WO-B2.2 · F1] allowlist จริงที่ `leaveGang()` ส่งให้ `runAction()`'s `opts.reasons` — ไม่ใช่
+ * แค่ type union เฉยๆ (ซึ่งถูก erase ไปแล้วตอน runtime) ต้องเป็นค่า runtime จริงที่ `.includes()` เทียบได้
+ * ทุก reason ที่ `mapLeaveGangError()` ผลิตออกมาได้ต้องอยู่ใน list นี้ (ดู exhaustiveness test)
+ */
+export const LEAVE_GANG_REASONS: readonly LeaveGangFailureReason[] = [
+  'OWNER_MUST_TRANSFER',
+  'HAS_LATE_CANCEL_REGISTRATION',
+  'NOT_A_MEMBER',
+  'GANG_NOT_FOUND',
+  'RETRY',
+  'MISSING_REQUIRED_FIELDS',
+];
+
+/**
+ * [planner, WO-B2.2 · F1] whitelist ของ key ใน `reasonMeta` ต่อ reason — ส่งให้ `runAction()`'s
+ * `opts.reasonMetaKeys` เป็น defense-in-depth ชั้นที่สอง (ไม่เชื่อว่า mapper ด้านล่าง pick key ถูกแล้ว
+ * เฉยๆ) reason ที่ไม่อยู่ใน object นี้ (ทุกตัวยกเว้น `HAS_LATE_CANCEL_REGISTRATION`) ไม่มี key ไหนหลุดได้
+ * เลยแม้จะมี object ติดมาด้วยก็ตาม — ต้องตรงกับ `LeaveGangReasonMeta`'s shape ด้านล่างเป๊ะ
+ */
+export const LEAVE_GANG_REASON_META_KEYS: Partial<Record<LeaveGangFailureReason, readonly string[]>> = {
+  HAS_LATE_CANCEL_REGISTRATION: ['startsAt', 'cutoffAt'],
+};
+
 export type LeaveGangReasonMeta = { startsAt: string; cutoffAt: string };
 
 export type LeaveGangErrorMapping =
@@ -69,20 +93,37 @@ function isNonEmptyString(value: unknown): value is string {
  *
  * message ที่ไม่รู้จัก (ไม่ตรงตารางข้างบนเลย) ⇒ คืน `{}` (ไม่มี reason) — caller ยัง fallback เป็น
  * `code` เดิมได้ตามปกติ (ดู `shared/errors.ts`'s `toErrorCode()`) ไม่ throw ไม่ guess
+ *
+ * [WO-B2.2 · QA fail-closed fix] `VALIDATION_ERROR`/`NOT_FOUND` เป็น message ที่ raise จากหลายจุด
+ * ทั่วทั้งโปรเจกต์ (ไม่ใช่แค่ leave_gang) ด้วย `detail` รูปร่างต่างกัน — ถ้า `detail` หาย/parse ไม่ได้/
+ * มี `field`/`entity` ที่ไม่ตรงกับ 2 เคสที่รู้จักจริงข้างบนเป๊ะ จะคืน `{}` เสมอ (ไม่เดาเป็น
+ * `MISSING_REQUIRED_FIELDS`/`RETRY` แบบ catch-all) — เพราะ error นั้นอาจไม่ได้มาจาก `leave_gang()`'s
+ * raise site ที่ตารางนี้รู้จักเลยก็ได้ ป้ายชื่อผิดอันตรายกว่าไม่ป้ายชื่อเลย
  */
 export function mapLeaveGangError(err: LeaveGangErrorLike): LeaveGangErrorMapping {
   const detail = parseDetail(err.details);
 
   switch (err.message) {
     case 'VALIDATION_ERROR':
-      // leave_gang:184 เท่านั้นที่มี field==='role' — ทุกกรณีอื่นของ VALIDATION_ERROR (leave_gang:142
-      // หรือ detail พังพาร์สไม่ได้) เป็น dev-guard ทั่วไป ไม่ใช่เคสที่ user เจอได้จากหน้า UI ปกติ
-      return detail?.field === 'role' ? { reason: 'OWNER_MUST_TRANSFER' } : { reason: 'MISSING_REQUIRED_FIELDS' };
+      // leave_gang:184 มี field==='role' — เจาะจง, มั่นใจได้
+      if (detail?.field === 'role') return { reason: 'OWNER_MUST_TRANSFER' };
+      // leave_gang:142 (dev-guard) มี detail={reason:string} โดย**ไม่มี** 'field' เลย — เจาะจงพอ
+      // [WO-B2.2 · QA fail-closed fix] VALIDATION_ERROR เป็น message ที่ใช้ร่วมกันทั่วทั้งโปรเจกต์
+      // (เช่น apply_credit ก็ raise message เดียวกันนี้ด้วย field คนละชุด) — shape อื่นที่ไม่ตรงทั้งสอง
+      // เคสที่รู้จักจริงข้างบน (detail หาย/parse ไม่ได้/มี field ไม่รู้จัก) ต้องไม่เดา ไม่งั้นเสี่ยง label
+      // ผิดถ้า error ที่มาไม่ใช่จาก leave_gang()'s 2 raise sites นี้จริงๆ — คืน {} ให้ fallback เป็น
+      // code เดิมเฉยๆปลอดภัยกว่า
+      if (detail && !('field' in detail) && typeof detail.reason === 'string') {
+        return { reason: 'MISSING_REQUIRED_FIELDS' };
+      }
+      return {};
 
     case 'NOT_FOUND':
-      // leave_gang:148 เองมี entity==='gang'; NOT_FOUND อื่น (เช่น cancel_registration:290 entity==='session')
-      // เป็น race ระหว่าง lock เท่านั้น — ทั้งสองเคสไม่เจาะจงพอให้ reason ต่างจาก RETRY ทั่วไป
-      return detail?.entity === 'gang' ? { reason: 'GANG_NOT_FOUND' } : { reason: 'RETRY' };
+      // [WO-B2.2 · QA fail-closed fix] เหมือน VALIDATION_ERROR ข้างบน — NOT_FOUND ใช้ร่วมกันทั่วโปรเจกต์
+      // ด้วย entity หลากหลาย เช็คให้ตรง entity ที่รู้จักจริงเท่านั้น (ไม่ใช่ else แบบเหมา)
+      if (detail?.entity === 'gang') return { reason: 'GANG_NOT_FOUND' }; // leave_gang:148 เอง
+      if (detail?.entity === 'session') return { reason: 'RETRY' }; // cancel_registration:290 — race เท่านั้น
+      return {};
 
     case 'NOT_GANG_MEMBER':
       return { reason: 'NOT_A_MEMBER' };

@@ -9,7 +9,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { moneyFromDb } from '@/lib/supabase/money';
 import { assertCan } from '@/domain/permissions/can';
 import { GANG_ROLES, type GangRole } from '@/domain/permissions/types';
-import { mapLeaveGangError, type LeaveGangFailureReason } from '@/domain/gangs/leave-gang-error';
+import { mapLeaveGangError, LEAVE_GANG_REASONS, LEAVE_GANG_REASON_META_KEYS, type LeaveGangFailureReason } from '@/domain/gangs/leave-gang-error';
 import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { AppError, assertOne, runAction, unwrap } from '@/shared/action';
 import { toErrorCode } from '@/shared/errors';
@@ -146,47 +146,53 @@ export type LeaveGangResult = {
 export async function leaveGang(gangId: string): Promise<ApiResponse<LeaveGangResult, LeaveGangFailureReason>> {
   const correlationId = await cid();
 
-  return runAction<LeaveGangResult, LeaveGangFailureReason>(correlationId, async () => {
-    const user = await requireUser();
-    assertCan({ role: await roleInGang(gangId, user.id) }, 'gang.leave.self');
+  return runAction<LeaveGangResult, LeaveGangFailureReason>(
+    correlationId,
+    async () => {
+      const user = await requireUser();
+      assertCan({ role: await roleInGang(gangId, user.id) }, 'gang.leave.self');
 
-    const { data, error } = await supabaseAdmin().rpc('leave_gang', {
-      p_gang_id: gangId,
-      p_actor_id: user.id,
-      p_correlation_id: correlationId,
-    });
+      const { data, error } = await supabaseAdmin().rpc('leave_gang', {
+        p_gang_id: gangId,
+        p_actor_id: user.id,
+        p_correlation_id: correlationId,
+      });
 
-    if (error) {
-      // [WO-B2.2] ให้ UI บอกสาเหตุจริงได้ (ไม่ใช่แค่ code เดิมที่ VALIDATION_ERROR ใช้ร่วมกันสองเคส) —
-      // mapLeaveGangError() เป็น pure function ล้วน อ่านแค่ message/details ของ error เอง ไม่แก้
-      // business logic ของ leave_gang()/cancel_registration() เลย (ตามที่ planner สั่งห้ามในใบนี้)
-      const { reason, reasonMeta } = mapLeaveGangError(error);
-      const { code, message } = toErrorCode(error);
-      throw new AppError(code, message, { cause: error, reason, reasonMeta });
-    }
+      if (error) {
+        // [WO-B2.2] ให้ UI บอกสาเหตุจริงได้ (ไม่ใช่แค่ code เดิมที่ VALIDATION_ERROR ใช้ร่วมกันสองเคส) —
+        // mapLeaveGangError() เป็น pure function ล้วน อ่านแค่ message/details ของ error เอง ไม่แก้
+        // business logic ของ leave_gang()/cancel_registration() เลย (ตามที่ planner สั่งห้ามในใบนี้)
+        const { reason, reasonMeta } = mapLeaveGangError(error);
+        const { code, message } = toErrorCode(error);
+        throw new AppError(code, message, { cause: error, reason, reasonMeta });
+      }
 
-    const result = data as {
-      member_id: string;
-      cancelled_registrations: number;
-      outstanding_charges: number;
-      outstanding_amount: string | number;
-      credit_applied: string | number;
-      credit_balance: string | number;
-    } | null;
-    if (!result) throw new AppError('INTERNAL_ERROR', 'leave_gang ไม่คืนผลลัพธ์');
+      const result = data as {
+        member_id: string;
+        cancelled_registrations: number;
+        outstanding_charges: number;
+        outstanding_amount: string | number;
+        credit_applied: string | number;
+        credit_balance: string | number;
+      } | null;
+      if (!result) throw new AppError('INTERNAL_ERROR', 'leave_gang ไม่คืนผลลัพธ์');
 
-    revalidatePath('/gangs');
-    revalidatePath(`/gangs/${gangId}`, 'layout');
+      revalidatePath('/gangs');
+      revalidatePath(`/gangs/${gangId}`, 'layout');
 
-    return {
-      memberId: result.member_id,
-      cancelledRegistrations: result.cancelled_registrations,
-      outstandingCharges: result.outstanding_charges,
-      outstandingAmount: moneyFromDb(result.outstanding_amount),
-      creditApplied: moneyFromDb(result.credit_applied),
-      creditBalance: moneyFromDb(result.credit_balance),
-    };
-  });
+      return {
+        memberId: result.member_id,
+        cancelledRegistrations: result.cancelled_registrations,
+        outstandingCharges: result.outstanding_charges,
+        outstandingAmount: moneyFromDb(result.outstanding_amount),
+        creditApplied: moneyFromDb(result.credit_applied),
+        creditBalance: moneyFromDb(result.credit_balance),
+      };
+    },
+    // [planner, WO-B2.2 · F1] allowlist จริง + whitelist ของ reasonMeta key ต่อ reason — ไม่ใช่แค่
+    // boolean เฉยๆ ขาดอันนี้ compile ไม่ผ่านเลย (R ของ generic ด้านบนไม่ใช่ never)
+    { reasons: LEAVE_GANG_REASONS, reasonMetaKeys: LEAVE_GANG_REASON_META_KEYS },
+  );
 }
 
 /**
