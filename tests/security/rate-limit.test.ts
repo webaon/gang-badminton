@@ -28,7 +28,14 @@ function read(path: string): string {
   return readFileSync(join(root, path), 'utf8');
 }
 
-/** ไฟล์ source ทั้งหมดของแอป (ไม่รวมเทสต์/ของ generate) */
+/** ไฟล์ source ทั้งหมดของแอป (ไม่รวมเทสต์/ของ generate)
+ *
+ * [BACKLOG 711f4a5 · Windows fix] `join()` ใช้ separator ของ OS จริง (backslash บน Windows) — ต้อง
+ * normalize เป็น `/` ก่อน push เข้า `found` เพราะผลลัพธ์นี้ถูกเทียบตรงตัวกับ string literal แบบ POSIX
+ * (เช่น `'server/security/rate-limit.ts'` ที่บรรทัด 166) การ walk/stat ภายในยังใช้ `rel` แบบ native
+ * ต่อไปได้ตามปกติ (Node's `join()`/`readdirSync`/`statSync` ทำงานถูกต้องกับ native separator อยู่แล้ว
+ * บน Windows) — แก้แค่ค่าที่ **ส่งออกไปให้ caller เทียบ string** เท่านั้น ไม่กระทบ logic การเดินไฟล์เลย
+ */
 function sourceFiles(): string[] {
   const dirs = ['app', 'features', 'lib', 'server', 'domain', 'shared'];
   const found: string[] = [];
@@ -37,7 +44,7 @@ function sourceFiles(): string[] {
     for (const entry of readdirSync(join(root, dir))) {
       const rel = join(dir, entry);
       if (statSync(join(root, rel)).isDirectory()) walk(rel);
-      else if (/\.(ts|tsx)$/.test(entry)) found.push(rel);
+      else if (/\.(ts|tsx)$/.test(entry)) found.push(rel.replace(/\\/g, '/'));
     }
   };
 
