@@ -328,6 +328,7 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 - ⏸ **V1–V6: ยังไม่รัน** รอ authorize แยกต่อหน่วย
 - ✅ **V1 private-writer ACL canary: DONE** — real private root `C:/Users/peepe/gb-test-env-private/gb-env-proof-01` สร้างด้วย restricted DACL (SYSTEM + user เท่านั้น · 2 rules · protected=True) · เขียน canary ที่ไม่ใช่ความลับ 2 ไฟล์ (`canary-main.json`, `canary-manifest.json`) · 4 เทสต์ PASS (เขียนปกติ / ALREADY_EXISTS / WRITER_DENIED / RUNTIME_NOT_AUTHORIZED) · ไม่มี credential จริง · ไม่แตะ shared-local/card20 · source bug 2 รอบ (identifier mismatch + wrong-ACL-target/StrictMode) แก้แล้ว
 - ⏸ **V2 (real credential generation): ยังไม่รัน** รอ authorize แยก
+- **เจ้าของตัดสิน (12 พ.ย. 2026):** พัก Task04 (test-env V2) จนกว่า v1.1.0 จะออก เพื่อประหยัดโควตา → ใบ 17–19 และ cloud push 0047→0053 ยัง HOLD ต่อ · integrations หยุดที่ P2 RED r3 (pause note `tools/test-env/docs/V2-PAUSE-2026-11-12.md`)
 - ⏸ card20 / shared-local resources **ไม่ถูกแตะ** (ยืนยัน 2 ทาง)
 - 🔴 shared-local credential incident ยัง **OPEN**
 - **เจ้าของตัดสิน (4 พ.ย. 2026):** ระหว่างที่ shared-local credential incident ยัง OPEN ยังใช้ shared-local รัน DB/e2e test ตามปกติได้ **ยกเว้นใบ 17-19** ซึ่งต้องรอ isolated test-env ใหม่ (Task04) ห้าม fallback ไปใช้ shared · ผลที่ตามมา: cloud push 0047→0053 ต้องรอใบ 17-19 ผ่าน runtime ก่อน
