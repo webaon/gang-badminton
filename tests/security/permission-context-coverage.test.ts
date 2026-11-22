@@ -244,6 +244,7 @@ const MANIFEST: readonly ManifestEntry[] = [
   { file: 'app/gangs/[gangId]/announcements/page.tsx', line: 48, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['announcement.view'], delegable: false, deferred: 'frontend-page-gate' },
   { file: 'app/gangs/[gangId]/announcements/page.tsx', line: 81, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['announcement.manage'], delegable: true, deferred: 'frontend-page-gate', note: 'extra not passed yet; scheduler-visible "manage" UI is future UI work, not this WO' },
   { file: 'app/gangs/[gangId]/templates/page.tsx', line: 41, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['session.create'], delegable: true, exempt: 'Q2ก', note: 'same intentional non-delegation as server/actions/templates.ts' },
+  { file: 'server/sessions/edit-loader.ts', line: 15, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['session.update'], delegable: true, note: 'WO-6.6b edit page RLS loader wired to full permission context' },
   { file: 'server/gangs/members-loader.ts', line: 20, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['gang.member.manage'], delegable: false, note: 'WO-6.6a page gate moved to server-only loader and wired to permission context' },
   { file: 'server/gangs/settings-loader.ts', line: 24, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['gang.update'], delegable: false, note: 'WO-6.6a page gate moved to server-only loader and wired to permission context' },
   { file: 'app/gangs/[gangId]/liff/page.tsx', line: 57, fn: 'can', category: 'ui', actionKind: 'literal', actions: ['line.link.self'], delegable: false, deferred: 'frontend-page-gate' },
@@ -330,7 +331,7 @@ describe('R-roles-3 — guard-site inventory + Phase-2 wiring verification (no D
       public: byCategory('public'),
       ui: byCategory('ui'),
       total: MANIFEST.length,
-    }).toEqual({ tenant: 56, self: 7, org: 0, public: 0, ui: 18, total: 81 });
+    }).toEqual({ tenant: 56, self: 7, org: 0, public: 0, ui: 19, total: 82 });
   });
 
   it('Phase-2 scope: tenant-category sites needing the loader (delegable true/mixed, excluding Q2ก-exempt templates.ts)', () => {
