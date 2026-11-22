@@ -301,8 +301,9 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 - ใบ 26–29 (R-roles-1 / 2a / 2b / 2c · migration 0050–0053): gang-roles 25/25 · treasurer-finance 16/16 · scheduler-sessions 10/10 · scheduler-statistics 7/7 · role-matrix 7/7 (golden ไม่เปลี่ยน)
 - 🔴 **cloud push 0050–0053 ยังห้าม** — ต้องรอ 0047–0049 (ใบ 17–19 HOLD รอ Task04 test-env) · cloud ยังอยู่ที่ 0046
 - 6.5b ✅ QA ใบ 30 PASS (`1dfaa09` + `f56decc`): typecheck 0 error · lint 0 error · unit 625 passed / 1 skipped · default build ผ่าน · full Playwright 62/62 (QA rerun เอง)
-- **QA combined pin `2966e57` (ผล 12 พ.ย.):** WO-B2.2 ✅ PASS (`3705c5b`→`7ad065e`) · WO-6.5c UI dashboard ✅ PASS (`7253437`, `bf3cde2`, `2966e57`, `b0a09d7`) · rate-limit Windows ✅ PASS 20/20 (`948f55c`) · **WO-6.6a ❌ ยังไม่ผ่าน** — full 64/65 เพราะ `states.spec.ts:76` คาดชื่อ owner แบบ exact แต่ UI มี "(คุณ)" ต่อท้าย · frontend กำลังแก้ test แล้ว QA ซ้ำ · origin = `8ffde32`
-- 6.5b ✅ ปิดงาน · WO-6.6a เปิดแล้ว (แผน `b56fff5`) แต่ @gb-frontend ติด provider limit ถึง 10 พ.ย. 00:03
+- **WO-6.6a ✅ QA PASS ที่ pin `b009d9a`** (รวม test fix `ac3601b`) — build ผ่าน · full Playwright 65/65 (4.0m) · `states.spec:76` ผ่าน · commits `a13c682`, `6c88c12`, `37636b8`, `ac3601b` · origin = `1dd81a0` (รวม checkpoint `47b3591` ของ WO-6.5c-DTO ที่**ยังไม่ผ่าน QA**) · ถัดไป: backend verify DTO, frontend ทำ 6.6b
+- WO-B2.2 ✅ PASS (`3705c5b`→`7ad065e`) · WO-6.5c UI dashboard ✅ PASS (`7253437`, `bf3cde2`, `2966e57`, `b0a09d7`) · rate-limit Windows ✅ PASS 20/20 (`948f55c`) (ผล combined pin `2966e57`, 12 พ.ย.)
+- 6.5b ✅ ปิดงาน · WO-6.6a ✅ ปิดงาน (ดูด้านบน)
 - R-roles-3 ✅ QA PASS (`ee3d10a` … `39635e0`) · ไม่มี migration · cloud ยังอยู่ที่ 0046 · context-db 9/9 · RLS 34/34 · coverage 12/12 · probe assign→revoke→regrant ทำงานจริง
 - 6.5c ✅ QA PASS ที่ `bf57a24` (push แล้ว) — ส่วน backend loader (UI dashboard ยังไม่ทำ → frontend) · ไม่มี migration · cloud ยัง 0046 · dashboard-overview-db 19/19 ×3 · timeline 20/20 · drift/mutation 13/13 · finance-domain 19/19 · RLS 34/34 · finance 30/30 · coverage 12/12 · unit 674 pass / 1 skip · build ผ่าน
 - **Decision (12 พ.ย. 2026):** ออกจากก๊วนเมื่อมีนัดเลย cutoff = ★ก — สมาชิกออกไม่ได้จนกว่านัดจะผ่านไปหรือแอดมินยกเลิกให้ · ไม่มี ADR / migration · UI แสดงเหตุผลกับนัดที่ติด (WO-B2.2)
