@@ -590,3 +590,7 @@
 - [ ] 🟢 **[H53b]** ตาราง occurrences เต็ม / ยอดที่สร้างทั้งหมด / next date (loader ไม่มี) · skip-unskip วันในอนาคต — ตอนนี้ใช้ยกเลิกนัดที่ generate แล้วแทนได้ แต่ย้อนคืนไม่ได้ เพราะ unique `(template_id, starts_at)` ของ 0027 ไม่กรอง `deleted_at`
 - [ ] 🟢 **[H55]** leave-preview ยอดก่อนออก (ไม่มี contract ตอนนี้ ใช้ summary หลังออก)
 - [ ] 🟢 **[H55b]** UI โอน owner (มี action `transferGangOwnership` แล้ว) ตอนนี้แสดงแค่ข้อความ `OWNER_MUST_TRANSFER`
+
+## จาก WO-6.7 gap
+
+- [ ] 🟢 **[onboarding checklist #51 · WO-6.7]** ข้อ "เพิ่มคอร์ท" **ตัดทิ้ง** เพราะ baseline v3 ไม่มีตาราง `courts` (`court_count` / `court_labels` อยู่ที่ `sessions`) ⇒ checklist เหลือ 2 ข้อ (ตั้งราคา, สร้างนัดแรก) แบบ computed ไม่มี dismiss ถาวร ตามดีไซน์ `wf/g-l.jsx:10`

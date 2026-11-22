@@ -3,6 +3,7 @@
 | | |
 |---|---|
 | **สถานะ** | ✅ **Accepted** (27 ต.ค. 2026 · ตาม ★ ทั้งหมด ยกเว้น Q4/Q6 ที่ปรับให้ง่ายลง — ดู §0.1) · ⚠️ ข้อสมมติที่ spike S1–S3, S5 ยังไม่พิสูจน์ (§10) — ถ้า S2 ไม่ผ่าน ต้องกลับมาแก้ ADR นี้ |
+| **สถานะการ implement** | 🟡 **implement แล้วบางส่วน (WO-B1.a+c `217ad60` QA ผ่าน)** — ปุ่ม LINE Login + ผูก/ถอด LINE ในโปรไฟล์ อยู่หลัง flag `LINE_PLATFORM_LOGIN_ENABLED` · **flag ยังปิดอยู่** รอตั้งค่า LINE + `APP_BASE_URL` (`docs/ops/line-login-setup.md`) · spike S1–S5 ยังไม่ทำ (รอ setup) |
 | **คำตัดสิน** | `docs/phase6-redesign-plan.md` §11.1 (commit `21d4936`) |
 | **วันที่ร่าง** | 27 ต.ค. 2026 |
 | **ผู้ร่าง** | @gb-integrations (WO-B1-ADR · `docs/phase6-redesign-plan.md` §11) |
