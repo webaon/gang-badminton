@@ -149,7 +149,10 @@ export async function exportFinanceReportCsv(
 
   return runAction(correlationId, async () => {
     const res = await financeReport(gangId, dates);
-    if (!res.success) throw res.error;
+    // 🔴 `res.error` เป็น plain object {code,message} ไม่ใช่ instance ของ AppError — `throw res.error`
+    // ตรงๆจะทำให้ toErrorCode() (เช็ค instanceof AppError) จับ .code ไม่ได้ แล้วตกเป็น INTERNAL_ERROR
+    // ผิดจากที่ตั้งใจ (เช่น FORBIDDEN ของ member/outsider) ⇒ ต้องห่อเป็น AppError ใหม่เพื่อรักษา code เดิม
+    if (!res.success) throw new AppError(res.error.code, res.error.message);
     const data = res.data;
 
     const csv = buildFinanceReportCsv(
