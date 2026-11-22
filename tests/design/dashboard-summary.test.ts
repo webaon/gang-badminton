@@ -25,10 +25,12 @@ const html = (value: DashboardSummaryData) => renderToStaticMarkup(React.createE
 
 const overview: DashboardOverview = {
   ...data,
-  nextSession: { id: 's1', title: 'นัดทดสอบ', startsAt: '2026-11-01T12:00:00Z', endsAt: '2026-11-01T14:00:00Z', status: 'open', courtCount: 2, seatedCount: 14, waitlistCount: 2, guestCount: 1 },
+  nextSession: { id: 's1', title: 'นัดทดสอบ', startsAt: '2026-11-01T12:00:00Z', endsAt: '2026-11-01T14:00:00Z', status: 'open', courtCount: 2, maxPlayers: 20, courtLabels: ['A', 'B'], seatedCount: 14, waitlistCount: 2, guestCount: 1 },
+  followingSession: null,
   avgAttendeesThisMonth: { totalSeated: 29, sessionCount: 2 },
-  monthlyCashFlow: [{ month: '2026-11', inflow: '99999999999999999.01', outflow: '10.00' }],
+  monthlyCashFlow: [{ month: '2026-11', inflow: '99999999999999999.01', outflow: '10.00', inRatio: 1, outRatio: 0 }],
   recentActivity: [{ id: 'e1', createdAt: '2026-11-01T12:00:00Z', title: 'ลงชื่อนัด', detail: null, actorName: 'ผู้เล่น', adminOnly: false }],
+  viewerDisplayName: 'ผู้ทดสอบ',
 };
 const details = (value: DashboardOverview) => renderToStaticMarkup(React.createElement(DashboardDetails, { data: value, gangId: 'g1' }));
 

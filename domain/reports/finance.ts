@@ -126,6 +126,32 @@ export function splitCashFlow(parts: {
   };
 }
 
+/** [WO-6.5c-DTO, planner 31 ต.ค. 2026] inRatio/outRatio ของกราฟ monthlyCashFlow — number 0..1 ต่อเดือน
+ *
+ * 🔴 **max ร่วมตัวเดียวจากทั้ง 12 ค่า** (inflow 6 เดือน + outflow 6 เดือน) ไม่ใช่ max แยกระหว่าง
+ * in-series/out-series — [คำตัดสิน planner] กราฟวางแท่งเงินเข้าคู่กับเงินออกในเดือนเดียวกัน ถ้า scale
+ * แยกกัน แท่งเงินออก 500 กับเงินเข้า 1,000 จะสูงเท่ากัน (ทั้งคู่ ratio=1.0 ของ series ตัวเอง) ทำให้อ่าน
+ * ขนาดจริงผิด ⇒ ต้องเทียบกับ max ตัวเดียวร่วมกันเพื่อให้แท่งสูงสัดส่วนตรงกับขนาดเงินจริงข้ามกันได้
+ *
+ * 🔴 แปลงเป็นสตางค์ (จำนวนเต็ม) ด้วย `toSatang()` **ก่อน**หาทุก max/หารเสมอ — ห้ามเอา string เงินไป
+ * หารตรงๆแบบ float (เช่น `Number('150.55') / Number('300.10')`) เพราะพาร์ส string เงินเป็น float ตรงๆ
+ * มีความเสี่ยงเพี้ยนตั้งแต่ขั้น parse เอง (CLAUDE.md §2.6) ผลลัพธ์ ratio เองไม่ใช่เงิน (เป็นสัดส่วน
+ * dimensionless สำหรับความสูงแท่งกราฟ) จึงไม่ต้องแปลงกลับเป็น string ด้วย `fromSatang()`
+ *
+ * max=0 (ทุกเดือนเป็น 0 ทั้ง in และ out) ⇒ ratio=0 ทุกตัว (กัน NaN จากหาร 0/0)
+ */
+export function cashFlowRatiosOf(
+  flows: readonly { inflow: string; outflow: string }[],
+): { inRatio: number; outRatio: number }[] {
+  const inSatang = flows.map((f) => toSatang(f.inflow));
+  const outSatang = flows.map((f) => toSatang(f.outflow));
+  const max = Math.max(0, ...inSatang, ...outSatang);
+  return flows.map((_, i) => ({
+    inRatio: max > 0 ? inSatang[i] / max : 0,
+    outRatio: max > 0 ? outSatang[i] / max : 0,
+  }));
+}
+
 /**
  * [WO-6.5c, planner 31 ต.ค. 2026] จาก `FinanceInput` เดียวกับ `calculateFinanceReport()` ให้ parts
  * ที่ `splitCashFlow()` ต้องการ — ใช้ `aggregate()` ตัวเดียวกันทั้งคู่ (ไม่คำนวณแยกคนละทาง) จึงพิสูจน์

@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest';
 import {
   assertReportReconciles,
   cashFlowPartsOf,
+  cashFlowRatiosOf,
   calculateFinanceReport,
   splitCashFlow,
   type ReportCharge,
@@ -266,5 +267,57 @@ describe('WO-6.5c — splitCashFlow(cashFlowPartsOf()): เงินเข้า
       overpayments: ['12.34'],
       memberPayouts: ['-5.05'],
     });
+  });
+});
+
+describe('WO-6.5c-DTO — cashFlowRatiosOf(): inRatio/outRatio ของกราฟ monthlyCashFlow [planner 31 ต.ค. 2026: max ร่วมตัวเดียวจากทั้ง 12 ค่า ไม่ใช่ max แยก series]', () => {
+  it('🔴 ทุกเดือนเป็น 0 ทั้ง in และ out → ratio=0 ทุกตัว (กัน NaN จากหาร 0/0)', () => {
+    const result = cashFlowRatiosOf([
+      { inflow: '0.00', outflow: '0.00' },
+      { inflow: '0.00', outflow: '0.00' },
+    ]);
+    expect(result).toEqual([
+      { inRatio: 0, outRatio: 0 },
+      { inRatio: 0, outRatio: 0 },
+    ]);
+  });
+
+  it('เดือนเดียว (array ยาว 1) ที่มีค่าจริง → ตัวที่มากกว่าได้ ratio=1 เทียบกับตัวเองในเดือนนั้น', () => {
+    const result = cashFlowRatiosOf([{ inflow: '500.00', outflow: '200.00' }]);
+    // max ร่วม = 500 (inflow ของเดือนนั้นเอง เพราะมากกว่า outflow) ⇒ in=500/500=1, out=200/500=0.4
+    expect(result).toEqual([{ inRatio: 1, outRatio: 0.4 }]);
+  });
+
+  it('🔴 [planner คำตัดสิน 31 ต.ค. 2026] in=1000/out=500 เดือนเดียว → inRatio=1.0, outRatio=0.5 (max ร่วมของทั้งคู่คือ 1000 — ไม่ใช่ max แยก series ที่จะได้ 1.0/1.0 ทั้งคู่)', () => {
+    const result = cashFlowRatiosOf([{ inflow: '1000.00', outflow: '500.00' }]);
+    expect(result).toEqual([{ inRatio: 1, outRatio: 0.5 }]);
+  });
+
+  it('ทศนิยม — max ร่วมจากหลายเดือน คำนวณผ่านสตางค์ (จำนวนเต็ม) ก่อนหารเสมอ ไม่ parse string เงินเป็น float ตรงๆ', () => {
+    const result = cashFlowRatiosOf([
+      { inflow: '150.55', outflow: '0.00' }, // 15055 สตางค์
+      { inflow: '0.00', outflow: '300.10' }, // 30010 สตางค์ — max ร่วม = 30010
+    ]);
+    expect(result).toEqual([
+      { inRatio: 15055 / 30010, outRatio: 0 },
+      { inRatio: 0, outRatio: 1 },
+    ]);
+    // ยืนยันว่าค่าที่ได้ไม่ใช่ float parse ตรงๆที่อาจเพี้ยน (150.55/300.10 ควรได้ค่าเดียวกันพอดีในเคสนี้
+    // เพราะเป็นจำนวนเต็มสตางค์ล้วน แต่สูตรต้องมาจาก toSatang() ก่อนเสมอ ไม่ใช่ Number(string) ตรงๆ)
+    expect(result[0].inRatio).toBeCloseTo(0.50166611, 7);
+  });
+
+  it('หลายเดือนรวมกัน (6 เดือนจริงของ dashboard) — max ร่วมมาจากค่าที่สูงสุดในทั้ง 12 ค่า (in 6 + out 6) ไม่ใช่ max แยกฝั่ง', () => {
+    const result = cashFlowRatiosOf([
+      { inflow: '100.00', outflow: '900.00' }, // out เดือนนี้คือ max ร่วมของทั้งหมด (900)
+      { inflow: '450.00', outflow: '50.00' },
+      { inflow: '0.00', outflow: '0.00' },
+      { inflow: '300.00', outflow: '300.00' },
+      { inflow: '900.00', outflow: '0.00' }, // in เดือนนี้เท่ากับ max ร่วมเป๊ะ (900) — ต้องได้ 1 พอดี
+      { inflow: '10.00', outflow: '10.00' },
+    ]);
+    expect(result[0]).toEqual({ inRatio: 100 / 900, outRatio: 1 }); // outflow 900 = max ⇒ outRatio=1
+    expect(result[4]).toEqual({ inRatio: 1, outRatio: 0 }); // inflow 900 = max ⇒ inRatio=1
+    expect(result[2]).toEqual({ inRatio: 0, outRatio: 0 }); // เดือนที่เป็น 0 ทั้งคู่
   });
 });

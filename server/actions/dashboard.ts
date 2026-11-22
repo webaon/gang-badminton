@@ -7,7 +7,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { can, canSeeGangMoney } from '@/domain/permissions/can';
 import { loadGangPermissionContext } from '@/server/permissions/gang-context';
 import { isSeated } from '@/domain/sessions/member-view';
-import { splitCashFlow } from '@/domain/reports/finance';
+import { splitCashFlow, cashFlowRatiosOf } from '@/domain/reports/finance';
 import { buildTimeline, type TimelineEvent, type TimelineItem } from '@/domain/reports/timeline';
 import { fromSatang, sumSatang, toSatang } from '@/domain/billing/money';
 import { thaiToday, thaiMonthOf, monthDateRange, last6Months } from '@/server/sessions/dashboard-dates';
@@ -43,6 +43,11 @@ export type DashboardNextSession = {
   endsAt: string;
   status: string;
   courtCount: number;
+  /** [WO-6.5c-DTO] จำนวนผู้เล่นสูงสุด — `sessions.max_players` ตรงๆ (คอลัมน์มีอยู่แล้ว ไม่ใช่ field ใหม่ของ DB) */
+  maxPlayers: number;
+  /** [WO-6.5c-DTO] ชื่อ/เลขคอร์ท — `sessions.court_labels` (jsonb) validate เป็น string[] เอง เพราะ
+   *  jsonb ไม่มีการันตีรูปร่างที่ compile time; array ว่างถ้าไม่มีข้อมูลหรือ shape ไม่ตรง (ไม่ throw) */
+  courtLabels: string[];
   /** นับด้วย `isSeated()` เดียวกับ roster/console (confirmed + checked_in) */
   seatedCount: number;
   waitlistCount: number;
@@ -52,6 +57,9 @@ export type DashboardNextSession = {
 
 export type DashboardOverview = {
   nextSession: DashboardNextSession | null;
+  /** [WO-6.5c-DTO, planner] นัดลำดับที่ 2 — shape เดียวกับ nextSession ใช้ตรรกะ "in_play มาก่อนเสมอ
+   *  ไม่งั้นเอานัด open เรียงตาม starts_at" เดียวกัน เพียงแค่เอาแถวที่ 2 ต่อจาก nextSession นั่นเอง */
+  followingSession: DashboardNextSession | null;
   memberCount: number;
   newMembersThisMonth: number;
   sessionsThisMonth: number;
@@ -69,10 +77,14 @@ export type DashboardOverview = {
   netCashThisMonth: string | null;
   /** null = ไม่มีสิทธิ์ครบ `canSeeGangMoney()` (G1 — เดิมเช็คแค่ finance.view+credit.read.other แยก แก้เป็น gate เดียวกันทั้ง 4 ตัวตามคำตัดสิน QA RLS chain) */
   creditOutstanding: string | null;
-  /** null = ไม่มีสิทธิ์ครบ `canSeeGangMoney()` (G1) — เรียงเก่า→ใหม่ 6 เดือน ป้าย "เงินเข้า/เงินออก" เท่านั้น */
-  monthlyCashFlow: { month: string; inflow: string; outflow: string }[] | null;
+  /** null = ไม่มีสิทธิ์ครบ `canSeeGangMoney()` (G1) — เรียงเก่า→ใหม่ 6 เดือน ป้าย "เงินเข้า/เงินออก" เท่านั้น
+   *  [WO-6.5c-DTO] inRatio/outRatio เพิ่มใหม่ — number 0..1 เทียบกับ max ร่วมตัวเดียวจากทั้ง 12 ค่า
+   *  (inflow 6 เดือน + outflow 6 เดือน รวมกัน ไม่ใช่ max แยก series) ดู `cashFlowRatiosOf()` */
+  monthlyCashFlow: { month: string; inflow: string; outflow: string; inRatio: number; outRatio: number }[] | null;
   /** กรองด้วย canSeeFinance(gang.finance.view)/canSeeOtherAdminOnly(gang.member.manage) อยู่แล้วใน buildTimeline() — ไม่ต้องเช็คซ้ำ (G3) */
   recentActivity: TimelineItem[];
+  /** [WO-6.5c-DTO] ชื่อที่แสดงของผู้ใช้ปัจจุบัน — ข้อมูลของตัวเอง ไม่ต้องเช็ค gate เพิ่ม (ไม่ nullable) */
+  viewerDisplayName: string;
 };
 
 async function cid(): Promise<string> {
@@ -95,14 +107,18 @@ export async function dashboardOverview(gangId: string): Promise<ApiResponse<Das
     const { year: thisYear, month: thisMonth } = thaiMonthOf(today);
     const thisMonthRange = financeRange(monthDateRange(thisYear, thisMonth));
 
-    const [nextSession, memberCount, newMembersThisMonth, monthSessions] = await Promise.all([
-      loadNextSession(db, gangId, financeRange({ from: today, to: today }).startUtc),
+    const [nextAndFollowing, memberCount, newMembersThisMonth, monthSessions, viewerDisplayName] = await Promise.all([
+      loadNextAndFollowingSessions(db, gangId, financeRange({ from: today, to: today }).startUtc),
       countRows(db, 'gang_members', (q) => q.eq('gang_id', gangId).is('deleted_at', null)),
       countRows(db, 'gang_members', (q) =>
         q.eq('gang_id', gangId).is('deleted_at', null)
           .gte('created_at', thisMonthRange.startUtc).lt('created_at', thisMonthRange.endUtcExclusive)),
       loadMonthSessions(db, gangId, thisMonthRange),
+      // [WO-6.5c-DTO, planner] ข้อมูลของตัวเอง ไม่ต้องเช็ค gate เพิ่ม — ผ่าน db (RLS client เดิม) ไม่ใช่
+      // service-role (ยืนยันกับ planner แล้ว)
+      loadViewerDisplayName(db, user.id),
     ]);
+    const { next: nextSession, following: followingSession } = nextAndFollowing;
 
     const avgAttendeesThisMonth = await attendeesOf(db, monthSessions);
 
@@ -163,17 +179,26 @@ export async function dashboardOverview(gangId: string): Promise<ApiResponse<Das
       // payment.verify+credit.read.other) — ไม่ใช่แค่ credit.read.other เดี่ยวๆเหมือนรอบก่อน
       creditOutstanding = await loadCreditOutstanding(db, gangId);
 
-      monthlyCashFlow = monthReports.map(({ year, month, data }) => {
-        const split = splitCashFlow({
+      // [WO-6.5c-DTO] แยก split ออกมาเป็น array ก่อน แล้วค่อยคำนวณ ratio จากทั้ง 6 เดือนรวมกัน
+      // (cashFlowRatiosOf ต้องเห็นค่าทั้ง 6 เดือนพร้อมกันเพื่อหา max ร่วม — เรียกทีละเดือนไม่ได้)
+      const monthlySplits = monthReports.map(({ year, month, data }) => ({
+        year,
+        month,
+        split: splitCashFlow({
           transferIn: data.transferIn,
           refunds: data.refunds,
           overpaymentIn: data.report.overpaymentIn,
           otherIncome: data.report.otherIncome,
           expense: data.report.expense,
           memberPayouts: data.report.memberPayouts,
-        });
-        return { month: `${year}-${String(month).padStart(2, '0')}`, ...split };
-      });
+        }),
+      }));
+      const ratios = cashFlowRatiosOf(monthlySplits.map((m) => m.split));
+      monthlyCashFlow = monthlySplits.map(({ year, month, split }, i) => ({
+        month: `${year}-${String(month).padStart(2, '0')}`,
+        ...split,
+        ...ratios[i],
+      }));
     }
 
     // 🔴 [planner G3] timeline ต้องแสดงได้ไม่เกินที่ RLS 0051:273-286 อนุญาต — แยก 2 แกน: event การเงิน
@@ -188,6 +213,7 @@ export async function dashboardOverview(gangId: string): Promise<ApiResponse<Das
 
     return {
       nextSession,
+      followingSession,
       memberCount,
       newMembersThisMonth,
       sessionsThisMonth: monthSessions.length,
@@ -200,6 +226,7 @@ export async function dashboardOverview(gangId: string): Promise<ApiResponse<Das
       creditOutstanding,
       monthlyCashFlow,
       recentActivity,
+      viewerDisplayName,
     };
   });
 }
@@ -221,15 +248,21 @@ async function countRows(
 }
 
 /**
- * นัดถัดไป/กำลังเล่น — "ใกล้ที่สุด (เริ่มวันนี้ หรือกำลังเล่นอยู่)" [planner]
+ * นัดถัดไป/กำลังเล่น + นัดลำดับ 2 — "ใกล้ที่สุด (เริ่มวันนี้ หรือกำลังเล่นอยู่)" [planner]
  * กำลังเล่นมาก่อนเสมอ (เร่งด่วนกว่า) ไม่งั้นเอานัด open ที่ starts_at ใกล้ที่สุด **นับจากวันนี้เป็นต้นไป**
  * (ไม่ใช่นัด open ที่เก่าที่สุดเฉยๆ — นัดเก่าที่ค้างสถานะ open ไม่เคยถูกปิด ต้องไม่โผล่เป็น "นัดถัดไป")
+ *
+ * [WO-6.5c-DTO, planner] followingSession = นัดถัดไปจาก nextSession อีกทีด้วยตรรกะเดียวกัน — ถ้า
+ * nextSession มาจาก in_play (กำลังเล่นอยู่) followingSession คือนัด open ตัวแรกที่ starts_at ใกล้สุด;
+ * ถ้า nextSession มาจาก open ตัวแรกอยู่แล้ว followingSession คือนัด open ตัวที่สอง เพราะ in_play/open
+ * เป็นคนละสถานะกันเสมอ query ทั้งสองจึงไม่มีทางได้แถวซ้ำกัน — query open ไว้ 2 แถว (`.limit(2)`) ครั้งเดียว
+ * แทนที่จะ query ซ้ำสองรอบ
  */
-async function loadNextSession(
+async function loadNextAndFollowingSessions(
   db: Awaited<ReturnType<typeof supabaseServer>>,
   gangId: string,
   todayStartUtc: string,
-): Promise<DashboardNextSession | null> {
+): Promise<{ next: DashboardNextSession | null; following: DashboardNextSession | null }> {
   // [fix] ต้องเป็น string literal ตรงๆ ใน .select(...) ไม่ใช่ตัวแปร — tests/postgrest/embeds.test.ts
   // สแกนด้วย regex หา .select('...') เป็น literal เท่านั้น ถ้าใช้ตัวแปรมันจะข้ามไปจับคู่ .from()
   // ตัวนี้กับ .select('...') literal ตัวถัดไปใน source ผิดตัว (เจอจริงจากเทสต์ 19/08) ⇒ ไม่ย่อด้วยตัวแปร
@@ -237,32 +270,66 @@ async function loadNextSession(
   // 🔴 [QA source review, 3246e9b] ทุก query ต้องเช็ค error แล้ว throw — ห้ามปล่อยให้ query error
   // หลุดไปเป็น "ไม่มีข้อมูล" (คืน null/[]) เงียบๆ ซึ่งขัด CLAUDE.md §5 (fail loud ไม่ fail quiet)
   const { data: playing, error: playingError } = await db.from('sessions')
-    .select('id, title, starts_at, ends_at, status, court_count')
+    .select('id, title, starts_at, ends_at, status, court_count, max_players, court_labels')
     .eq('gang_id', gangId).is('deleted_at', null).eq('status', 'in_play')
     .order('starts_at', { ascending: true }).limit(1).maybeSingle();
   if (playingError) throw playingError;
 
-  let row = playing;
-  if (!row) {
-    const { data: open, error: openError } = await db.from('sessions')
-      .select('id, title, starts_at, ends_at, status, court_count')
-      .eq('gang_id', gangId).is('deleted_at', null).eq('status', 'open')
-      .gte('starts_at', todayStartUtc)
-      .order('starts_at', { ascending: true }).limit(1).maybeSingle();
-    if (openError) throw openError;
-    row = open;
-  }
+  // [WO-6.5c-DTO] limit(2) แทน limit(1).maybeSingle() เดิม — เอาไว้ทั้งนัดถัดไป (ถ้าไม่มี in_play)
+  // และนัดลำดับ 2 (ถ้ามี in_play อยู่แล้ว) ในคำสั่งเดียว ไม่ query ซ้ำสองรอบ
+  const { data: open, error: openError } = await db.from('sessions')
+    .select('id, title, starts_at, ends_at, status, court_count, max_players, court_labels')
+    .eq('gang_id', gangId).is('deleted_at', null).eq('status', 'open')
+    .gte('starts_at', todayStartUtc)
+    .order('starts_at', { ascending: true }).limit(2);
+  if (openError) throw openError;
+  const openRows = open ?? [];
 
-  if (!row) return null;
+  const nextRow = playing ?? openRows[0] ?? null;
+  const followingRow = playing ? (openRows[0] ?? null) : (openRows[1] ?? null);
+
+  const regsBySession = await loadRegistrationsBySessions(
+    db,
+    [nextRow, followingRow].filter((r): r is NonNullable<typeof r> => r !== null).map((r) => r.id as string),
+  );
+
+  return {
+    next: nextRow ? buildSessionSummary(nextRow, regsBySession.get(nextRow.id as string) ?? []) : null,
+    following: followingRow
+      ? buildSessionSummary(followingRow, regsBySession.get(followingRow.id as string) ?? [])
+      : null,
+  };
+}
+
+/** [WO-6.5c-DTO] ดึง session_registrations ของหลาย session รวดเดียว (`.in()`) แทนที่จะ query ต่อ session
+ *  — ใช้กับ nextSession/followingSession ที่ตอนนี้มีได้สูงสุด 2 แถว ไม่ query แยกทีละแถวแบบ N+1 */
+async function loadRegistrationsBySessions(
+  db: Awaited<ReturnType<typeof supabaseServer>>,
+  sessionIds: string[],
+): Promise<Map<string, { status: string; user_id: string | null }[]>> {
+  const map = new Map<string, { status: string; user_id: string | null }[]>();
+  if (sessionIds.length === 0) return map;
 
   const { data: regs, error: regsError } = await db.from('session_registrations')
-    .select('status, user_id')
-    .eq('session_id', row.id as string).is('deleted_at', null);
+    .select('session_id, status, user_id')
+    .in('session_id', sessionIds).is('deleted_at', null);
   if (regsError) throw regsError;
 
-  const rows = (regs ?? []) as { status: string; user_id: string | null }[];
-  const seated = rows.filter((r) => isSeated(r.status));
+  for (const r of (regs ?? []) as { session_id: string; status: string; user_id: string | null }[]) {
+    const list = map.get(r.session_id) ?? [];
+    list.push({ status: r.status, user_id: r.user_id });
+    map.set(r.session_id, list);
+  }
+  return map;
+}
 
+/** [WO-6.5c-DTO] แปลง sessions row ดิบ + registration rows ของมัน → DashboardNextSession เดียว
+ *  — ตัดมาจาก logic เดิมของ loadNextSession() เพื่อใช้ร่วมกันทั้ง next/following */
+function buildSessionSummary(
+  row: Record<string, unknown>,
+  regs: { status: string; user_id: string | null }[],
+): DashboardNextSession {
+  const seated = regs.filter((r) => isSeated(r.status));
   return {
     id: row.id as string,
     title: row.title as string,
@@ -270,10 +337,32 @@ async function loadNextSession(
     endsAt: row.ends_at as string,
     status: row.status as string,
     courtCount: row.court_count as number,
+    maxPlayers: row.max_players as number,
+    courtLabels: parseCourtLabels(row.court_labels),
     seatedCount: seated.length,
-    waitlistCount: rows.filter((r) => r.status === 'waitlist').length,
+    waitlistCount: regs.filter((r) => r.status === 'waitlist').length,
     guestCount: seated.filter((r) => r.user_id === null).length,
   };
+}
+
+/** [WO-6.5c-DTO] `sessions.court_labels` เป็น jsonb — ไม่มีการันตีรูปร่างที่ compile time ต้อง validate
+ *  เองตอนอ่าน shape ที่ไม่ใช่ array ของ string ล้วน (ไม่ควรเกิดกับโค้ดเขียนปัจจุบัน แต่ jsonb แก้ตรงผ่าน
+ *  DB ได้โดยไม่ผ่าน TS) ⇒ คืน array ว่าง ไม่ throw (ไม่ใช่ field สำคัญต่อการตัดสินใจทางธุรกิจ) */
+function parseCourtLabels(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+}
+
+/** [WO-6.5c-DTO, planner] ชื่อที่แสดงของผู้ใช้ปัจจุบัน — ข้อมูลของตัวเอง ไม่ต้องเช็คสิทธิ์เพิ่ม ผ่าน `db`
+ *  (RLS client เดิม ไม่ใช่ service-role) ทุกคนมีแถว `profiles` ของตัวเองแน่นอนจาก `handle_new_user`
+ *  trigger ⇒ ถ้าไม่เจอ ถือเป็น INTERNAL_ERROR จริง ไม่ใช่คืนค่าว่างเงียบๆ (fail loud ตาม CLAUDE.md §5) */
+async function loadViewerDisplayName(
+  db: Awaited<ReturnType<typeof supabaseServer>>,
+  userId: string,
+): Promise<string> {
+  const { data, error } = await db.from('profiles').select('display_name').eq('id', userId).maybeSingle();
+  if (error) throw error;
+  if (!data) throw new AppError('INTERNAL_ERROR', 'ไม่พบโปรไฟล์ของผู้ใช้ปัจจุบัน');
+  return data.display_name as string;
 }
 
 /** นัดในเดือนนี้ (เวลาไทย) ที่ไม่ cancelled — ตัวหารของ "เฉลี่ยคน/นัด" [planner #3(ก)]
