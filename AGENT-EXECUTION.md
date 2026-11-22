@@ -1760,7 +1760,7 @@ webhook 401 · ยอดเงินไม่ตรง (อ่านจาก le
 | 6.5c | backend loader สำหรับ dashboard H10 (ส่วน backend · UI ยังไม่ทำ → frontend) — commit `fc274be`→`bad5e09`→`a21f71b`→`d835e17`→`1f0a82f`→`4d22abe`→`3246e9b`→`84e5848`→`0cfd5a5`→`2c15a1d`→`ea06835`→`5f35b56`→`f40252f`→`bf57a24` | @gb-backend | ✅ QA PASS ที่ `bf57a24` (push แล้ว) · ไม่มี migration · cloud ยัง 0046 · dashboard-overview-db 19/19 ×3 · timeline 20/20 · drift/mutation 13/13 · finance-domain 19/19 · RLS 34/34 · finance 30/30 · embeds 2/2 · coverage 12/12 · unit 674 pass / 1 skip · build ผ่าน |
 | 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
 | 6.7 | Auth + onboarding — ส่วน backend #51 onboardingChecklist ✅ QA PASS ที่ `d553ed2` (computed-only gate ด้วย `can(gang.update)` · DB 24/24 · probe 6/6 · coverage 12/12 · build 0 · focused dashboard 2/2) · ส่วน UI checklist รอ frontend | @gb-backend (#51) + @gb-frontend (UI) | ⏳ backend ✅ · UI ⏳ |
-| 6.8 | Growth screens + หน้าแรก | @gb-frontend | ⏳ |
+| 6.8 | Growth screens + หน้าแรก — backend #38 CSV export ✅ QA PASS `c4de11e` (fca2317 + c4de11e) · UI รอ frontend | @gb-frontend (+@gb-backend #38) | ⏳ |
 | 6.9 | Playwright checkpoint + `v1.1.0` | @gb-qa | ⏳ |
 | B2 | ออกจากก๊วน + โอน owner — ADR-012 (plan §11) | @gb-backend | ✅ `71c308b` QA ผ่าน · db push cloud ✅ 28 ต.ค. |
 | B2.1 | ปิด race ลงชื่อนัดพร้อมกับออกจากก๊วน (`register_to_session` ตรวจสมาชิกใน DB) (plan §11) | @gb-backend | ✅ `f12408f` QA ผ่าน · db push cloud ✅ 28 ต.ค. |
