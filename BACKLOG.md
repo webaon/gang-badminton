@@ -594,3 +594,11 @@
 ## จาก WO-6.7 gap
 
 - [ ] 🟢 **[onboarding checklist #51 · WO-6.7]** ข้อ "เพิ่มคอร์ท" **ตัดทิ้ง** เพราะ baseline v3 ไม่มีตาราง `courts` (`court_count` / `court_labels` อยู่ที่ `sessions`) ⇒ checklist เหลือ 2 ข้อ (ตั้งราคา, สร้างนัดแรก) แบบ computed ไม่มี dismiss ถาวร ตามดีไซน์ `wf/g-l.jsx:10`
+
+## จาก WO-6.8 gap (ตัดออกจาก v1.1.0 ชั่วคราวตาม ★ก รอเจ้าของยืนยัน)
+
+- [ ] 🟢 **[#36]** ประกาศ like / comment / read receipt — ต้องเพิ่มตารางใหม่
+- [ ] 🟢 **[#39a]** tab "จ่ายตรงเวลา" — ต้องเพิ่ม metric ใน `member_statistics` + rollup
+- [ ] 🟢 **[#41]** คู่หูที่เล่นด้วยบ่อย + กราฟ 12 สัปดาห์ — ต้องมี rollup per-pair / per-week
+- [ ] 🟢 **[#42]** ระยะทาง กม. — `gangs` ไม่มี lat/lng + ต้องใช้ geolocation
+- [ ] 🟡 **[#38 · คำศัพท์การเงิน]** ดีไซน์ `h-gh.jsx:65` ใช้คำว่า "กำไร" ⇒ ต้องเป็น **"เงินสดสุทธิ"** (กฎ CLAUDE.md) · CSV export ของ #38 ทำใน 6.8
