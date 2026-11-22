@@ -301,7 +301,8 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 - ใบ 26–29 (R-roles-1 / 2a / 2b / 2c · migration 0050–0053): gang-roles 25/25 · treasurer-finance 16/16 · scheduler-sessions 10/10 · scheduler-statistics 7/7 · role-matrix 7/7 (golden ไม่เปลี่ยน)
 - 🔴 **cloud push 0050–0053 ยังห้าม** — ต้องรอ 0047–0049 (ใบ 17–19 HOLD รอ Task04 test-env) · cloud ยังอยู่ที่ 0046
 - 6.5b ✅ QA ใบ 30 PASS (`1dfaa09` + `f56decc`): typecheck 0 error · lint 0 error · unit 625 passed / 1 skipped · default build ผ่าน · full Playwright 62/62 (QA rerun เอง)
-- **WO-6.6a ✅ QA PASS ที่ pin `b009d9a`** (รวม test fix `ac3601b`) — build ผ่าน · full Playwright 65/65 (4.0m) · `states.spec:76` ผ่าน · commits `a13c682`, `6c88c12`, `37636b8`, `ac3601b` · origin = `1dd81a0` (รวม checkpoint `47b3591` ของ WO-6.5c-DTO ที่**ยังไม่ผ่าน QA**) · ถัดไป: backend verify DTO, frontend ทำ 6.6b
+- **WO-6.5c-DTO ✅ QA PASS** (`47b3591` + `9297922`): keyset pagination ของ registrations (2 นัดรวมกันเกิน max_rows 1000) · fields ใหม่ `inRatio`/`outRatio`, `maxPlayers`/`courtLabels`, `followingSession`, `viewerDisplayName` · origin ยังเป็น `1dd81a0` (hold เพราะ checkpoint `39dd2d5` ของ 6.6b ยังไม่ผ่าน QA) · ถัดไป: backend #51 onboardingChecklist (6.7) และ frontend 6.6b
+- **WO-6.6a ✅ QA PASS ที่ pin `b009d9a`** (รวม test fix `ac3601b`) — build ผ่าน · full Playwright 65/65 (4.0m) · `states.spec:76` ผ่าน · commits `a13c682`, `6c88c12`, `37636b8`, `ac3601b` · ถัดไป: frontend ทำ 6.6b
 - WO-B2.2 ✅ PASS (`3705c5b`→`7ad065e`) · WO-6.5c UI dashboard ✅ PASS (`7253437`, `bf3cde2`, `2966e57`, `b0a09d7`) · rate-limit Windows ✅ PASS 20/20 (`948f55c`) (ผล combined pin `2966e57`, 12 พ.ย.)
 - 6.5b ✅ ปิดงาน · WO-6.6a ✅ ปิดงาน (ดูด้านบน)
 - R-roles-3 ✅ QA PASS (`ee3d10a` … `39635e0`) · ไม่มี migration · cloud ยังอยู่ที่ 0046 · context-db 9/9 · RLS 34/34 · coverage 12/12 · probe assign→revoke→regrant ทำงานจริง
