@@ -88,7 +88,7 @@ test.describe('มือถือ 390×844 (บั๊กเดิมจาก QA
     await page.getByRole('button', { name: 'เพิ่ม', exact: true }).click();
     await expect(page.getByText('เพิ่มสมาชิกแล้ว')).toBeVisible();
 
-    for (const name of [owner.displayName, user2.displayName]) {
+    for (const name of [`${owner.displayName} (คุณ)`, user2.displayName]) {
       const cell = page.getByText(name, { exact: true });
       await expect(cell, name).toBeVisible();
       const box = await cell.boundingBox();
