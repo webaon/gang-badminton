@@ -302,7 +302,10 @@ async function loadNextAndFollowingSessions(
 }
 
 /** [WO-6.5c-DTO] ดึง session_registrations ของหลาย session รวดเดียว (`.in()`) แทนที่จะ query ต่อ session
- *  — ใช้กับ nextSession/followingSession ที่ตอนนี้มีได้สูงสุด 2 แถว ไม่ query แยกทีละแถวแบบ N+1 */
+ *  — ใช้กับ nextSession/followingSession ที่ตอนนี้มีได้สูงสุด 2 แถว ไม่ query แยกทีละแถวแบบ N+1
+ *
+ * 🔴 [QA F1 fix] ต้อง keyset-paginate ด้วย `allById()` — ถ้า 2 session รวมกันมี registration
+ *    เกินเพดาน PostgREST (max_rows=1000) แถวที่เกินจะถูกตัดทิ้งเงียบๆ ถ้ายิง `.in()` ตรงๆแบบเดิม */
 async function loadRegistrationsBySessions(
   db: Awaited<ReturnType<typeof supabaseServer>>,
   sessionIds: string[],
@@ -310,12 +313,18 @@ async function loadRegistrationsBySessions(
   const map = new Map<string, { status: string; user_id: string | null }[]>();
   if (sessionIds.length === 0) return map;
 
-  const { data: regs, error: regsError } = await db.from('session_registrations')
-    .select('session_id, status, user_id')
-    .in('session_id', sessionIds).is('deleted_at', null);
-  if (regsError) throw regsError;
+  const regs = await allById<{ id: string; session_id: string; status: string; user_id: string | null }>(
+    (after) => {
+      let q = db.from('session_registrations')
+        .select('id, session_id, status, user_id')
+        .in('session_id', sessionIds).is('deleted_at', null)
+        .order('id').limit(ADMIN_READ_PAGE);
+      if (after) q = q.gt('id', after);
+      return q;
+    },
+  );
 
-  for (const r of (regs ?? []) as { session_id: string; status: string; user_id: string | null }[]) {
+  for (const r of regs) {
     const list = map.get(r.session_id) ?? [];
     list.push({ status: r.status, user_id: r.user_id });
     map.set(r.session_id, list);

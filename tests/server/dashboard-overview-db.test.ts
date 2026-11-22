@@ -488,6 +488,61 @@ describe('dashboardOverview() — avgAttendeesThisMonth ต้องแบ่ง
   }, 30_000);
 });
 
+describe('dashboardOverview() — [QA F1 regression] loadRegistrationsBySessions ต้องแบ่งหน้าเหมือนกัน (next+following รวมกันเกิน 1000 แถว)', () => {
+  it('🔴 next+following (2 นัด × 503 guest confirmed = 1006 > max_rows 1000) ต้องนับ seatedCount/guestCount ครบทั้ง 2 นัด ไม่ใช่โดนตัดที่ 1000 รวม', async () => {
+    const owner = await newUser();
+    const {
+      rows: [gang],
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-regbysess-${crypto.randomUUID()}`]);
+    const gangId = gang.id;
+    const admin = await newUser();
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'admin')`, [gangId, admin]);
+
+    // นัดแรก (next) เร็วกว่า นัดที่สอง (following) ชัดเจน — ป้องกัน flaky ลำดับ
+    const s1Start = new Date(Date.now() + 2 * 3600_000).toISOString();
+    const s1End = new Date(Date.now() + 3 * 3600_000).toISOString();
+    const s2Start = new Date(Date.now() + 5 * 3600_000).toISOString();
+    const s2End = new Date(Date.now() + 6 * 3600_000).toISOString();
+
+    const {
+      rows: [s1],
+    } = await pool.query<{ id: string }>(
+      `insert into public.sessions (gang_id, title, starts_at, ends_at, max_players, status)
+       values ($1, 'นัดถัดไป regbysess', $2, $3, 1000, 'open') returning id`,
+      [gangId, s1Start, s1End],
+    );
+    const {
+      rows: [s2],
+    } = await pool.query<{ id: string }>(
+      `insert into public.sessions (gang_id, title, starts_at, ends_at, max_players, status)
+       values ($1, 'นัดถัดไปอีกที regbysess', $2, $3, 1000, 'open') returning id`,
+      [gangId, s2Start, s2End],
+    );
+
+    const N = 503; // 503 + 503 = 1006 > PostgREST max_rows 1000 — เคสเดียวกับที่ QA เจอใน 47b3591
+    for (const s of [s1, s2]) {
+      await pool.query(
+        `insert into public.session_registrations (session_id, guest_name, status)
+         select $1, 'เกสต์ regbysess ' || gs, 'confirmed' from generate_series(1, $2) gs`,
+        [s.id, N],
+      );
+    }
+
+    h.userId = admin;
+    const data = unwrap(await dashboardOverview(gangId));
+
+    expect(data.nextSession?.id).toBe(s1.id);
+    expect(data.nextSession?.seatedCount).toBe(N);
+    expect(data.nextSession?.guestCount).toBe(N);
+    expect(data.nextSession?.waitlistCount).toBe(0);
+
+    expect(data.followingSession?.id).toBe(s2.id);
+    expect(data.followingSession?.seatedCount).toBe(N);
+    expect(data.followingSession?.guestCount).toBe(N);
+    expect(data.followingSession?.waitlistCount).toBe(0);
+  }, 30_000);
+});
+
 describe('dashboardOverview() — [planner F2] query error ต้อง throw จริง ไม่ใช่คืน null/0 แบบเงียบๆ', () => {
   it('🔴 sessions table query fail (loadNextSession playing/open + loadMonthSessions) → ApiResponse ต้อง success=false ไม่ใช่ nextSession=null แบบปกติ', async () => {
     const owner = await newUser();
