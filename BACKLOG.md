@@ -580,3 +580,13 @@
 ## จาก frontend 6.5c UI runtime
 
 - [ ] 🟢 **[theme · --check] `theme --check` FAIL: 4 outputs stale** (คำสั่งเดียวกับ `theme:build` + `--check`) ที่ HEAD `f4aefc3` · ยังไม่รู้สาเหตุ ⇒ **ต้องหา diff ก่อน ห้าม rebuild theme เพื่อให้ผ่านโดยไม่รู้สาเหตุ** (ที่มา: frontend 6.5c UI runtime)
+
+## จาก WO-6.6b gap (ตัดออกเพราะ backend ยังไม่รองรับ)
+
+- [ ] 🟢 **[H18]** เลือกคอร์ทรายตัว / ราคา / สถานะปิดซ่อมต่อคอร์ท, waitlist limit, pricing picker, ปุ่มทำซ้ำนัดล่าสุด
+- [ ] 🟢 **[H52]** preview ผลราคา/จำนวนรับจากจำนวนคอร์ท, "บันทึกแล้วแจ้งทุกคน"
+- [ ] 🟢 **[H52b]** มัดจำ/คืนอัตโนมัติ, เหตุผลการยกเลิก (action ไม่รับ), ลบออกจากปฏิทินถาวร, แจ้งทุกคน
+- [ ] 🟢 **[H53]** ทุก 2 สัปดาห์หรือกำหนดเอง, วันสิ้นสุด, เลือกระยะสร้างล่วงหน้า (ตอนนี้ fixed 14 วัน), preview จำนวนนัดก่อนสร้าง
+- [ ] 🟢 **[H53b]** ตาราง occurrences เต็ม / ยอดที่สร้างทั้งหมด / next date (loader ไม่มี) · skip-unskip วันในอนาคต — ตอนนี้ใช้ยกเลิกนัดที่ generate แล้วแทนได้ แต่ย้อนคืนไม่ได้ เพราะ unique `(template_id, starts_at)` ของ 0027 ไม่กรอง `deleted_at`
+- [ ] 🟢 **[H55]** leave-preview ยอดก่อนออก (ไม่มี contract ตอนนี้ ใช้ summary หลังออก)
+- [ ] 🟢 **[H55b]** UI โอน owner (มี action `transferGangOwnership` แล้ว) ตอนนี้แสดงแค่ข้อความ `OWNER_MUST_TRANSFER`
