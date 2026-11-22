@@ -290,7 +290,7 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 | 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) — ทำหลัง 6.4 | @gb-frontend | ⏳ |
 | 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ✅ ปิดงาน (loader `bf57a24` + UI combined `2966e57`) |
 | 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
-| 6.7 | Auth + onboarding | @gb-frontend | ⏳ |
+| 6.7 | Auth + onboarding — backend #51 onboardingChecklist ✅ QA PASS `d553ed2` · UI checklist รอ frontend | @gb-frontend (+@gb-backend #51) | ⏳ |
 | 6.8 | Growth screens + หน้าแรก | @gb-frontend | ⏳ |
 | 6.9 | Playwright checkpoint + `v1.1.0` | @gb-qa | ⏳ |
 
@@ -301,7 +301,8 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 - ใบ 26–29 (R-roles-1 / 2a / 2b / 2c · migration 0050–0053): gang-roles 25/25 · treasurer-finance 16/16 · scheduler-sessions 10/10 · scheduler-statistics 7/7 · role-matrix 7/7 (golden ไม่เปลี่ยน)
 - 🔴 **cloud push 0050–0053 ยังห้าม** — ต้องรอ 0047–0049 (ใบ 17–19 HOLD รอ Task04 test-env) · cloud ยังอยู่ที่ 0046
 - 6.5b ✅ QA ใบ 30 PASS (`1dfaa09` + `f56decc`): typecheck 0 error · lint 0 error · unit 625 passed / 1 skipped · default build ผ่าน · full Playwright 62/62 (QA rerun เอง)
-- **WO-6.5c-DTO ✅ QA PASS** (`47b3591` + `9297922`): keyset pagination ของ registrations (2 นัดรวมกันเกิน max_rows 1000) · fields ใหม่ `inRatio`/`outRatio`, `maxPlayers`/`courtLabels`, `followingSession`, `viewerDisplayName` · origin ยังเป็น `1dd81a0` (hold เพราะ checkpoint `39dd2d5` ของ 6.6b ยังไม่ผ่าน QA) · ถัดไป: backend #51 onboardingChecklist (6.7) และ frontend 6.6b
+- **WO-6.7 #51 onboardingChecklist — backend ✅ QA PASS ที่ `d553ed2`** (computed-only gate ด้วย `can(gang.update)`) · DB 24/24 · probe 6/6 (member ได้ null · outsider ได้ NOT_FOUND · admin ที่ไม่ใช่ owner อ่านได้ · plan inactive และ session ที่ถูกลบไม่นับ · ไม่ปนข้ามก๊วน · query fail ได้ INTERNAL_ERROR) · coverage 12/12 · build 0 · focused dashboard 2/2 · **UI checklist ยังรอ frontend** (6.7)
+- **WO-6.5c-DTO ✅ QA PASS** (`47b3591` + `9297922`): keyset pagination ของ registrations (2 นัดรวมกันเกิน max_rows 1000) · fields ใหม่ `inRatio`/`outRatio`, `maxPlayers`/`courtLabels`, `followingSession`, `viewerDisplayName` · origin ยังเป็น `1dd81a0` (hold เพราะ checkpoint `39dd2d5` ของ 6.6b ยังไม่ผ่าน QA) · ถัดไป: frontend 6.6b และ UI checklist (6.7)
 - **WO-6.6a ✅ QA PASS ที่ pin `b009d9a`** (รวม test fix `ac3601b`) — build ผ่าน · full Playwright 65/65 (4.0m) · `states.spec:76` ผ่าน · commits `a13c682`, `6c88c12`, `37636b8`, `ac3601b` · ถัดไป: frontend ทำ 6.6b
 - WO-B2.2 ✅ PASS (`3705c5b`→`7ad065e`) · WO-6.5c UI dashboard ✅ PASS (`7253437`, `bf3cde2`, `2966e57`, `b0a09d7`) · rate-limit Windows ✅ PASS 20/20 (`948f55c`) (ผล combined pin `2966e57`, 12 พ.ย.)
 - 6.5b ✅ ปิดงาน · WO-6.6a ✅ ปิดงาน (ดูด้านบน)
