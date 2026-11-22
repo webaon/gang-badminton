@@ -85,6 +85,9 @@ export type DashboardOverview = {
   recentActivity: TimelineItem[];
   /** [WO-6.5c-DTO] ชื่อที่แสดงของผู้ใช้ปัจจุบัน — ข้อมูลของตัวเอง ไม่ต้องเช็ค gate เพิ่ม (ไม่ nullable) */
   viewerDisplayName: string;
+  /** [WO-6.7, #51] null = ไม่มีสิทธิ์ `gang.update` — computed-only ไม่มี persisted state เลย
+   *  (ดีไซน์ #51: "เช็คลิสต์นี้หายไปเองเมื่อทำครบ ไม่ dismiss ถาวร") คำนวณใหม่ทุกครั้งที่โหลด dashboard */
+  onboardingChecklist: { hasPricingPlan: boolean; hasFirstSession: boolean } | null;
 };
 
 async function cid(): Promise<string> {
@@ -129,6 +132,11 @@ export async function dashboardOverview(gangId: string): Promise<ApiResponse<Das
 
     const joinRequestsPending = can(ctx, 'gang.join_request.manage')
       ? await countRows(db, 'join_requests', (q) => q.eq('gang_id', gangId).eq('status', 'pending'))
+      : null;
+
+    // [WO-6.7, #51, planner อนุมัติ] gate ด้วย gang.update (ผู้จัดการก๊วน) — คนไม่มีสิทธิ์ได้ null ให้ UI ซ่อน
+    const onboardingChecklist = can(ctx, 'gang.update')
+      ? await loadOnboardingChecklist(db, gangId)
       : null;
 
     // 🔴 [planner G1, QA RLS-chain review] outstanding(#4)/netCashThisMonth/monthlyCashFlow(#10)/
@@ -227,8 +235,28 @@ export async function dashboardOverview(gangId: string): Promise<ApiResponse<Das
       monthlyCashFlow,
       recentActivity,
       viewerDisplayName,
+      onboardingChecklist,
     };
   });
+}
+
+/** [WO-6.7, #51, planner อนุมัติ 1 พ.ย. 2026] เช็ค exists ล้วน ไม่มี state ค้าง — ผ่าน `db` (RLS client
+ *  เดิม, `supabaseServer()`) ไม่ใช่ service-role · `.select('id').limit(1)` ไม่โดนเพดาน PostgREST
+ *  เพราะดึงแค่ 1 แถว · fail loud ถ้า query error (ไม่ใช่คืน false เงียบๆ) */
+async function loadOnboardingChecklist(
+  db: Awaited<ReturnType<typeof supabaseServer>>,
+  gangId: string,
+): Promise<{ hasPricingPlan: boolean; hasFirstSession: boolean }> {
+  const [pricingRes, sessionRes] = await Promise.all([
+    db.from('gang_pricing_plans').select('id').eq('gang_id', gangId).eq('is_active', true).limit(1),
+    db.from('sessions').select('id').eq('gang_id', gangId).is('deleted_at', null).limit(1),
+  ]);
+  if (pricingRes.error) throw pricingRes.error;
+  if (sessionRes.error) throw sessionRes.error;
+  return {
+    hasPricingPlan: (pricingRes.data ?? []).length > 0,
+    hasFirstSession: (sessionRes.data ?? []).length > 0,
+  };
 }
 
 type SupaClient = Awaited<ReturnType<typeof supabaseServer>>;

@@ -543,6 +543,82 @@ describe('dashboardOverview() — [QA F1 regression] loadRegistrationsBySessions
   }, 30_000);
 });
 
+describe('dashboardOverview() — [WO-6.7, #51, planner อนุมัติ] onboardingChecklist computed-only widget', () => {
+  it('🔴 [ไม่ mock DB] admin จริง (ไม่ใช่ owner, JWT เซ็นเอง ผ่าน PostgREST+RLS จริง) ต้องอ่าน gang_pricing_plans ได้ (is_gang_member RLS ไม่ใช่ is_gang_admin/owner เท่านั้น) → hasPricingPlan=true + hasFirstSession=true', async () => {
+    const owner = await newUser();
+    const {
+      rows: [gang],
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-onboard-${crypto.randomUUID()}`]);
+    const gangId = gang.id;
+    const admin = await newUser();
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'admin')`, [gangId, admin]);
+
+    // created_by = owner ตั้งใจ — พิสูจน์ RLS ให้ admin (คนละคนจาก created_by) อ่านได้จริง ไม่ใช่เช็ค ownership แถว
+    await pool.query(
+      `insert into public.gang_pricing_plans (gang_id, name, type, params, created_by)
+       values ($1, 'แผนทดสอบ onboarding', 'flat_rate', '{"amount_per_person":"100.00"}'::jsonb, $2)`,
+      [gangId, owner],
+    );
+    await pool.query(
+      `insert into public.sessions (gang_id, title, starts_at, ends_at, max_players, status)
+       values ($1, 'นัดแรก onboarding', now() + interval '1 day', now() + interval '1 day 2 hours', 10, 'open')`,
+      [gangId],
+    );
+
+    h.userId = admin;
+    h.asUserId = admin; // 🔴 หัวใจของเทสต์นี้ — ไม่ bypass RLS ด้วย serviceClient()
+    try {
+      const data = unwrap(await dashboardOverview(gangId));
+      expect(data.onboardingChecklist).toEqual({ hasPricingPlan: true, hasFirstSession: true });
+    } finally {
+      h.asUserId = null;
+    }
+  });
+
+  it('🔴 ก๊วนใหม่ยังไม่ตั้งราคา/ยังไม่มีนัดเลย: ทั้งคู่ false', async () => {
+    const owner = await newUser();
+    const {
+      rows: [gang],
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-onboard-empty-${crypto.randomUUID()}`]);
+    const gangId = gang.id;
+
+    h.userId = owner;
+    const data = unwrap(await dashboardOverview(gangId));
+    expect(data.onboardingChecklist).toEqual({ hasPricingPlan: false, hasFirstSession: false });
+  });
+
+  it('🔴 pricing plan ที่ is_active=false (ปิดใช้งานแล้ว) ไม่นับว่า "ตั้งราคาแล้ว"', async () => {
+    const owner = await newUser();
+    const {
+      rows: [gang],
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-onboard-inactive-${crypto.randomUUID()}`]);
+    const gangId = gang.id;
+    await pool.query(
+      `insert into public.gang_pricing_plans (gang_id, name, type, params, is_active, created_by)
+       values ($1, 'แผนปิดใช้งาน', 'flat_rate', '{"amount_per_person":"100.00"}'::jsonb, false, $2)`,
+      [gangId, owner],
+    );
+
+    h.userId = owner;
+    const data = unwrap(await dashboardOverview(gangId));
+    expect(data.onboardingChecklist?.hasPricingPlan).toBe(false);
+  });
+
+  it('🔴 สมาชิกทั่วไป (ไม่มี gang.update): onboardingChecklist ต้องเป็น null ทั้ง object ไม่ใช่ {false,false}', async () => {
+    const owner = await newUser();
+    const {
+      rows: [gang],
+    } = await pool.query<{ id: string }>(`select id from public.create_gang($1, $2)`, [owner, `ก๊วน-dash-onboard-member-${crypto.randomUUID()}`]);
+    const gangId = gang.id;
+    const plain = await newUser();
+    await pool.query(`insert into public.gang_members (gang_id, user_id, role) values ($1, $2, 'member')`, [gangId, plain]);
+
+    h.userId = plain;
+    const data = unwrap(await dashboardOverview(gangId));
+    expect(data.onboardingChecklist).toBeNull();
+  });
+});
+
 describe('dashboardOverview() — [planner F2] query error ต้อง throw จริง ไม่ใช่คืน null/0 แบบเงียบๆ', () => {
   it('🔴 sessions table query fail (loadNextSession playing/open + loadMonthSessions) → ApiResponse ต้อง success=false ไม่ใช่ nextSession=null แบบปกติ', async () => {
     const owner = await newUser();

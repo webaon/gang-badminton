@@ -137,12 +137,13 @@ const MANIFEST: readonly ManifestEntry[] = [
   { file: 'server/actions/billing.ts', line: 342, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['billing.close'], delegable: true },
 
   // ---- server/actions/dashboard.ts (WO-6.5c H10 admin dashboard aggregate loader — can()→null, not assertCan; read-only widget data, no mutation) ----
-  { file: 'server/actions/dashboard.ts', line: 125, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['billing.close'], delegable: true, note: 'unclosedSessionsCount widget — null if missing' },
-  { file: 'server/actions/dashboard.ts', line: 130, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['gang.join_request.manage'], delegable: false, note: 'joinRequestsPending widget — NEVER_DELEGABLE' },
-  { file: 'server/actions/dashboard.ts', line: 146, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true, note: 'pendingSlips widget (G2) — combined with :147 via &&; split onto its own line on purpose so this file:line key does not collide with the other half of the gate' },
-  { file: 'server/actions/dashboard.ts', line: 147, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['gang.finance.view'], delegable: true, note: 'pendingSlips widget (G2), other half of the :146 && gate — payment-list.ts (adminPaymentList) reads session_charges which also needs finance.view' },
-  { file: 'server/actions/dashboard.ts', line: 210, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['gang.finance.view'], delegable: true, note: 'timeline G3 canSeeFinance — payment.*/audit.credit_* events in buildTimeline(); combined with :211 via loadRecentActivity() 2 args, split onto its own line for the same reason as :146/:147' },
-  { file: 'server/actions/dashboard.ts', line: 211, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['gang.member.manage'], delegable: false, note: 'timeline G3 canSeeOtherAdminOnly — every other adminOnly event type (line.*/gang.join_*/audit.role_* etc); NEVER_DELEGABLE chosen deliberately (is_gang_admin()-equivalent, not role===), reported to planner' },
+  { file: 'server/actions/dashboard.ts', line: 128, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['billing.close'], delegable: true, note: 'unclosedSessionsCount widget — null if missing' },
+  { file: 'server/actions/dashboard.ts', line: 133, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['gang.join_request.manage'], delegable: false, note: 'joinRequestsPending widget — NEVER_DELEGABLE' },
+  { file: 'server/actions/dashboard.ts', line: 138, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['gang.update'], delegable: false, note: 'WO-6.7 #51 onboardingChecklist widget — NEVER_DELEGABLE (ผู้จัดการก๊วน)' },
+  { file: 'server/actions/dashboard.ts', line: 154, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['payment.verify'], delegable: true, note: 'pendingSlips widget (G2) — combined with :155 via &&; split onto its own line on purpose so this file:line key does not collide with the other half of the gate' },
+  { file: 'server/actions/dashboard.ts', line: 155, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['gang.finance.view'], delegable: true, note: 'pendingSlips widget (G2), other half of the :154 && gate — payment-list.ts (adminPaymentList) reads session_charges which also needs finance.view' },
+  { file: 'server/actions/dashboard.ts', line: 218, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['gang.finance.view'], delegable: true, note: 'timeline G3 canSeeFinance — payment.*/audit.credit_* events in buildTimeline(); combined with :219 via loadRecentActivity() 2 args, split onto its own line for the same reason as :154/:155' },
+  { file: 'server/actions/dashboard.ts', line: 219, fn: 'can', category: 'tenant', actionKind: 'literal', actions: ['gang.member.manage'], delegable: false, note: 'timeline G3 canSeeOtherAdminOnly — every other adminOnly event type (line.*/gang.join_*/audit.role_* etc); NEVER_DELEGABLE chosen deliberately (is_gang_admin()-equivalent, not role===), reported to planner' },
 
   // ---- server/actions/announcements.ts ----
   { file: 'server/actions/announcements.ts', line: 31, fn: 'assertCan', category: 'tenant', actionKind: 'literal', actions: ['announcement.manage'], delegable: true },
@@ -331,7 +332,7 @@ describe('R-roles-3 — guard-site inventory + Phase-2 wiring verification (no D
       public: byCategory('public'),
       ui: byCategory('ui'),
       total: MANIFEST.length,
-    }).toEqual({ tenant: 56, self: 7, org: 0, public: 0, ui: 19, total: 82 });
+    }).toEqual({ tenant: 57, self: 7, org: 0, public: 0, ui: 19, total: 83 });
   });
 
   it('Phase-2 scope: tenant-category sites needing the loader (delegable true/mixed, excluding Q2ก-exempt templates.ts)', () => {
