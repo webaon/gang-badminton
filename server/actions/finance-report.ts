@@ -1,9 +1,10 @@
 'use server';
 import { headers } from 'next/headers';
 import { AppError, runAction } from '@/shared/action';
-import { correlationIdFrom } from '@/shared/api';
+import { correlationIdFrom, type ApiResponse } from '@/shared/api';
 import { moneyFromDb } from '@/lib/supabase/money';
 import { calculateFinanceReport, assertReportReconciles, type ReportCharge } from '@/domain/reports/finance';
+import { buildFinanceReportCsv } from '@/domain/reports/finance-csv';
 import { fromSatang, sumSatang, toSatang } from '@/domain/billing/money';
 import { ADMIN_READ_PAGE, allById, financeReader, relatedRows } from '@/server/payments/admin-read';
 import { financeRange, type FinanceDateRange } from '@/server/payments/report-range';
@@ -130,5 +131,48 @@ export async function financeReport(gangId: string, dates: FinanceDateRange) {
       transferIn: periodCash.transferIn, refunds: refunded, cashInBySession: periodCash.cashInBySession,
       entries: [...toEntries('income', incomes), ...toEntries('expense', expenses)].sort((a, b) => b.occurredOn.localeCompare(a.occurredOn) || a.id.localeCompare(b.id)),
     };
+  });
+}
+
+/**
+ * [WO-6.8, #38, planner อนุมัติ] ส่งออกรายงานการเงินเป็น CSV — เรียก `financeReport()` ตัวนี้เอง
+ * ภายใน (ไม่มี query ใหม่เลย) แล้วส่งต่อให้ `buildFinanceReportCsv()` (pure, `domain/`) serialize
+ *
+ * 🔴 gate ด้วย `gang.finance.view` อัตโนมัติผ่าน `financeReport()` → `financeReader()` ข้างใน —
+ *    ไม่มี permission check ใหม่ที่นี่ เพราะใช้ของเดิมทั้งก้อน (ยิง `financeReport()` ตรงๆ)
+ */
+export async function exportFinanceReportCsv(
+  gangId: string,
+  dates: FinanceDateRange,
+): Promise<ApiResponse<{ csv: string; filename: string }>> {
+  const correlationId = correlationIdFrom(await headers());
+
+  return runAction(correlationId, async () => {
+    const res = await financeReport(gangId, dates);
+    if (!res.success) throw res.error;
+    const data = res.data;
+
+    const csv = buildFinanceReportCsv(
+      {
+        from: data.range.from,
+        to: data.range.to,
+        charged: data.report.charged,
+        actualCost: data.actualCost,
+        collected: data.report.collected,
+        outstanding: data.report.outstanding,
+        transferIn: data.transferIn,
+        refunds: data.refunds,
+        overpaymentIn: data.report.overpaymentIn,
+        otherIncome: data.report.otherIncome,
+        expense: data.report.expense,
+        memberPayouts: data.report.memberPayouts,
+        netCash: data.report.netCash,
+        roundingSurplus: data.report.roundingSurplus,
+      },
+      data.cashInBySession.map((s) => ({ sessionTitle: s.sessionTitle, sessionDate: s.sessionDate, amount: s.amount })),
+      data.entries.map((e) => ({ kind: e.kind, category: e.category, note: e.note, occurredOn: e.occurredOn, amount: e.amount })),
+    );
+
+    return { csv, filename: `finance-report-${data.range.from}-${data.range.to}.csv` };
   });
 }
