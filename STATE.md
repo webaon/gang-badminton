@@ -1,9 +1,10 @@
 # STATE — สถานะงานล่าสุด
 
 > เอกสาร handoff ระหว่าง session (ที่ `AGENT-EXECUTION.md` บอกว่าจะเพิ่มเมื่อเจอปัญหา context จริง)
-> **อัปเดตล่าสุด: 16 ส.ค. 2026** · MVP-0 = `v0.1.0` · Phase 2.5 = `v0.2.0` ·
+> **อัปเดตล่าสุด: 28 ต.ค. 2026** (HEAD `36e75dd`) · MVP-0 = `v0.1.0` · Phase 2.5 = `v0.2.0` ·
 > Phase 3 = `v0.3.0` (+ `v0.3.1` ADR-007) · Phase 4 (LINE) = `v0.4.0` ·
 > 🎉 **Phase 5 (Hardening & Deploy) เสร็จครบ = `v1.0.0` — public release**
+> 🎨 **Phase 6 (Redesign ตาม hi-fi 87 หน้า + tokens v4) กำลังทำ** — แผนที่ `docs/phase6-redesign-plan.md`
 >
 > 📌 กลับมาทำงานต่อ: อ่านไฟล์นี้ → `CLAUDE.md` → แล้วเริ่มที่ **"ทำอะไรต่อ"** ด้านล่าง
 
@@ -33,7 +34,7 @@ tag ล่าสุด: v1.0.0 (Phase 5 — merge เข้า main ผ่าน
            v0.4.0 (Phase 4 — LINE)
            v0.3.1 (ADR-007) · v0.3.0 (Phase 3) · v0.2.0 (Phase 2.5) · v0.1.0 (MVP-0)
 branch: claude/badminton-group-system-4pfs7o   (ทำงานอยู่บนนี้ — WO ทุกใบ commit ที่นี่)
-        main                                    (ตามทันแล้วถึง v0.3.0)
+        main                                    (merge ถึง PR #14 แล้ว — `b432ddc`)
 ```
 
 ✅ **PR #1 merge เข้า `main` แล้ว + tag `v0.1.0`** (13 ส.ค. 2026)
@@ -48,7 +49,7 @@ gh auth status                 # ดูว่าใคร active
 gh auth switch --user webaon   # สลับกลับถ้าไม่ใช่
 ```
 
-ยังไม่ได้เปิด PR — `claude/...` กับ `main` แยกกันอยู่
+PR #14 (`claude/...` → `main`) merge แล้ว (`b432ddc`) · push / เปิด PR ใช้ `gh` (login `webaon`) ที่ `C:/Program Files/GitHub CLI/gh.exe`
 
 ---
 
@@ -191,14 +192,15 @@ claim แล้วไม่ส่ง = ข้อความหาย (ค้า
 
 ```bash
 npm test          # vitest run — 712 tests, 65 files (17 ส.ค. 2026)
-npm run test:unit # เทสต์ที่ไม่ต้องมี DB (273) — ใช้เป็น PR gate
-npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLIC_* ก่อน)
+npm run test:unit # เทสต์ที่ไม่ต้องมี DB (548 tests หลัง Track B + 6.2 · 28 ต.ค. 2026) — ใช้เป็น PR gate
+npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLIC_* ก่อน) — repo มี 47 spec (28 ต.ค. 2026)
 ```
 
 รันผ่าน **pooled port 54329** ตามที่ baseline §Verification บังคับ
 
 | ไฟล์ | คุมอะไร |
 |---|---|
+| `tests/design/theme-tokens.test.ts` | **WO-6.0** — ค่า token เทียบ tokens v4 · contrast WCAG light/dark |
 | `tests/concurrency/register-no-overbook.test.ts` | **DoD 1** — 2 request ชน lock จริง + 8 request พร้อมกัน ไม่ overbook · guest/invite token |
 | `tests/concurrency/promote-waitlist.test.ts` | **DoD 2** — cancel พร้อมกัน 2 คน ไม่ซ้ำ ไม่ข้ามคิว · reliability tiebreak (D-8) |
 | `tests/concurrency/notification-worker.test.ts` | **DoD 3** — SKIP LOCKED, worker 2/4 ตัวไม่หยิบงานซ้ำ |
@@ -272,6 +274,80 @@ npm run test:e2e  # Playwright smoke (ต้อง build ด้วย NEXT_PUBLI
 ---
 
 ## 7. ทำอะไรต่อ — เริ่มพรุ่งนี้ที่นี่
+
+### 🎨 Phase 6 — Redesign ตาม hi-fi 87 หน้า + tokens v4 (กำลังทำ · 26 ต.ค. 2026)
+
+แผนเต็ม + gap analysis: `docs/phase6-redesign-plan.md` · WO ใน `AGENT-EXECUTION.md` (ส่วน Phase 6 ท้ายไฟล์)
+
+| WO | งาน | เจ้าของงาน | สถานะ |
+|---|---|---|---|
+| 6.0 | Design foundation — theme `badgame` (tokens v4 + dark tokens) ผ่าน `astryx theme build` · ฟอนต์ self-host | @gb-frontend | ✅ `315a507` QA ผ่าน |
+| 6.1a | App shell — tab bar มือถือ · sidebar แอดมิน · สลับก๊วน | @gb-frontend | ✅ `f042a50` + `0e0588f` QA ผ่าน |
+| 6.1b | global states g1–g4 + ErrorCode → ข้อความไทยกลาง | @gb-frontend | ✅ `2c82b89` QA ผ่าน |
+| 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) | @gb-frontend | ✅ `69533df` + แก้ QA `56798cc` · `cef63c0` |
+| 6.4a | วันเล่น (ลำดับแรกหลัง 6.2) | @gb-frontend | 🔄 |
+| 6.4b | วันเล่น (ส่วนที่เหลือ) | @gb-frontend | ⏳ |
+| 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) — ทำหลัง 6.4 | @gb-frontend | ⏳ |
+| 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ✅ ปิดงาน (loader `bf57a24` + UI combined `2966e57`) |
+| 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
+| 6.7 | Auth + onboarding — backend #51 onboardingChecklist ✅ QA PASS `d553ed2` · UI checklist รอ frontend | @gb-frontend (+@gb-backend #51) | ⏳ |
+| 6.8 | Growth screens + หน้าแรก — backend #38 CSV export ✅ QA PASS ที่ `c4de11e` (fca2317 + c4de11e) · UI รอ frontend | @gb-frontend (+@gb-backend #38) | ⏳ |
+| 6.9 | Playwright checkpoint + `v1.1.0` | @gb-qa | ⏳ |
+
+**QA ล่าสุด (รับจาก planner · 4 พ.ย. 2026)** — ทุกใบผ่าน static + runtime จริง:
+- ใบ 21 (R3): my-payments 14/14
+- ใบ 23 (6.3): pay-flow 3/3 + my-balance (จาก full Playwright 62/62 ของ 6.5b)
+- ใบ 24 (6.5a): payment-admin 9 · payment-list 5 · finance-cash 7 · finance-range 10 = 31/31
+- ใบ 26–29 (R-roles-1 / 2a / 2b / 2c · migration 0050–0053): gang-roles 25/25 · treasurer-finance 16/16 · scheduler-sessions 10/10 · scheduler-statistics 7/7 · role-matrix 7/7 (golden ไม่เปลี่ยน)
+- 🔴 **cloud push 0050–0053 ยังห้าม** — ต้องรอ 0047–0049 (ใบ 17–19 HOLD รอ Task04 test-env) · cloud ยังอยู่ที่ 0046
+- 6.5b ✅ QA ใบ 30 PASS (`1dfaa09` + `f56decc`): typecheck 0 error · lint 0 error · unit 625 passed / 1 skipped · default build ผ่าน · full Playwright 62/62 (QA rerun เอง)
+- **WO-6.8 #38 CSV export — backend ✅ QA PASS ที่ `c4de11e`** (fca2317 + c4de11e): `exportFinanceReportCsv` ห่อ financeReport() เดิม · BOM/CRLF · กัน formula injection เฉพาะ field ข้อความ (field เงินไม่แตะ) · ค่าเงินคงเป็น string จาก DB · c4de11e คง error code FORBIDDEN (เดิมกลายเป็น INTERNAL_ERROR) · unit 19/19 · DB 3/3 · probe 7/7 (=HYPERLINK ใน DB จริง, 0.10/0.30/-0.20 ตรง) · coverage 12/12 · build 0 · **UI รอ frontend** (6.8)
+- **v1.1.0 ฝั่ง backend ครบแล้ว** (6.7 #51 + 6.8 #38) — ที่เหลือเป็น UI ของ frontend: 6.6b, 6.7, 6.8
+- **WO-6.7 #51 onboardingChecklist — backend ✅ QA PASS ที่ `d553ed2`** (computed-only gate ด้วย `can(gang.update)`) · DB 24/24 · probe 6/6 (member ได้ null · outsider ได้ NOT_FOUND · admin ที่ไม่ใช่ owner อ่านได้ · plan inactive และ session ที่ถูกลบไม่นับ · ไม่ปนข้ามก๊วน · query fail ได้ INTERNAL_ERROR) · coverage 12/12 · build 0 · focused dashboard 2/2 · **UI checklist ยังรอ frontend** (6.7)
+- **WO-6.5c-DTO ✅ QA PASS** (`47b3591` + `9297922`): keyset pagination ของ registrations (2 นัดรวมกันเกิน max_rows 1000) · fields ใหม่ `inRatio`/`outRatio`, `maxPlayers`/`courtLabels`, `followingSession`, `viewerDisplayName` · origin ยังเป็น `1dd81a0` (hold เพราะ checkpoint `39dd2d5` ของ 6.6b ยังไม่ผ่าน QA) · ถัดไป: frontend 6.6b และ UI checklist (6.7)
+- **WO-6.6a ✅ QA PASS ที่ pin `b009d9a`** (รวม test fix `ac3601b`) — build ผ่าน · full Playwright 65/65 (4.0m) · `states.spec:76` ผ่าน · commits `a13c682`, `6c88c12`, `37636b8`, `ac3601b` · ถัดไป: frontend ทำ 6.6b
+- WO-B2.2 ✅ PASS (`3705c5b`→`7ad065e`) · WO-6.5c UI dashboard ✅ PASS (`7253437`, `bf3cde2`, `2966e57`, `b0a09d7`) · rate-limit Windows ✅ PASS 20/20 (`948f55c`) (ผล combined pin `2966e57`, 12 พ.ย.)
+- 6.5b ✅ ปิดงาน · WO-6.6a ✅ ปิดงาน (ดูด้านบน)
+- R-roles-3 ✅ QA PASS (`ee3d10a` … `39635e0`) · ไม่มี migration · cloud ยังอยู่ที่ 0046 · context-db 9/9 · RLS 34/34 · coverage 12/12 · probe assign→revoke→regrant ทำงานจริง
+- 6.5c ✅ QA PASS ที่ `bf57a24` (push แล้ว) — ส่วน backend loader (UI dashboard ยังไม่ทำ → frontend) · ไม่มี migration · cloud ยัง 0046 · dashboard-overview-db 19/19 ×3 · timeline 20/20 · drift/mutation 13/13 · finance-domain 19/19 · RLS 34/34 · finance 30/30 · coverage 12/12 · unit 674 pass / 1 skip · build ผ่าน
+- **Decision (12 พ.ย. 2026):** ออกจากก๊วนเมื่อมีนัดเลย cutoff = ★ก — สมาชิกออกไม่ได้จนกว่านัดจะผ่านไปหรือแอดมินยกเลิกให้ · ไม่มี ADR / migration · UI แสดงเหตุผลกับนัดที่ติด (WO-B2.2)
+- กติกาที่ตัดสินแล้ว (6.5c): widget เงินทุกตัวใช้ `canSeeGangMoney` = `finance.view` + `payment.verify` + `credit.read.other` · pendingSlips = verify + finance · timeline แยก 2 แกน (event เงินใช้ `finance.view`, adminOnly อื่นใช้ `gang.member.manage`) · event ที่ไม่รู้จักเป็น adminOnly · ห้ามใช้คำว่า "กำไร" ใช้ "เงินเข้า/เงินออก"
+- security: ค่าที่เคย hardcode ใน `tests/helpers/db.ts` เป็นค่า default สาธารณะของ supabase local ไม่ใช่ค่า cloud (QA audit) · ลบแล้ว `f40252f`
+- ข้อจำกัด 6.5c: drift parser อ่านได้เฉพาะ VALUES (ยังไม่รองรับ INSERT…SELECT) · boundary test ใช้วันที่ relative ไม่ใช่ fake clock เต็มรูปแบบ
+
+ลำดับที่ใช้จริง: **6.2 → 6.4 → 6.3** (แตก 6.4 เป็น 6.4a/6.4b และ 6.4a เป็นวันเล่นลำดับแรก) · ดูแผนที่ `docs/phase6-redesign-plan.md` §10
+
+**Track B (ความสามารถใหม่ที่เจ้าของงานตัดสินแล้ว)**
+
+| WO | งาน | commit | สถานะ |
+|---|---|---|---|
+| B2 | ออกจากก๊วน + โอน owner — `leave_gang()` / `transfer_gang_ownership()` (ADR-012) | `71c308b` | ✅ QA ผ่าน · migration **0040–0043 ยังไม่ `db push`** (รอเจ้าของงาน `supabase login`) |
+| B2.1 | `register_to_session` lock `gang_members` FOR SHARE ก่อน session + ตรวจ active (กัน race กับ `leave_gang`) | `f12408f` | ✅ QA ผ่าน · รอ db push เดียวกับ B2 |
+| B11 | grace 3 ชม. หลังถูกเลื่อนคิว + แอดมินเลื่อน/เปลี่ยนคนเอง (ADR-011) | `f6977ed` | ✅ QA ผ่าน · รอ db push เดียวกับ B2 |
+| B11.1 | `preview_cancel_registration` (read-only) + `cancelPreview` | `45cfa5b` | ✅ QA ผ่าน |
+| B1.a+c | LINE Login ผูกบัญชี (ทางเข้าหลักแทน SMTP) | `217ad60` | ✅ QA ผ่าน · **flag ปิดอยู่** รอตั้งค่า LINE + `APP_BASE_URL` |
+
+**Production**: hotfix open-redirect ที่ `/sign-in?next=` merge เข้า `main` ผ่าน **PR #15 → `71d62ed`** แล้ว deploy แล้ว (`main` remote = `71d62ed`)
+
+**Task04 (test-env preparation)** — ✅ offline/source **CLOSED** (`c8a4478` tools/test-env + tsconfig/eslint exclude · `be0592a` ADR-016 ต่อท้าย baseline) · QA: `node --test` 18/18 · tsc/eslint exit 0 · secret scan clean · owner @gb-integrations
+- ✅ **V0 preflight: DONE** (read-only, PASS) — evidence: `tools/test-env/v0-evidence/*.txt` (สร้างจริงตอนรัน เก็บ local เท่านั้น ไม่ commit เข้า repo — ดูสรุปผลใน STATE.md นี้แทน) · no side-effects ยืนยันแล้วโดย planner + QA (`docker ps -a` count=0 ของ `gb-env-proof-01`)
+- ⏸ **V1–V6: ยังไม่รัน** รอ authorize แยกต่อหน่วย
+- ✅ **V1 private-writer ACL canary: DONE** — real private root `C:/Users/peepe/gb-test-env-private/gb-env-proof-01` สร้างด้วย restricted DACL (SYSTEM + user เท่านั้น · 2 rules · protected=True) · เขียน canary ที่ไม่ใช่ความลับ 2 ไฟล์ (`canary-main.json`, `canary-manifest.json`) · 4 เทสต์ PASS (เขียนปกติ / ALREADY_EXISTS / WRITER_DENIED / RUNTIME_NOT_AUTHORIZED) · ไม่มี credential จริง · ไม่แตะ shared-local/card20 · source bug 2 รอบ (identifier mismatch + wrong-ACL-target/StrictMode) แก้แล้ว
+- ⏸ **V2 (real credential generation): ยังไม่รัน** รอ authorize แยก
+- **เจ้าของตัดสิน (12 พ.ย. 2026):** พัก Task04 (test-env V2) จนกว่า v1.1.0 จะออก เพื่อประหยัดโควตา → ใบ 17–19 และ cloud push 0047→0053 ยัง HOLD ต่อ · integrations หยุดที่ P2 RED r3 (pause note `tools/test-env/docs/V2-PAUSE-2026-11-12.md`)
+- ⏸ card20 / shared-local resources **ไม่ถูกแตะ** (ยืนยัน 2 ทาง)
+- 🔴 shared-local credential incident ยัง **OPEN**
+- **เจ้าของตัดสิน (4 พ.ย. 2026):** ระหว่างที่ shared-local credential incident ยัง OPEN ยังใช้ shared-local รัน DB/e2e test ตามปกติได้ **ยกเว้นใบ 17-19** ซึ่งต้องรอ isolated test-env ใหม่ (Task04) ห้าม fallback ไปใช้ shared · ผลที่ตามมา: cloud push 0047→0053 ต้องรอใบ 17-19 ผ่าน runtime ก่อน
+- ⏸ card20 **paused**
+
+**คำตัดสินเจ้าของงาน** (plan §3.1 และ §9):
+- C2: ใช้ tokens v4 เป็น source of truth · ชื่อในแอปยังเป็น "Gang Badminton"
+- C3: ยังเปลี่ยนตาม OS (`mode="system"`) ⇒ ต้องออกแบบ dark tokens เพิ่ม (v4 ไม่มี) — อยู่ใน WO-6.0
+- C12 / B1: ❌ ไม่ทำ SMTP — ใช้ LINE Login เป็นทางเข้าหลัก
+- B5 (ADR-010 ร่าง): เครดิตสมาชิก "เอา" · หักอัตโนมัติเมื่อมีหนี้ใหม่
+- B11 (ADR-011 ร่าง): สละสิทธิ์หลังถูกเลื่อนคิว — grace **3 ชม.** หลังถูกเลื่อนคิว (ไม่นับ late cancel · ไม่มีค่าปรับ) + แอดมินเลื่อน/เปลี่ยนคนเองได้ · "เปลี่ยนคน" = ยกเลิกคนเดิม
+- 8a ปุ่มสีส้ม: ตัวหนังสือเข้ม (`--color-on-warning`) · ห้ามตัวหนังสือขาว (contrast 2.70)
+- C6 / C9: เอา #64 #65 #54 กลับเข้าแผนเป็น B13–B15 (ต้องมี ADR ทุกข้อ เพราะกลับคำ baseline)
 
 🎉 **Phase 3 (Growth) เสร็จครบ 6 ใบ** — merge เข้า `main` ผ่าน PR #3 (`8bfa947`) · tag **`v0.3.0`** · CI เขียว
 571 เทสต์ / 55 ไฟล์ · cloud **33/33 migrations** (MVP-0 = `v0.1.0` · Phase 2.5 = `v0.2.0`)
@@ -349,7 +425,7 @@ env ที่ตั้งไว้บน Vercel (production): `NEXT_PUBLIC_SUPAB
 · `SUPABASE_URL` · `SUPABASE_SERVICE_ROLE_KEY` · `CRON_SECRET` · `LINE_LINK_SECRET` · `APP_BASE_URL`
 (secret ของ GitHub repo: `APP_BASE_URL` · `CRON_SECRET`)
 
-### งานถัดไป — ยังไม่มี Phase 6 ใน baseline
+### งานที่ค้างนอก baseline (Phase 6 ดูด้านบน)
 
 baseline จบที่ Phase 5 ⇒ งานหลังจากนี้เป็นเรื่องของ **ใช้งานจริงแล้วเก็บ feedback**
 สิ่งที่ค้างอยู่และหยิบทำได้ทันที (รายละเอียดใน `BACKLOG.md`):
@@ -362,10 +438,8 @@ baseline จบที่ Phase 5 ⇒ งานหลังจากนี้เ�
       · แผน `flat_rate` **189 บาท/คน** · นัดแรก **"พิชิตแมทเรทนี่"** สถานะ `open` ลงชื่อแล้ว 4
 
 **🔜 ค้างไว้ตรงนี้ (23 ส.ค. 2026) — หยิบต่อจากข้อนี้ได้เลย:**
-- [ ] **ลบ registration ทดสอบ** — นัดแรกมี guest ชื่อ `"Ford"` 3 แถว (แถวหนึ่งชื่อมีช่องว่างท้าย `"Ford "`)
-      น่าจะเกิดจากการกดทดสอบ · ถ้าไม่ลบ ปิดรอบแล้วจะคิด 189 × 4 = 756 บาท
-      ⚠️ ต้องถามเจ้าของก่อนลบ — อาจมีเพื่อนชื่อ Ford จริง
-- [ ] **ใส่ PromptPay ID** ให้ก๊วน (ตอนนี้ `promptpay_id` เป็น `null`) — ไม่มีแล้วปิดรอบไปก็ไม่รู้จะโอนไปไหน
+- [ ] **ลบ registration ทดสอบ (Ford 3 แถว)** — SQL พร้อมที่ `docs/ops/2026-10-26-cancel-test-guests.sql` รอเจ้าของงานรันใน Supabase Dashboard (ใช้ `cancel_registration()` ไม่ DELETE ตรง → มี event log + คิว waitlist เลื่อนเอง)
+- [ ] **PromptPay ID** — แอดมินก๊วนกรอกเองในหน้าตั้งค่า (ตอนนี้ `promptpay_id` เป็น `null`) — ไม่มีแล้วปิดรอบไปก็ไม่รู้จะโอนไปไหน
 - [ ] **ปิดรอบนัดแรกให้จบ** (ลงชื่อ → เช็คอิน → ปิดรอบ → เห็นยอด) — ยังไม่เคยเดินเส้นเงินบนของจริงเลย
 - [ ] **ชวนเพื่อนเข้าก๊วน** — ก๊วนเป็น private ⇒ เพื่อนสมัครเองที่ `/sign-up` แล้วแอดมินเพิ่มด้วยอีเมล
 - [ ] 🔴 **ตัวส่งอีเมลจริง** — ตอนนี้ปิดการยืนยันอีเมลไว้ (`mailer_autoconfirm = true`) เพราะยังไม่มี SMTP
@@ -480,7 +554,6 @@ baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
 ### ค้างจากก่อนหน้า (ยังไม่ทำ)
 
 - [ ] **Playwright** — E2E ผ่านเบราว์เซอร์จริง (ตอนนี้ E2E เดินผ่าน DB function + domain)
-- [ ] **ให้ก๊วนจริงลองใช้** แล้วเก็บ feedback ก่อนเริ่ม Phase 4
 - [ ] ของค้างอื่นดู `BACKLOG.md`
 
 ---
@@ -532,6 +605,13 @@ baseline §Roadmap กำหนด Phase 3 ไว้ว่า:
   หน้าจอขึ้น "ยังไม่มีใครลงชื่อ" ทั้งที่ DB มีข้อมูลครบ (เจอบน production จริง 21 ส.ค. 2026 · พัง 7 จุด)
   ⇒ `tests/postgrest/embeds.test.ts` ยิงทุก `.select()` ในโค้ดเข้า PostgREST จริงกันไม่ให้กลับมา
   ⚠️ เทสต์ชุดอื่นจับไม่ได้เพราะเดินผ่าน `pg` driver / DB function **ไม่มีอะไรผ่าน PostgREST เลย**
+- 🔴 **npm รุ่นนี้บล็อก install scripts** — `npm ci` ข้าม esbuild / unrs-resolver / @astryxdesign/core แต่ build/test ยังผ่าน (WO-6.0)
+- 🔴 **Playwright 1.62 ไม่มี chromium ในเครื่อง** ⇒ ใช้ `channel: 'chrome'` (Chrome ที่ติดตั้งในเครื่อง)
+- 🔴 **theme ต้อง `npm run theme:build` หลังแก้ `theme/src`** แล้ว commit ไฟล์ built ด้วย
+- 🔴 **`npm run build` บังคับทุกใบที่ mount component** — tsc ไม่จับการ import `server-only` จาก client ⇒ b48bd1a..1967be2 build พังทั้งที่ tsc ผ่าน (แก้ที่ `217ad60`)
+- 🔴 **worktree ที่ junction `node_modules` ห้าม `git worktree remove --force` ก่อนถอด junction** — ถอดด้วย PowerShell ก่อน (`cmd //c rmdir` จาก git-bash ใช้ไม่ได้) · เคยลบ `node_modules` หลักไปแล้ว 1 ครั้ง
+- 🔴 **Supabase local ใช้ร่วมกัน** — ห้าม `npm run supabase -- db reset` โดยไม่แจ้ง planner ก่อน
+- npm 11 ไม่รัน postinstall ของ esbuild / unrs-resolver / astryx — ใช้งานได้ปกติ
 - รายละเอียดที่เหลือทั้งหมดอยู่ใน **`BACKLOG.md`**
 
 ---

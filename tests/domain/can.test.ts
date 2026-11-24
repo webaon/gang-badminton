@@ -31,6 +31,10 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'statistics.view',
     // [WO-4.B] ผูกบัญชี LINE ของตัวเอง (ต้องเปิด features.line)
     'line.link.self',
+    // [WO-B2 · ADR-012] ออกจากก๊วนเอง — ทุก role
+    'gang.leave.self',
+    // [WO-B5a · ADR-010]
+    'credit.read.self',
   ],
   admin: [
     'gang.view',
@@ -42,7 +46,16 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'announcement.view',
     'notification.view.self',
     'statistics.view',
+    'statistics.view.all',
     'line.link.self',
+    'gang.leave.self',
+    // [WO-B5a · ADR-010]
+    'credit.read.self',
+    'credit.read.other',
+    'credit.overpayment.record',
+    'credit.topup',
+    'credit.payout.record',
+    'credit.return_charge',
     'gang.update',
     'gang.member.manage',
     'gang.skill.manage',
@@ -61,6 +74,8 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'registration.create.other',
     'registration.create.guest',
     'registration.cancel.other',
+    // [WO-B11 · ADR-011]
+    'registration.promote.other',
     'registration.checkin',
     'registration.no_show',
     'game.manage',
@@ -68,9 +83,9 @@ const EXPECTED: Record<GangRole, Action[]> = {
     'payment.verify',
     'announcement.manage',
   ],
-  owner: [], // เติมด้านล่าง — owner = admin ใน MVP-0
+  owner: [], // เติมด้านล่าง — owner = admin + โอนความเป็นเจ้าของ (WO-B2)
 };
-EXPECTED.owner = [...EXPECTED.admin];
+EXPECTED.owner = [...EXPECTED.admin, 'gang.ownership.transfer'];
 
 describe('can() — mapping role → สิทธิ์', () => {
   it('ทุก role ได้สิทธิ์ตรงตามตารางเป๊ะ ไม่มากไม่น้อย', () => {
@@ -113,6 +128,19 @@ describe('can() — mapping role → สิทธิ์', () => {
     expect(can(ctx, 'gang.update')).toBe(true);
     expect(can(ctx, 'session.create')).toBe(true);
     // ตรงกับ is_gang_admin() ใน migration 0010 ที่ยอมรับ organization_members ด้วย
+  });
+
+  it('🔴 [WO-B2] โอนความเป็นเจ้าของ = owner เท่านั้น · ออกจากก๊วน = ทุก role ที่เป็นสมาชิก', () => {
+    expect(can({ role: 'owner' }, 'gang.ownership.transfer')).toBe(true);
+    expect(can({ role: 'admin' }, 'gang.ownership.transfer')).toBe(false);
+    expect(can({ role: 'member' }, 'gang.ownership.transfer')).toBe(false);
+    // แอดมินองค์กรที่ไม่ได้เป็นเจ้าของก๊วนโอนไม่ได้ (DB ตรวจจาก gang_members.role = owner)
+    expect(can({ role: null, orgRole: 'admin' }, 'gang.ownership.transfer')).toBe(false);
+
+    for (const role of GANG_ROLES) {
+      expect(can({ role }, 'gang.leave.self'), role).toBe(true);
+    }
+    expect(can({ role: null }, 'gang.leave.self')).toBe(false);
   });
 });
 

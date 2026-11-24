@@ -18,10 +18,19 @@
 /* 3. Astryx: reset → component styles → theme tokens (ประกาศ layer มาในตัวแล้ว) */
 @import "@astryxdesign/core/reset.css";
 @import "@astryxdesign/core/astryx.css";
-@import "@astryxdesign/theme-neutral/theme.css";
+@import "../theme/badgame.css";
 
 /* 4. Bridge: map Tailwind theme vars → Astryx CSS custom properties */
 @import "@astryxdesign/core/tailwind-theme.css";
 
 /* 5. Tailwind utilities ท้ายสุด — className จึง override component default ได้ */
 @import "tailwindcss/utilities.css" layer(utilities);
+
+/* 6. พื้นหน้า + สีตัวหนังสือหลักตาม token ของ theme (ไม่งั้น canvas ใน dark ได้เทา OS แทน navy-950)
+ *    อยู่ layer(components) — ไม่ใช่ unlayered · ค่าทั้งหมดอ้าง token ไม่มี hex ดิบ */
+@layer components {
+  html {
+    background-color: var(--color-background-body);
+    color: var(--color-text-primary);
+  }
+}

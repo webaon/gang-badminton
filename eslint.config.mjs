@@ -35,6 +35,11 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // ไฟล์ที่ `astryx theme build` generate (แก้มือไม่ได้ — จะถูกเขียนทับ)
+      "theme/badgame.js",
+      "theme/badgame.d.ts",
+      "theme/badgame.variants.d.ts",
+      "tools/test-env/**",
     ],
   },
   {

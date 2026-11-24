@@ -34,7 +34,22 @@ export type CancellationPolicy = {
    *    ยังถูกปัดเป็นจำนวนเต็มสตางค์เสมอ (ดู session-billing.ts)
    */
   midwayCancelRatio: number;
+  /**
+   * **[ADR-011]** ชั่วโมงที่คนที่ถูก**เลื่อนคิวจาก waitlist** ยกเลิกได้โดยไม่นับเป็นยกเลิกช้า
+   * (นับจากเวลาที่ถูกเลื่อน แต่ไม่เกินเวลาเริ่มนัด) — 0 = ไม่มี grace
+   *
+   * 🔴 **ผู้ตัดสินคือ `cancel_registration()` ใน DB** (อ่านจาก snapshot) — TS ไม่คำนวณ grace เอง
+   *    ค่าตรงนี้มีไว้ให้ก๊วนตั้งและให้ snapshot เก็บเท่านั้น
+   * ⚠️ นัดเก่าที่ snapshot ไม่มีคีย์ `promoted_grace_hours` = 0 (พฤติกรรมเดิม) — เป็นกติกาฝั่ง DB
+   *    ส่วน `fromJson()` ด้านล่างตอบ default ใหม่ (3) เพื่อให้ "นัดที่สร้างหลังจากนี้" ได้ค่าเริ่มต้น
+   */
+  promotedGraceHours: number;
 };
+
+/** ค่าเริ่มต้นของ grace หลังถูกเลื่อนคิว (เจ้าของงานตัดสิน 26 ต.ค. 2026 — ADR-011) */
+export const DEFAULT_PROMOTED_GRACE_HOURS = 3;
+/** เพดานที่ยอมให้ตั้ง — สั้นกว่า cutoff สูงสุด (14 วัน) มาก เพราะ grace คือ "ตัดสินใจทันที" */
+export const MAX_PROMOTED_GRACE_HOURS = 48;
 
 /**
  * ค่าเริ่มต้นของก๊วนใหม่ — ตรงกับที่ ADR-002 เลือก
@@ -48,6 +63,7 @@ export const DEFAULT_CANCELLATION_POLICY: CancellationPolicy = {
   penaltyType: 'full_share',
   // [ADR-004] ก๊วนจ่ายค่าคอร์ทไปแล้วบางส่วนตอนที่เล่นไปได้ครึ่งทาง — เก็บครึ่งเป็นจุดตั้งต้น
   midwayCancelRatio: 0.5,
+  promotedGraceHours: DEFAULT_PROMOTED_GRACE_HOURS,
 };
 
 /** ค่าที่ใช้เมื่อ snapshot เก่าไม่มีคีย์นี้ (ADR-004 — additive ไม่ขึ้น version) */
@@ -60,6 +76,7 @@ export type CancellationPolicyJson = {
   penalty_type: PenaltyType;
   penalty_value?: string;
   midway_cancel_ratio: number;
+  promoted_grace_hours: number;
 };
 
 export function toJson(policy: CancellationPolicy): CancellationPolicyJson {
@@ -68,6 +85,7 @@ export function toJson(policy: CancellationPolicy): CancellationPolicyJson {
     allow_cancel_after_cutoff: policy.allowCancelAfterCutoff,
     penalty_type: policy.penaltyType,
     midway_cancel_ratio: policy.midwayCancelRatio,
+    promoted_grace_hours: policy.promotedGraceHours,
     ...(policy.penaltyValue !== undefined ? { penalty_value: policy.penaltyValue } : {}),
   };
 }
@@ -97,11 +115,23 @@ export function fromJson(raw: unknown): CancellationPolicy {
       ? rawRatio
       : DEFAULT_MIDWAY_CANCEL_RATIO;
 
+  // [ADR-011] additive แบบเดียวกับ ADR-004 — ไม่ขึ้น snapshot_version
+  // ค่านอกช่วง → default ไม่เชื่อข้อมูลดิบ · (grace ของนัดเก่าไม่มีคีย์ = 0 ตัดสินใน DB ไม่ใช่ที่นี่)
+  const rawGrace = Number(obj.promoted_grace_hours);
+  const promotedGraceHours =
+    obj.promoted_grace_hours !== undefined &&
+    Number.isFinite(rawGrace) &&
+    rawGrace >= 0 &&
+    rawGrace <= MAX_PROMOTED_GRACE_HOURS
+      ? rawGrace
+      : DEFAULT_PROMOTED_GRACE_HOURS;
+
   return {
     cutoffHours: Number.isFinite(cutoffHours) && cutoffHours >= 0 ? cutoffHours : 0,
     allowCancelAfterCutoff: obj.allow_cancel_after_cutoff !== false,
     penaltyType,
     midwayCancelRatio,
+    promotedGraceHours,
     ...(penaltyValue !== undefined ? { penaltyValue } : {}),
   };
 }
@@ -132,6 +162,17 @@ export function validate(policy: CancellationPolicy): ValidationIssue[] {
     issues.push({
       field: 'midwayCancelRatio',
       message: 'สัดส่วนที่เก็บเมื่อยกเลิกกลางคันต้องอยู่ระหว่าง 0 ถึง 1',
+    });
+  }
+
+  if (
+    !Number.isFinite(policy.promotedGraceHours) ||
+    policy.promotedGraceHours < 0 ||
+    policy.promotedGraceHours > MAX_PROMOTED_GRACE_HOURS
+  ) {
+    issues.push({
+      field: 'promotedGraceHours',
+      message: `ชั่วโมงที่ให้ยกเลิกได้หลังถูกเลื่อนคิวต้องอยู่ระหว่าง 0 ถึง ${MAX_PROMOTED_GRACE_HOURS}`,
     });
   }
 

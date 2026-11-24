@@ -126,6 +126,7 @@ describe('DoD 1 — register_to_session ไม่ overbook', () => {
     const owner = await createUser('owner-1c');
     const fx = await createFixture({ ownerId: owner, maxPlayers: 4, status: 'draft' });
     const u = await createUser('racer-1c');
+    await addGangMember(fx.gangId, u); // WO-B2.1: DB ตรวจสมาชิกก่อน — ต้องเป็นสมาชิกถึงจะถึงด่าน status
 
     await expect(
       pool.query('select public.register_to_session($1, $2)', [fx.sessionId, u]),
@@ -136,6 +137,7 @@ describe('DoD 1 — register_to_session ไม่ overbook', () => {
     const owner = await createUser('owner-1d');
     const fx = await createFixture({ ownerId: owner, maxPlayers: 4 });
     const u = await createUser('racer-1d');
+    await addGangMember(fx.gangId, u); // WO-B2.1: ต้องเป็นสมาชิกถึงจะถึงด่านลงซ้ำ
 
     await pool.query('select public.register_to_session($1, $2)', [fx.sessionId, u]);
     await expect(

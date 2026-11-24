@@ -1,10 +1,16 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
+import { FormLayout } from '@astryxdesign/core/FormLayout';
+import { Heading } from '@astryxdesign/core/Heading';
+import { HStack } from '@astryxdesign/core/HStack';
+import { Text } from '@astryxdesign/core/Text';
+import { VStack } from '@astryxdesign/core/VStack';
 import { TextInput } from '@astryxdesign/core/TextInput';
 
 import {
@@ -47,6 +53,7 @@ export function LineSettingsPanel({
   const [channelSecret, setChannelSecret] = useState('');
   const [liffId, setLiffId] = useState(initial.liffId ?? '');
   const [pending, setPending] = useState(false);
+  const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -56,20 +63,28 @@ export function LineSettingsPanel({
     fn: () => Promise<{ success: boolean; data?: T; error?: { message: string } }>,
     onOk?: (data: T) => void,
   ) {
+    if (busyRef.current) return false;
+    busyRef.current = true;
     setPending(true);
     setError(null);
     setNotice(null);
 
-    const result = await fn();
-    if (result.success) {
-      onOk?.(result.data as T);
-      router.refresh();
-    } else {
-      setError(result.error?.message ?? 'ทำรายการไม่สำเร็จ');
+    try {
+      const result = await fn();
+      if (result.success) {
+        onOk?.(result.data as T);
+        router.refresh();
+      } else {
+        setError(actionError(result.error));
+      }
+      return result.success;
+    } catch {
+      setError(actionError({ code: 'INTERNAL_ERROR' }));
+      return false;
+    } finally {
+      busyRef.current = false;
+      setPending(false);
     }
-
-    setPending(false);
-    return result.success;
   }
 
   async function onSubmit(event: FormEvent) {
@@ -93,27 +108,29 @@ export function LineSettingsPanel({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-semibold">LINE ของก๊วน</h2>
+    <VStack gap={6} className="min-w-0 [&_button]:min-h-11 [&_button]:min-w-11">
+      <HStack gap={3} justify="between" align="center" wrap="wrap">
+        <Heading level={2}>LINE ของก๊วน</Heading>
         <Badge
           label={
             status.isEnabled ? 'เปิดใช้งานอยู่' : isConfigured ? 'ตั้งค่าแล้ว (ปิดอยู่)' : 'ยังไม่ได้ตั้งค่า'
           }
         />
-      </div>
+      </HStack>
 
       {error ? <Banner status="error" title={error} /> : null}
       {notice ? (
         <Banner status="success" title={notice} isDismissable onDismiss={() => setNotice(null)} />
       ) : null}
 
-      <p className="text-sm">
+      <Text as="p" size="sm" color="secondary" className="break-words">
         เอา Channel access token กับ Channel secret มาจาก LINE Developers Console →
         Messaging API ของ OA ก๊วนคุณ
-      </p>
+      </Text>
 
-      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-3">
+      <form onSubmit={onSubmit} noValidate>
+        <VStack gap={4}>
+        <FormLayout>
         <TextInput
           label="Channel access token"
           type="password"
@@ -141,12 +158,15 @@ export function LineSettingsPanel({
           placeholder="เช่น 1234567890-abcdefgh"
         />
 
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" label="บันทึก" isLoading={pending} />
+        </FormLayout>
+        <HStack gap={2} wrap="wrap">
+          <Button type="submit" variant="primary" label="บันทึก" isLoading={pending} className="min-h-11 min-w-11" />
 
           {isConfigured ? (
             <>
-              <Button
+              <Button variant="secondary"
+                type="button"
+                className="min-h-11 min-w-11"
                 label="ทดสอบการเชื่อมต่อ"
                 isDisabled={pending}
                 onClick={() =>
@@ -158,8 +178,12 @@ export function LineSettingsPanel({
                       ),
                   )
                 }
-              />
-              <Button
+              >
+                <Text color="primary">ทดสอบการเชื่อมต่อ</Text>
+              </Button>
+              <Button variant="secondary"
+                type="button"
+                className="min-h-11 min-w-11"
                 label={status.isEnabled ? 'ปิดใช้งาน LINE' : 'เปิดใช้งาน LINE'}
                 isDisabled={pending}
                 onClick={() =>
@@ -171,8 +195,12 @@ export function LineSettingsPanel({
                     },
                   )
                 }
-              />
-              <Button
+              >
+                <Text color="primary">{status.isEnabled ? 'ปิดใช้งาน LINE' : 'เปิดใช้งาน LINE'}</Text>
+              </Button>
+              <Button variant="secondary"
+                type="button"
+                className="min-h-11 min-w-11"
                 label="ส่งข้อความทดสอบ"
                 isDisabled={pending || !status.isEnabled}
                 onClick={() =>
@@ -186,8 +214,12 @@ export function LineSettingsPanel({
                       ),
                   )
                 }
-              />
+              >
+                <Text color="primary">ส่งข้อความทดสอบ</Text>
+              </Button>
               <Button
+                type="button"
+                className="min-h-11 min-w-11"
                 variant="ghost"
                 label="ถอด LINE ออก"
                 isDisabled={pending}
@@ -201,24 +233,29 @@ export function LineSettingsPanel({
                     },
                   )
                 }
-              />
+              >
+                <Text color="primary">ถอด LINE ออก</Text>
+              </Button>
             </>
           ) : null}
-        </div>
+        </HStack>
+      </VStack>
+
       </form>
 
       {/* [WO-4.D] LINE Login — คนละ channel กับ Messaging API */}
-      <div className="border-t pt-3">
-        <h3 className="mb-1 text-sm font-semibold">
+      <VStack gap={4} padding={4} className="min-w-0 rounded-lg border border-subtle bg-surface">
+        <Heading level={3}>
           LINE Login {loginStatus?.hasLoginChannel ? '(ตั้งค่าแล้ว)' : '(ยังไม่ได้ตั้งค่า)'}
-        </h3>
-        <p className="mb-2 text-xs opacity-70">
+        </Heading>
+        <Text as="p" size="sm" color="secondary" className="break-words">
           ⚠️ เป็น <strong>คนละ channel</strong> กับ Messaging API — ต้องอยู่ provider เดียวกัน
           ไม่งั้น LINE จะให้ id คนละใบแล้วผูกบัญชีได้แต่ส่งข้อความไม่ถึง ·
           ตั้งค่านี้แล้วสมาชิกกดผูกบัญชีได้ในปุ่มเดียว ไม่ต้องคัดลอกรหัส
-        </p>
+        </Text>
 
-        <div className="flex flex-col gap-2">
+        <VStack gap={4}>
+          <FormLayout>
           <TextInput
             label="Login channel ID"
             value={loginChannelId}
@@ -236,9 +273,12 @@ export function LineSettingsPanel({
                 : 'วางค่าที่นี่'
             }
           />
-          <div>
+          </FormLayout>
+          <HStack gap={2} wrap="wrap">
             <Button
-              size="sm"
+              type="button"
+              variant="primary"
+              className="min-h-11 min-w-11"
               label="บันทึก LINE Login"
               isDisabled={pending}
               onClick={() =>
@@ -256,26 +296,26 @@ export function LineSettingsPanel({
                 )
               }
             />
-          </div>
-          <p className="text-xs opacity-70">
+          </HStack>
+          <Text as="p" size="sm" color="secondary" className="break-words">
             ตั้ง Callback URL ใน LINE Developers Console เป็น{' '}
             <code>{'<โดเมนของคุณ>'}/api/line/login/callback</code>
             {' · '}[WO-4.E] ถ้าจะทำ LIFF ให้ตั้ง Endpoint URL เป็น{' '}
             <code>{`<โดเมนของคุณ>/gangs/${gangId}/liff`}</code> แล้วเอา LIFF ID มาใส่ด้านบน
-          </p>
-        </div>
-      </div>
+          </Text>
+        </VStack>
+      </VStack>
 
       {usage ? (
-        <div className="border-t pt-3">
-          <h3 className="mb-1 text-sm font-semibold">โควต้าเดือนนี้</h3>
-          <p className="text-sm">
+        <VStack gap={4} padding={4} className="min-w-0 rounded-lg border border-subtle bg-surface">
+          <Heading level={3}>โควต้าเดือนนี้</Heading>
+          <Text as="p" size="sm" color="secondary" className="break-words">
             ส่งไปแล้ว <strong>{usage.used.toLocaleString('th-TH')}</strong> ข้อความ
             {usage.monthlyQuota === null
               ? ' (ไม่จำกัด)'
               : ` จาก ${usage.monthlyQuota.toLocaleString('th-TH')}`}
             {' · '}เริ่มนับ {usage.periodStart}
-          </p>
+          </Text>
 
           {usage.isOver ? (
             <Banner
@@ -285,17 +325,19 @@ export function LineSettingsPanel({
             />
           ) : null}
 
-          <div className="mt-2 flex items-end gap-2">
-            <div className="grow">
+          <VStack gap={4}>
+            <FormLayout>
               <TextInput
                 label="เพดานต่อเดือน (เว้นว่าง = ไม่จำกัด)"
                 value={quota}
                 onChange={setQuota}
                 placeholder="เช่น 200"
               />
-            </div>
+            </FormLayout>
             <Button
-              size="sm"
+              type="button"
+              variant="primary"
+              className="min-h-11 min-w-11"
               label="บันทึกเพดาน"
               isDisabled={pending}
               onClick={() =>
@@ -305,19 +347,19 @@ export function LineSettingsPanel({
                 )
               }
             />
-          </div>
+          </VStack>
 
-          <p className="mt-1 text-xs opacity-70">
+          <Text as="p" size="sm" color="secondary" className="break-words">
             นับจากข้อความที่ส่งสำเร็จจริงเท่านั้น (ส่งไม่สำเร็จไม่กินโควต้า) · ปุ่ม “ทดสอบการเชื่อมต่อ”
             ไม่กินโควต้า แต่ “ส่งข้อความทดสอบ” กิน
-          </p>
-        </div>
+          </Text>
+        </VStack>
       ) : null}
 
-      <p className="text-xs opacity-70">
+      <Text as="p" size="sm" color="secondary" className="break-words">
         เปิดใช้งานได้เมื่อตั้ง token และ secret ครบแล้วเท่านั้น · การแจ้งเตือนในแอปยังทำงานเหมือนเดิม
         ไม่ว่าจะต่อ LINE หรือไม่
-      </p>
-    </div>
+      </Text>
+    </VStack>
   );
 }

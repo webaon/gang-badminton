@@ -52,6 +52,9 @@ export default defineConfig({
       SUPABASE_SERVICE_ROLE_KEY: SERVICE_KEY,
       // smoke ไม่แตะ LINE — ใส่ค่าหลอกไว้เพื่อให้ fail-closed ไม่ไปโผล่เป็น 500 ที่หน้าอื่น
       LINE_LINK_SECRET: 'e2e-not-a-real-secret',
+      // [WO-B1.a] ปุ่ม LINE ที่ /sign-in — เทสต์ดักคำขอไป authorize เอง ไม่ต้องมี provider/LINE จริง
+      LINE_PLATFORM_LOGIN_ENABLED: 'true',
+      APP_BASE_URL: BASE_URL,
     },
   },
 });

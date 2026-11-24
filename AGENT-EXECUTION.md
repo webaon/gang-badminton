@@ -1710,3 +1710,69 @@ DoD ทั้ง 5 ข้อผ่านจริง:
 **runbook ที่เขียนไว้ให้ (§7 ของ README)** — อาการ → ที่ตรวจก่อน: หน้าขาวทั้งที่ 200 (CSP/`STATIC_ROUTES`) ·
 หน้า realtime พัง (`NEXT_PUBLIC_*` ตอน build) · แจ้งเตือนไม่ถึง · LINE ไม่ส่ง (โควต้า/บล็อก/flag) ·
 webhook 401 · ยอดเงินไม่ตรง (อ่านจาก ledger เท่านั้น) · เทสต์แดงเฉพาะบน CI · push 403
+
+---
+
+# Work Orders — Phase 6 (Redesign ตาม Hi-fi 87 หน้า + Tokens v4)
+
+> แตกเมื่อ **25 ต.ค. 2026** โดย @gb-planner · baseline ไม่มี Phase 6 ⇒ เป็นงานนอก baseline ที่เจ้าของงานอนุมัติแล้ว (Track A)
+> **แผนเต็ม + gap analysis 87 หน้า + จุดขัดกัน C1–C12 + WO-6.0 ฉบับเต็ม อยู่ที่ `docs/phase6-redesign-plan.md`**
+> ไฟล์ design อยู่นอก repo: `G:/TON-Workspace/Ton-App/BadGame/design/` (`Hi-fi.html`, `hifi/*.jsx`, `hifi/tokens.css`, `Design tokens.html`, `Screen inventory.html`)
+
+| WO | งาน | owner | สถานะ |
+|---|---|---|---|
+| 6.0 | Design foundation — theme `badgame` (tokens v4 + dark tokens) ผ่าน `astryx theme build` · ฟอนต์ self-host | @gb-frontend | ✅ `315a507` QA ผ่าน |
+| 6.1a | App shell — tab bar มือถือ · sidebar แอดมิน · สลับก๊วน (plan §10) | @gb-frontend | ✅ `f042a50`+`0e0588f` QA ผ่าน |
+| 6.1b | global states g1–g4 + ErrorCode → ข้อความไทยกลาง + บั๊ก 390px (plan §10) | @gb-frontend | ✅ `2c82b89` QA ผ่าน |
+| 6.2 | เส้นหลักของสมาชิก (17, 19, 20, 21, 22 + states) (plan §11.3) | @gb-frontend | ✅ `69533df`+`56798cc`+`cef63c0` QA ผ่าน |
+| 6.3 | จ่ายเงินฝั่งสมาชิก (29, 30, 31 + states) | @gb-frontend | ✅ QA ใบ 23 — static + runtime pay-flow 3/3 + my-balance (จาก full Playwright 62/62 ของ 6.5b) · `012cfc3` + `d26c239` |
+| R3 | loader อ่านอย่างเดียว: ยอดของฉันข้ามนัด + breakdown ของฉัน + payment ที่ผูกนัด (แก้บั๊ก limit 1) | @gb-integrations | ✅ QA ใบ 21 — static + runtime my-payments 14/14 (81abd7f) |
+| R4 | waitlist.promoted + payment.due ⇒ LINE (session.opened in_app เท่านั้น) — เจ้าของงานเลือก ก · `c9b2fe7` migration 0045 | @gb-backend | ✅ QA ใบ 15 ผ่าน · db push cloud ✅ (45/45 · EXECUTE anon/auth=false · ไม่มี overload) |
+| 6.4a | วันเล่น — เช็คอิน · กระดานคิวสด · จัดคู่ · เกม+ลูก · เวลาพัก (23–27) | @gb-frontend | ✅ `44fe570` QA ผ่าน |
+| 6.4b | ปิดรอบ → ตรวจยอด (28 + K28a · K28b → BACKLOG) | @gb-frontend | 🔄 |
+| HF-2 | server component ส่ง function `idKey` เข้า Astryx Table ⇒ /close /membership /stats พัง (บั๊กเดิมจาก WO-2.5-A) — prod ยังไม่เคยใช้ปิดรอบ ⇒ ไม่ hotfix main · แก้เป็น commit แยกในใบ 6.4b | @gb-frontend | ✅ `aad4838` QA ใบ 12 ผ่าน |
+| 6.4b | ปิดรอบ h28 + ลิงก์ console + กระดาน ≥1280 (`0fd5d5f` `24708d2` `518ae32`) | @gb-frontend | ✅ QA ใบ 12 ผ่าน (F1 → 6.4b.1) |
+| 6.4b.1 | ตารางปิดรอบ: ยอดเห็นได้ไม่ต้องเลื่อน (การ์ดบนมือถือ / ชื่อ sticky / กรอบกว้าง ≥1024) + ป้าย KPI นับคน | @gb-frontend | ✅ `f9f8ae1` QA ใบ 14 ผ่าน (KPI 'ถูกเก็บเงิน N คน' นับแถว ฿0 → แก้ป้ายใน 6.3) |
+| R1 (เดิมเรียก B12) | `previewSessionCharges` ส่ง breakdown ต่อคน + ยอดค่าคอร์ท/ลูก/ปรับ (map จาก calculateSessionCharges เดิม) | @gb-backend | ✅ `ee6bffd` QA ผ่าน (fuzz 5000 นัด) |
+| R2 (เดิมเรียก B13) | reminders แบ่งหน้า keyset (max_rows 1000 ตัดเงียบ) | @gb-integrations | ✅ `e7ee0b4` QA ผ่าน |
+| R2.1 (เดิมเรียก B13.1) | payment reminders keyset + แก้เทสต์ claim flaky | @gb-integrations | ✅ `090d22b` QA ผ่าน |
+| B5a | เครดิตสมาชิก — ADR-010 `aeb9fe1` + migration 0044 `003e800` | @gb-backend | ✅ QA ใบ 13 ผ่าน · db push cloud ✅ (44/44 · EXECUTE anon/auth=false) |
+| B15-ADR | web push — ADR-014 `75a9464` (Q1–Q10 ★ · baseline `4eecade`) | @gb-integrations | ✅ (เอกสาร ไม่ต้อง QA) |
+| B5b-1 | N1 seq `cc8a14e` (0046) + received_amount/type ใหม่ `f917afc` (0047) | @gb-backend | N1 ✅ QA ใบ 16 · cloud 46/46 (31 ต.ค.) · 0047 🔄 QA ใบ 17 |
+| B5b-2 | topup / cash_payout / credit_return_charge + refund cap + finance.ts `a6254ea` (0048) | @gb-backend | 🔄 QA ใบ 18 |
+| B5b-3 | leave_gang หักเครดิต + ห้าม topup ตัวเอง `6d6a3ba` (0049) | @gb-backend | 🔄 QA ใบ 19 |
+| B13-ADR | ADR-015 บทบาทกำหนดเอง `b2f2f66` · Accepted `e64a1f2` | @gb-backend | ✅ (เอกสาร) |
+| R-roles-0 | golden role-matrix `146bf16` + 0.1 แก้ fixture cron/inventory `2e000f6` (เทสต์อย่างเดียว) | @gb-backend | 🔄 QA ใบ 20 |
+| R-roles-1 | expand: gang_roles + has_gang_permission + preset + assign (ไม่แก้ policy เดิม) `62405a8` (0050) | @gb-backend | ✅ QA ใบ 26 — static + runtime gang-roles 25/25 · cloud push 0050 ⏸ รอ 0047–0049 |
+| R-roles-2a | migrate การเงิน → ผู้ถือชุดสิทธิ์ (InitPlan `gangs_with_permission` · ADR-015 amendment `e06304d`) `63239db` (0051) | @gb-backend | ✅ QA ใบ 27 — static + runtime treasurer-finance 16/16 · cloud push 0051 ⏸ รอ 0047–0049 |
+| R-roles-2b | migrate จัดนัด + `sessions_with_permission` `7425aac` (0052) | @gb-backend | ✅ QA ใบ 28 — static + runtime scheduler-sessions 10/10 · cloud push 0052 ⏸ รอ 0047–0049 |
+| R-roles-2c | ประกาศ + statistics.view.all ให้ scheduler (flag gate ใน policy · helper กลางไม่รู้จัก feature) `b354a9b` (0053) | @gb-backend | ✅ QA ใบ 29 — static + runtime scheduler-statistics 7/7 · role-matrix 7/7 (golden ไม่เปลี่ยน) · cloud push 0053 ⏸ รอ 0047–0049 |
+| R-roles-3 | server โหลดชุดสิทธิ์เข้า can() extra — แผน `docs/plans/r-roles-3-server-permission-context.md` `6e026a5` · template guards ใช้ action แยก ไม่ delegable (planner 1 พ.ย.) | @gb-backend | ✅ QA PASS — commit `ee3d10a` `2906dae` `2246cf2` `77f5aa5` `0126031` `5a0d2ef` `7c0babb` `39635e0` · context-db 9/9 · slip-signed-url 4/4 · RLS 34/34 · role-matrix 7/7 (golden ไม่เปลี่ยน) · gang-roles 25 · treasurer-finance 16 · scheduler-sessions 10 · scheduler-statistics 7 · coverage 12/12 · unit 625 / 1 skip · probe assign→revoke→regrant ทำงานจริงทันที · **ไม่มี migration** (cloud ยังอยู่ที่ 0046) · slipSignedUrl เลิก hardcode role แล้ว (treasurer ดูสลิปได้) · full sweep 510/511: `template-generate.test.ts` รันเดี่ยวผ่าน 13/13 · สาเหตุที่ล้มใน sweep ยัง UNVERIFIED (ไม่มี raw log) |
+| R2.2 + R2.3 | reminders test pageSize ≤ max_rows `b843adc` → แก้ F1/F2 ด้วย fixture-scoped real HTTP + งบ request คงที่ `eb1f043` `0cc41d4` (test-only · รวม B13 session :218) | @gb-integrations | ✅ QA ใบ 22 PASS (31 ต.ค. · ties ข้ามหน้าจริง [1,1,2] · mutation ปิด filter/เปลี่ยน path แดง · writers 47/47 ×3) · ข้อจำกัด: ไม่รับรอง global churn |
+| 6.5a | loaders แอดมินเงิน: adminPaymentDetail/adminLedger/chargeHistory `79844ca` · financeReport + listGangCredits | @gb-integrations | ✅ QA ใบ 24 — static + runtime payment-admin 9 / payment-list 5 / finance-cash 7 / finance-range 10 = 31/31 |
+| 6.5b | H32/33/34 + กระเป๋าเครดิต + reports | @gb-frontend | ✅ `1dfaa09` + `f56decc` QA ใบ 30 PASS — typecheck 0 error · lint 0 error · unit 625 passed / 1 skipped · default build ผ่าน · full Playwright 62/62 (QA rerun เอง) |
+| 6.6a | WO-6.6a ✅ QA PASS ที่ pin `b009d9a` (รวม test fix `ac3601b`) — build ผ่าน · full Playwright 65/65 (4.0m) · states.spec:76 ผ่าน · ภาพ h11/h14/h15/h16 ครบ (h12/h13 ไม่จำเป็น — plan:446) · commits `a13c682`, `6c88c12`, `37636b8`, `ac3601b` | @gb-frontend | ✅ |
+| WO-B2.2 | `leaveGang` คืน `error.reason` (allowlist runtime + whitelist reasonMeta เฉพาะ HAS_LATE {startsAt,cutoffAt}) · ไม่เปลี่ยน SQL · commit `3705c5b`→`81c1726`→`2cb4030`→`c159bd3`→`f4aefc3`→`7ad065e` | @gb-backend | ✅ QA PASS (combined `2966e57`) · unit 719 / 1 skip · DB 12 ไฟล์ / 116 · B2.2 2/2 ×3 |
+| 6.5c-DTO | WO-6.5c-DTO ✅ QA PASS — commits `47b3591` + `9297922` · F1: registrations ดึงแบบ keyset pagination (2 นัดรวมกันเกิน PostgREST max_rows 1000) · fields ใหม่: `inRatio`/`outRatio` (max ร่วม 12 ค่า), `maxPlayers`/`courtLabels`, `followingSession`, `viewerDisplayName` · probe 1006 ผ่าน · DB dashboard 20/20 · coverage 12/12 · build 0 · focused dashboard 2/2 · full 65/65 ที่ `47b3591` | @gb-backend | ✅ |
+| 6.5c-UI | dashboard UI H10 — 12 widget null ซ่อนทั้งการ์ด · commit `7253437`, `bf3cde2`, `2966e57`, `b0a09d7` · ภาพ h10 empty + populated | @gb-frontend | ✅ QA PASS (combined `2966e57`) |
+| 948f55c | rate-limit drift test บน Windows (ปิด BACKLOG `711f4a5`) | @gb-backend | ✅ QA PASS 20/20 |
+| 6.5 | แอดมิน dashboard + เก็บเงิน (10, 32–34) | @gb-frontend (+@gb-backend query #10) | ✅ loader `bf57a24` + UI dashboard (combined `2966e57`) · 6.5 ปิดงาน |
+| 6.5c | backend loader สำหรับ dashboard H10 (ส่วน backend · UI ยังไม่ทำ → frontend) — commit `fc274be`→`bad5e09`→`a21f71b`→`d835e17`→`1f0a82f`→`4d22abe`→`3246e9b`→`84e5848`→`0cfd5a5`→`2c15a1d`→`ea06835`→`5f35b56`→`f40252f`→`bf57a24` | @gb-backend | ✅ QA PASS ที่ `bf57a24` (push แล้ว) · ไม่มี migration · cloud ยัง 0046 · dashboard-overview-db 19/19 ×3 · timeline 20/20 · drift/mutation 13/13 · finance-domain 19/19 · RLS 34/34 · finance 30/30 · embeds 2/2 · coverage 12/12 · unit 674 pass / 1 skip · build ผ่าน |
+| 6.6 | ตั้งค่าก๊วน + สร้าง/แก้นัด + นัดประจำ | @gb-frontend | ⏳ |
+| 6.7 | Auth + onboarding — ส่วน backend #51 onboardingChecklist ✅ QA PASS ที่ `d553ed2` (computed-only gate ด้วย `can(gang.update)` · DB 24/24 · probe 6/6 · coverage 12/12 · build 0 · focused dashboard 2/2) · ส่วน UI checklist รอ frontend | @gb-backend (#51) + @gb-frontend (UI) | ⏳ backend ✅ · UI ⏳ |
+| 6.8 | Growth screens + หน้าแรก — backend #38 CSV export ✅ QA PASS `c4de11e` (fca2317 + c4de11e) · UI รอ frontend | @gb-frontend (+@gb-backend #38) | ⏳ |
+| 6.9 | Playwright checkpoint + `v1.1.0` | @gb-qa | ⏳ |
+| B2 | ออกจากก๊วน + โอน owner — ADR-012 (plan §11) | @gb-backend | ✅ `71c308b` QA ผ่าน · db push cloud ✅ 28 ต.ค. |
+| B2.1 | ปิด race ลงชื่อนัดพร้อมกับออกจากก๊วน (`register_to_session` ตรวจสมาชิกใน DB) (plan §11) | @gb-backend | ✅ `f12408f` QA ผ่าน · db push cloud ✅ 28 ต.ค. |
+| B11.1 | `cancelPreview` read-only ใช้ตรรกะเดียวกับ cancel_registration (ให้ 6.2 แสดง "ยกเลิกฟรีถึง") | @gb-backend | ✅ `45cfa5b` QA ผ่าน · db push cloud ✅ 28 ต.ค. |
+| B11 | สละสิทธิ์หลังถูกเลื่อน 3 ชม. + แอดมินเลื่อนเอง — ADR-011 (plan §11) | @gb-backend | ✅ `f6977ed` QA ผ่าน · db push cloud ✅ 28 ต.ค. |
+| B1-ADR | ร่าง ADR-013 LINE Login เป็นทางเข้าหลัก (plan §11) | @gb-integrations | ✅ `927afee` → Accepted `4b61d1c` |
+| B1.a+c | ปุ่ม LINE Login + ผูก/ถอด LINE ในโปรไฟล์ (หลัง flag `LINE_PLATFORM_LOGIN_ENABLED`) | @gb-integrations | ✅ `217ad60` QA ผ่าน · ⚠️ `b48bd1a..1967be2` build ไม่ผ่าน ห้าม cherry-pick แยก · รอเจ้าของงานตั้งค่า LINE (`docs/ops/line-login-setup.md`) แล้วค่อย spike S1–S5 |
+| hotfix | open redirect `/sign-in?next=` → `7e90739` QA ผ่าน → PR #15 เข้า main | @gb-planner | ⏳ รอเจ้าของงาน OK merge |
+| Task04-V1 | Task04 V1 private-writer ACL canary — private root `C:/Users/peepe/gb-test-env-private/gb-env-proof-01` (DACL SYSTEM+user, protected) · 2 canary ไม่ใช่ความลับ · 4 เทสต์ PASS · V2 ยังไม่รัน รอ authorize แยก | @gb-integrations (runner @gb-planner) | ✅ QA PASS (ยืนยันรันจริง 2 ฝ่าย) |
+| Task04-V0 | Task04 V0 preflight (read-only) — evidence `tools/test-env/v0-evidence/*.txt` (local only ไม่ commit · ดูสรุปใน STATE.md) · V1–V6 ยังไม่รัน รอ authorize แยกต่อหน่วย | @gb-integrations (runner @gb-planner) | ✅ QA PASS · no side-effects (docker ps -a count=0 gb-env-proof-01) |
+| Task04-commit | Task04 preparation (offline/source) — `c8a4478` tools/test-env + tsconfig/eslint exclude · `be0592a` ADR-016 ต่อท้าย baseline | @gb-integrations | ✅ QA PASS (node --test 18/18 · tsc/eslint exit 0 · secret scan clean) · credential incident OPEN · card20 paused |
+
+- **Forbidden ร่วมทุกใบใน Track A**: ห้ามมี migration · ห้ามแตะ DB function / state machine / `domain/billing` ·
+  ห้าม copy CSS ของ hi-fi (`.btn` `.chip` …) เข้า repo — ประกอบจาก Astryx + theme เท่านั้น ·
+  หน้าที่อยู่ใน Track B (ต้องมี ADR ก่อน) **ห้ามทำ UI ล่วงหน้า**

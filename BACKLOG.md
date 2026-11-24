@@ -451,3 +451,154 @@
 - [ ] **`lib/supabase/client.ts` โยน error แล้วพังทั้งหน้า** เมื่อ `NEXT_PUBLIC_*` ไม่ถูก inline
       ตอน build — ควรทำให้ฟีเจอร์ realtime degrade เป็น polling (ซึ่งมีอยู่แล้วใน `lib/sync/fallback.ts`)
       แทนที่จะทำให้ทั้งหน้าใช้ไม่ได้
+
+---
+
+## จาก Phase 6 planning (Redesign — ของที่ hi-fi มีแต่ไม่อยู่ใน Track A)
+
+> รายละเอียด + ข้อขัดแย้งอยู่ที่ `docs/phase6-redesign-plan.md` §3 / §5 · ทุกข้อต้องมี ADR ก่อนทำ
+> ⚠️ ADR ในโฟลเดอร์ design (`ADR-002…008`) **เลขชนกับ baseline** — ตอนรับเข้าให้ใช้เลข ADR-010 ขึ้นไป
+
+- [ ] **B1 LINE Login เป็นทางเข้าหลัก** — เจ้าของงานเลือกแทน SMTP (26 ต.ค. 2026) · ต้องมี ADR · "ลืมรหัสผ่าน" ยังใช้ไม่ได้จนกว่าจะเสร็จ
+- [ ] **B2 ออกจากก๊วน (#55) + โอน owner (#55b)** — ★ อันดับสอง · DB function ใหม่ 2 ตัว
+- [ ] B3 PDPA consent + export + ลบบัญชี (#56, #56b) — ควรทำก่อนเปิด discovery ให้คนวงกว้าง
+- [ ] B4 สรุปผลผ่านไลน์แบบคัดลอกข้อความ (#48)
+- [ ] B5 เครดิต (#57, #52b, #34) — ✅ **เจ้าของงานเอา** (26 ต.ค.) · ร่าง ADR-010 ใน plan §9
+- [ ] B6 `courts` เป็น entity + ตารางสนาม (#49, #47)
+- [ ] B7 นโยบายหารค่าลูก 3 แบบ (#14b) — ต้องเข้ากับ ADR-005 เดิม
+- [ ] B8 คิวของฉัน + ขอพัก 1 รอบ (#58)
+- [ ] B9 สต็อกลูก (#60)
+- [ ] B10 ผลเกม + Elo + ตั้งค่า ranking (#62, #39b, #50)
+- [ ] B11 → **ไม่ทำ offer 15 นาที** · เจ้าของงานเลือก: สละสิทธิ์ไม่โดนปรับภายใน 3 ชม.หลังถูกเลื่อน + แอดมินเลื่อน/เปลี่ยนคนเอง (ร่าง ADR-011 ใน plan §9)
+- [ ] B12 ช่วยเหลือ + feedback (#66)
+- [ ] B13 Custom roles (#65) · B14 ความชอบในการจับคู่ (#64) · B15 Web push (#54) — **เจ้าของงานให้กลับเข้าแผน** (26 ต.ค. 2026) · ต้องมี ADR กลับคำ baseline ทุกข้อ
+- [ ] ลาก-วางจริงใน #25 / #47 — คง D-19 (แตะเลือก-แตะสลับ) ไว้ก่อน
+- [ ] เปลี่ยนชื่อแบรนด์ในแอปเป็น "BadGame" — เจ้าของงานให้คง "Gang Badminton" ไว้ก่อน (25 ต.ค. 2026)
+- [ ] **(QA WO-6.0 · B)** `extends: neutralTheme` พาสี ProgressBar ค่าเดี่ยว (ไม่ใช่ light-dark) มาด้วย — override ใน `theme/src` ก่อนใช้ ProgressBar ครั้งแรก
+- [ ] **(QA WO-6.0 · C)** หน้านัด: ช่อง "รับสูงสุด" ล้นการ์ด · datetime-local native ไม่เข้าชุด · primary 3 ปุ่มในจอเดียว → WO-6.6
+- [ ] **Playwright 1.62 หา `chromium_headless_shell-1234` ไม่เจอบนเครื่องนี้** (มีแค่ 1223) — ตอนนี้รันด้วย `channel: 'chrome'` · ควร `npx playwright install chromium` (ต้องอนุมัติ)
+- [ ] **(QA WO-6.1a · e)** org admin ที่ไม่ได้เป็นสมาชิกก๊วนไม่ได้ shell (layout ส่งแค่ role จาก `gang_members`) — `buildGangMenu` รองรับ `orgRole` แล้ว · ต้องตัดสินก่อนว่า org admin ควรใช้หน้าก๊วนได้ไหม
+- [ ] **(QA WO-6.1a · b)** tap target < 44px ที่เหลือ: ปุ่ม size sm (members/settings) · Selector role · checkbox/radio — แก้ในใบที่ reskin หน้านั้น
+- [ ] **(WO-6.1b)** `server/actions/auth.ts:72,96` ส่ง error ภาษาอังกฤษของ Supabase Auth ต่อเป็น `VALIDATION_ERROR` ⇒ หน้าจอตกไป fallback · ควรแปลเป็นไทยที่ server (@gb-backend)
+- [ ] **(WO-6.1b)** ทบทวน 4 จุดที่ต่อ `(err as Error).message` เข้า response (`sessions.ts:88/225` · `finance.ts:77` · `membership.ts:155`) — อาจพาข้อความภายในไปถึงผู้ใช้
+- [ ] **(WO-6.1b · ทางเลือก B)** เพิ่ม `fields` ใน API contract ให้ validation บอกรายช่องได้ — เปลี่ยน contract ต้องมี ADR
+- [ ] **(WO-6.1b)** หน้า 404 ของ path ที่ไม่มีจริง (เช่น `/xyz`) เสิร์ฟ HTML ที่ prerender (`/_not-found`) แต่ proxy ใส่ CSP แบบ nonce เพราะ pathname ไม่ตรง `STATIC_ROUTES` ⇒ สคริปต์บนหน้า 404 ถูกบล็อก (ลิงก์ยังใช้ได้) · ทางแก้: ทำ not-found เป็น dynamic หรือให้ proxy รู้จัก 404 — ต้องแตะ `lib/security/csp.ts` (มีเทสต์คุม)
+- [x] ~~**open redirect ที่ `/sign-in?next=`**~~ — เดิมส่ง `next` ดิบเข้า `router.replace` · ปิดใน WO-6.1b ด้วย `safeNext()` (เจอโดย @gb-frontend 27 ต.ค. 2026) — 🔴 **มีอยู่บน production ตั้งแต่ v1.0.0** จนกว่าจะ merge
+- [ ] **(WO-B2 · ADR-012)** `changeMemberRole` / `removeMember` (`server/actions/members.ts`) ยังกัน "owner คนสุดท้าย" ด้วย count แล้วค่อย update ใน TS (check-then-act) และ RLS `gang_members_update_admin` ให้ admin UPDATE `role` ตรงได้ ⇒ สองคำสั่งพร้อมกัน/ยิงตรงผ่าน PostgREST ทำให้ก๊วนไม่มี owner ได้ · แก้โดยย้ายเข้า DB function (หรือ constraint trigger "owner ≥ 1") — ต้องมี WO + ADR
+- [ ] **(WO-B2 · ADR-012)** `is_monthly_member` / `monthly_member_*` ไม่ถูกรีเซ็ตตอนออกจากก๊วน (ทั้ง `leave_gang()` และ `removeMember`) ⇒ คนที่กลับเข้ามาผ่าน `add_gang_member_by_email` / `decide_join_request` (กู้แถวเดิม) จะกลับมาเป็นสมาชิกรายเดือนทันทีและโดนออกบิลรายเดือน · ควรตัดสินว่ารีเซ็ตตอนกู้แถวหรือตอนออก
+- [ ] **(WO-B2 · UI → Track A)** หน้าเก็บเงินของแอดมิน (`app/gangs/[gangId]/payments/page.tsx` ~บรรทัด 134) กรอง `gang_members.deleted_at is null` ตอนทำตัวเลือกผู้จ่าย ⇒ คนที่ออกแล้วแต่ยังมียอดค้างหายจากตัวเลือก · และหน้าออกจากก๊วนต้องแสดง `outstandingAmount` จาก `leaveGang()` (ผู้ออกอ่านรายการหนี้เองไม่ได้อีกหลังออก)
+- [ ] **(WO-B2)** ผู้ออกที่ถือที่ confirmed เลย cutoff ในก๊วนที่ตั้ง `allow_cancel_after_cutoff = false` ออกไม่ได้ (`CANCEL_CUTOFF_PASSED`) — UI ต้องบอกให้ติดต่อแอดมิน/รอนัดผ่านไป · ถ้าเจ้าของงานอยากให้ออกได้เสมอ ต้องมี ADR ว่าจะข้าม policy นี้ได้อย่างไร
+- [ ] **(พบระหว่าง WO-B2/B1.a)** `tests/security/rate-limit.test.ts:163` ล้มบน Windows — เทียบ path `server/security/rate-limit.ts` กับ `server\security\rate-limit.ts` (path separator) · ใช้ `path.posix`/normalize ในเทสต์
+- [ ] **(WO-B1.a)** `startLineSignIn` ใช้ `resolveAppOrigin()` แล้ว แต่ magic link (`server/actions/auth.ts`) กับ `line.ts:515` ยังสร้าง origin คนละแบบ — รวมให้ใช้ตัวเดียว
+- [ ] **(WO-B1.c)** หน้าโปรไฟล์: ผูก/ถอด LINE ระดับบัญชีด้วย `linkIdentity`/`unlinkIdentity` (spike S2) — รอเจ้าของงานตั้งค่า LINE Login ตาม `docs/ops/line-login-setup.md`
+- [ ] **(QA B2)** `tests/seed/idempotency.test.ts` flaky เมื่อหลายบอทเขียน Supabase local ตัวเดียวกัน (นับแถวทั้งฐาน) — นับเฉพาะแถวของ seed หรือแยก DB ต่อเทสต์ · ทางแก้ rate-limit test บน Windows: `found.push(rel.split(sep).join('/'))` ใน `sourceFiles()`
+- [ ] **(WO-6.2 · ทางเลือก ข)** server action `registerGuestByMember` — ให้สมาชิกลงชื่อ guest จากหน้านัดได้เอง (ตอนนี้ guest เกิดทางเดียวผ่านลิงก์ `/join/[token]`) + เตือนชื่อซ้ำฝั่ง server · ต้องตัดสินก่อนว่าสมาชิกทุกคนพา guest ได้ไหม / นับโควตาอย่างไร (แตะ registration state machine → @gb-backend)
+- [ ] **(WO-6.2)** guest ที่ลงผ่านลิงก์ `/join/[token]` มี `registered_by = null` (`register_guest` ส่ง null) ⇒ แสดง "พามาโดยใคร" ไม่ได้ · ควรบันทึกคนสร้างลิงก์เชิญ (@gb-backend · แตะ registration)
+- [ ] 🟠 **(QA B11)** `sendSessionReminders` (`server/notifications/reminders.ts:63`) select นัดที่ open ใน 14 วันโดยไม่แบ่งหน้า ⇒ PostgREST ตัดที่ `max_rows = 1000` ⇒ ถ้านัดเปิดเกิน 1000 จะไม่เตือนส่วนที่เกิน**แบบเงียบ** (เห็นแล้วใน local 1997 นัด: `tests/sessions/reminders.test.ts` ล้ม 5) · แก้: แบ่งหน้า `range()` หรือกรอง horizon ใน SQL ให้แคบ (@gb-integrations)
+- [ ] **(QA)** Supabase local ใช้ร่วมกันทุกบอท ⇒ `db reset` กลางคันทำให้เทสต์ของคนอื่นล้ม (QA เจอ 53 ตัว) · กติกา: แจ้ง @gb-planner ก่อน reset · ระยะยาว: แยก DB ต่อ worktree
+- [ ] **(QA B11.1)** `cancelPreview` server action ยังไม่มีเทสต์ระดับ TS (มีแค่ระดับ DB) — เพิ่มเทสต์ assertCan cancel.self/cancel.other + map ผล
+- [ ] **(QA 6.2)** timeline หน้านัดยังโชว์ event ดิบ เช่น "เหตุการณ์: registration.waitlisted" — ต้องมี map ชื่อ event → ข้อความไทย (@gb-frontend)
+- [ ] **(6.4a)** หัวกระดานคิวสด "ใช้ลูกไปรวม" ตาม hi-fi ยังไม่ทำ — query เกมที่จบ limit 50 ⇒ ต้องมี aggregate ฝั่ง server (sum shuttles ต่อนัด) ก่อน (@gb-backend, R+)
+- [ ] **(6.4b · K28b)** "ยอดรวมไม่ลงตัว — ปิดรอบไม่ได้" ตาม hi-fi = กติกาเงินใหม่ (DB ไม่บล็อก · ตามสูตร surplus = เก็บรวม − ต้นทุน เสมอ) → ต้องให้เจ้าของงานตัดสินว่าต้องการด่านนี้ไหม (เช่น บล็อกเมื่อ surplus < 0)
+- [ ] **(QA 6.4a)** หน้า scan: network error ระหว่างสแกน ยังไม่มีทางทดสอบ headless (ต้องใช้กล้อง) → ทดสอบมือบนมือถือจริงตอน UAT
+- [x] (QA 6.4a) เปลี่ยนตัวข้ามคอร์ทได้ = ฟีเจอร์เดิมของ `substitute_game_player` (migration 0020) — planner ยอมรับ ไม่ใช่บั๊ก
+- [ ] **(QA R2)** `sendPaymentReminders` ยังเป็น `.order(created_at desc).limit(500)` ครั้งเดียว ⇒ ยอดค้างเกิน 500 แถว ยอดเก่าสุดไม่ถูกเตือนแบบเงียบ — ใช้ keyset แบบ B13 (@gb-integrations)
+- [ ] **(QA R2)** `tests/sessions/reminders.test.ts:445` flaky — claim_notifications(50)×20 หยิบจากทั้ง DB (pending สะสม >1000) ⇒ แถวของเทสต์หลุด · แก้ให้เทสต์ claim/ตรวจเฉพาะแถวของ gang ทดสอบ หรือเคลียร์ pending ของ fixture ก่อน (@gb-integrations)
+- [ ] 🟡 **(R2.1 · รอเจ้าของงานตัดสินเมื่อข้อมูลโต)** `sendPaymentReminders` ไล่ charge ค้างทั้งตารางทุกรอบ cron (ถูกต้องเพราะ dedupe แต่ O(n)) · ทางเลือก: ตัดย้อนหลัง N วัน = ยอดค้างเก่ากว่า N จะไม่ถูกเตือนอีก (เปลี่ยนกติกา) — ยังไม่จำเป็นจนกว่าจะมีข้อมูลจริงหลายพันแถว
+- [ ] **(6.3 · ตัดจาก hi-fi เพราะ schema ไม่รองรับ)** จ่ายเงินสดที่สนาม (ต้องมีสถานะ/action cash) · โน้ตถึงแอดมินตอนส่งสลิป (คอลัมน์ note) · ชื่อบัญชีผู้รับ PromptPay (คอลัมน์ใน gang settings) · progress % + ยกเลิกอัปโหลด (XHR/tus) · รับ HEIC/8MB (bucket ตอนนี้ 5MB jpeg/png/webp/pdf) · "QR หมดอายุ" ไม่ทำ (PromptPay QR สถิต)
+- [ ] **(ADR-010 · B5b)** refund ของ charge ที่จ่ายด้วยเครดิต → คืนเข้าเครดิต · ยกเลิกนัดที่จ่ายแล้ว → เครดิต · leave_gang แสดง/คืนยอดเครดิตคู่ยอดค้าง · แอดมินเติม/จ่ายคืนเงินสด
+- [ ] **(ADR-010 · ตรวจตอน B5a QA)** payment reminder ต้องไม่เตือนคนที่เครดิตหักจนยอดค้าง 0 (`shouldRemindPayment` ใช้ ledger ที่รวม allocation credit แล้ว — ให้ QA ยืนยัน)
+- [ ] 🟡 **(QA ใบ 12)** `session_charges.breakdown` เก็บค่าที่ปัดแล้วต่อหมวด (court_fee 167.00 / shuttle_fee 45.00) แต่ h28 แสดงส่วนที่ควรจ่ายจริง (166.67 / 44.44 + ปัด 0.89) — รวมเท่ากัน · หน้าฝั่งสมาชิก (R3/6.3) ต้องใช้ชุดตัวเลขเดียวกับแอดมิน (ตัดสินใน R3)
+- [ ] (QA ใบ 12) /close ของแอดมินก๊วนอื่นคืน HTTP 200 + หน้า notFound (stream) ไม่ใช่ 404 — ไม่รั่วข้อมูล · กระดานที่ 1920 ยังใช้พื้นที่ราวครึ่งจอ · ตัว ฿ บน Windows Chrome เป็น fallback font สีเพี้ยน
+- [x] ➡️ WO-R4 (เจ้าของงานเลือก ก 28 ต.ค.) **(ADR-014 ข้อค้นพบ)** `waitlist.promoted`, `session.opened`, `payment.due` (enqueue_session_notification 0023:85 / promote 0041:337) insert `in_app` ตรง ไม่ผ่าน `enqueue_notifications()` ⇒ LINE ไม่เคยได้ 3 เหตุการณ์นี้ (line-message.ts มีข้อความรออยู่) · แก้ = ให้ทั้ง 3 เรียก enqueue_notifications + `p_channels` (แตะ promote ⇒ @gb-backend + QA เข้ม)
+- [ ] **(WO-B5a · UI → Track A/6.5)** "เก็บได้จริง" ต้องไม่รวมเครดิต: query ที่เลือก `payment_allocations(amount, payments(status))` (reports/payments/pay pages, `server/line/liff.ts`, `server/notifications/reminders.ts`) ต้องเพิ่ม `source` แล้วกรอง `source = transfer` เฉพาะตัวเลข "เก็บได้จริง" (ยอดค้างยังนับทุก source) · แสดง "เงินที่ก๊วนติดสมาชิก" จาก `listGangCredits()` · แสดงเครดิตของฉันจาก `getMyCredit()`
+- [ ] **(WO-B5a)** ยังไม่มี server action สำหรับ "ใช้เครดิตจ่ายหนี้เก่า" (DB `apply_credit(gang,user,charge_ids)` พร้อมแล้ว · หักอัตโนมัติจับเฉพาะหนี้ใหม่) — ต้องตัดสินว่า member กดเองหรือแอดมินเป็นคนกด ก่อนทำ action/ปุ่ม
+- [ ] 🟡 **(QA ใบ 13 · B5b)** N1 `credit_ledger` เรียงด้วย created_at ไม่ตรงลำดับล็อกจริง (clock skew µs) ⇒ ประวัติเครดิตจะโชว์ balance_after กระโดด · เงินไม่ผิด (cache = Σ) · แก้: คอลัมน์ `seq` ต่อ (gang,user) เขียนใต้ FOR UPDATE + unique · `expectCreditConsistent` อาจ flaky
+- [ ] 🟡 **(QA ใบ 13 · B5b)** N2 `record_overpayment` ไม่มีเพดาน (สลิป 1.00 บันทึกเครดิต 500 ได้) ⇒ เก็บยอดโอนจริงไว้เทียบ / audit / UI เตือนเมื่อเกินยอดสลิป
+- [ ] (QA ใบ 13) coverage: probe concurrency ×20 ของ QA เองรันได้รอบแรก (ไม่มี deadlock ยอดถูก) แต่ assert ของ probe ผิด แก้ไม่ได้เพราะติดอนุมัติ · เทสต์ของเจ้าของงาน 4 ทาง×20 ผ่าน 5 รอบ ⇒ planner รับ
+- [ ] 🟡 **(B5b-1 · R2.2 → @gb-integrations หลัง R3)** reminders.test.ts B13.1 "ยอดค้างที่เก่าสุด…หลายหน้า" ล้มเมื่อ DB ร่วมมี session_charges หลายพัน: pageSize = floor(total/4) > PostgREST max_rows 1000 ⇒ อ่านถูกตัด · แก้เทสต์ให้ pageSize ≤ 1000 (เช่น min(total/4, 500)) — ไม่ใช่บั๊กโค้ด production (PAGE_SIZE 500)
+- [ ] **(B5b-2 · งาน 6.5 UI)** รายงานการเงิน `app/gangs/[gangId]/reports/page.tsx` ต้องส่งเข้า `calculateFinanceReport`: `charges[].creditAllocated` (allocation `source = 'credit'` ที่ verified) · `overpayments` (credit_ledger type overpayment) · `memberPayouts` (cash_payout) ไม่งั้น "เก็บได้จริง" ยังนับเครดิตซ้ำ (ADR-010 Q4) · หน้า UI เครดิต: ขั้น 1 `addChargeAdjustment(type credit ติดลบ)` → ขั้น 2 `returnChargeToCredit` · ช่องกรอก "ยอดที่โอนจริง" (`setPaymentReceivedAmount`) ก่อนปุ่มบันทึกโอนเกิน · `LedgerPanel` ยังไม่รู้จัก adjustment type `credit_return` (แสดงเป็นยอดบวกใน adjustments)
+
+- **[R-roles · defense-in-depth] ด่านสิทธิ์ใน DB ของ `add_gang_member_by_email` / `decide_join_request` + ฟังก์ชันจัดนัด/เกมที่ไม่มีด่าน role (`transition_session`, `check_in_registration`, `bulk_check_in`, `mark_no_show`, `substitute_game_player`, `correct_game_shuttles` ฯลฯ — พบใน R-roles-2b · `publish_announcement` — พบใน R-roles-2c)** (พบใน R-roles-0.1 `2e000f6`, 31 ต.ค. 2026): ทั้งสองฟังก์ชันเชื่อ `p_actor_id` ไม่เช็ค role ใน DB (รวม `p_role='owner'` ที่ actor เป็น member) · ด่านจริงคือ `can()` ฝั่ง TS + EXECUTE เฉพาะ service_role ⇒ ไม่ใช่ช่องโหว่จาก client แต่ถ้า server action ใดเรียกผิดจะไม่มีด่านที่สอง · ทำเป็นใบแยกหลัง R-roles-2 (ใช้ actor_is_gang_admin/has_gang_permission + ห้ามมอบ owner ผ่านฟังก์ชันนี้) · golden role-matrix จะเปลี่ยนช่องนี้ ⇒ ต้องอธิบายต่อ QA
+
+- **[perf] event_logs RLS เรียก `is_gang_member` ต่อแถว** (พบใน R-roles-2a, 31 ต.ค. 2026): local 155k แถว query ของสมาชิกทั่วไป ~3.5s (มีอยู่ก่อน R-roles) · แก้แบบ InitPlan เดียวกับ `gangs_with_permission` (เช่น `gang_id = any((select my_gang_ids())::uuid[])`) · วัด row count ของ event_logs บน cloud ก่อนจัดลำดับ
+- **[test infra] Windows EADDRINUSE 127.0.0.1:54329** เมื่อรัน vitest ทั้งชุดติดกันหลายรอบ (ephemeral port หมด) ⇒ ไฟล์สุ่มล้ม · รันเดี่ยวผ่าน · พิจารณา pool reuse / เว้นช่วงระหว่างรอบ
+- **[test infra] template-generate "แก้จำนวนคน→นัดเดิมคงเดิม" timeout 30s ในชุดเต็ม** (พบ R-roles-2b, 31 ต.ค. 2026): job สแกน template ทั้ง shared DB (log invalid/missing pricing จำนวนมาก) · รันเดี่ยวผ่าน · ให้เทสต์ scope fixture gang แบบ R2.3 หรือ job รับ filter gang สำหรับเทสต์ (ต้องเสนอก่อนถ้าแตะ production)
+- **[flags] member_statistics policy (0031) ไม่เช็ค `features.statistics` สำหรับ admin/owner** (พบ R-roles-2c): ปิด flag แล้ว admin ยังอ่านสถิติทั้งก๊วนผ่าน DB ได้ (UI/can() ซ่อนอยู่) · ผู้ถือ statistics.view.all ถูก gate ด้วย flag ใน policy แล้ว · ตัดสินว่าจะให้ admin ถูก gate ด้วยหรือไม่ (ถ้าใช่ = เปลี่ยนพฤติกรรม ต้องถามเจ้าของงาน)
+
+## จาก QA ใบ 23–24 + build infra (รับเข้าจาก planner 28 ต.ค. 2026)
+
+- [ ] 🟡 **[security-hardening · 6.5a] `server/payments` `scopedFinanceNames()` ไม่ตรวจ gang scope เอง** (commit `623d3f5`): ใช้ `supabaseAdmin()` (service-role, bypass RLS) ดึงชื่อสมาชิกเก่า · ตอนนี้ความปลอดภัยพึ่งแค่ comment ว่า caller ต้องส่ง ID ที่ scope แล้ว ⇒ ย้ายการตรวจ gang scope เข้าไปในฟังก์ชันเอง (รับ `gangId` แล้ว filter) + test กรณีส่ง ID ของ gang อื่นต้องไม่คืนชื่อ · callsite ปัจจุบัน 2 จุดยังถูกต้อง จึงยังไม่ใช่ bug ที่ใช้งานจริง (ที่มา: QA ใบ 24)
+- [ ] 🟡 **[observability · 6.3] catch ที่ไม่ log exception ใน `CreateMyPaymentButton.tsx` / `PaySlipForm.tsx`**: มี catch บางจุดที่ `setError` ให้ผู้ใช้เห็น แต่ไม่ log exception จริงไว้ · เทียบกับ CLAUDE.md §5 (ห้าม swallow error) ⇒ เพิ่ม log (โดยไม่ log ข้อมูลลับ/สลิป) ที่ทุก catch (ที่มา: QA ใบ 23)
+- [ ] 🟢 **[build-infra idea] ย้าย Noto Sans Thai ไปใช้ `next/font/local` กับไฟล์ woff2 ที่ commit เข้า repo** เพื่อให้ build ไม่พึ่ง network · ระหว่าง 6.5b Turbopack ล้ม 2 รอบด้วย error `next/font/google queries have exactly one entry` ลบ `.next` แล้วผ่าน ⇒ ยังไม่เร่งด่วน หยิบมาทำถ้าเกิดซ้ำ (ที่มา: ระหว่าง 6.5b)
+
+## จาก QA ใบ 30 (WO-6.5b) — docs/dev-env + UX polish (รับเข้าจาก planner)
+
+- [ ] 🟡 **[docs/dev-env] build ที่ไม่ export `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` ยัง exit 0** แต่ค่าใน client bundle จะว่าง แล้วหน้า new session crash ตอน runtime (Playwright เคยพัง 17/62 เพราะเรื่องนี้ ดู `smoke.spec.ts:89`) · ตรวจแล้ว (ก) `.env.example` **มีอยู่แล้ว** (มีชื่อตัวแปรและค่า local ของ `supabase start`) (ข) README มีคำสั่ง build พร้อม export อยู่แล้ว (ส่วน smoke) · ที่ยังขาด: ทำให้ `npm run build` fail ถ้าไม่มีตัวแปรที่จำเป็น และย้ำขั้นตอนนี้ในส่วนขั้นตอนติดตั้งหลัก (ค) ตัดสินว่าจะให้ build fail หรือไม่ (เปลี่ยนพฤติกรรม build)
+- [ ] 🟢 **[UX · polish 6.9] ปุ่ม ghost "โหลดประวัติและยอดล่าสุด" ใน wallet (light/dark)** ดูเหมือนข้อความธรรมดา — contrast ผ่าน AA แล้ว แต่ affordance อ่อน · ให้พิจารณาตอน polish ของ 6.9
+
+## จาก R-roles-3 (รับเข้าจาก gb-backend · planner ตัดสินแล้ว)
+
+- [ ] 🟡 **[R-roles-4 · ความปลอดภัยสิทธิ์] action ใหม่ `session.template.manage`** (ไม่ delegable · เฉพาะ admin / owner / orgAdmin) สำหรับ guard site 4 จุดใน `server/actions/templates.ts` (บรรทัด 78 / 114 / 156 / 187) · ตอนนี้ยังใช้ `session.create` / `session.update` เดิมซึ่งเป็น delegable action ของ scheduler preset ⇒ scheduler ที่ควรจัดการได้แค่นัดเดี่ยว (ADR-015 Q2ก) มีสิทธิ์จัด "นัดประจำ/เทมเพลต" ไปด้วยโดยไม่ตั้งใจ · ยังไม่ส่ง extra เข้า assertCan ที่ templates.ts (จงใจคงไว้ที่ role ฐานตามคำสั่ง planner รอบ R-roles-3) · รอบนี้ไม่มี migration/implementation · ทำใน R-roles-4 (migration เพิ่ม action + DB check + ปรับ 4 call site) โดย @gb-backend
+- [ ] 🟡 **[R-roles-3 follow-up · frontend] page gate ใน `app/*/page.tsx`: 11 จุดตาม manifest `deferred:'frontend-page-gate'` + `templates/page.tsx` 1 จุดเป็น exempt (Q2ก)** (join-requests, announcements, templates, members, settings, liff, stats, membership, scan และอื่น ๆ ใน `tests/security/permission-context-coverage.test.ts` · tag ไว้ที่ `39635e0`) ยังใช้ role จาก `gang_members` ตรง ๆ โดยไม่มี extras ⇒ ผู้ถือบทบาท custom (เช่น treasurer / scheduler) จะไม่เห็นหน้าที่ server อนุญาตแล้ว · ตอนนี้ไม่มีความเสี่ยงด้านความปลอดภัย (server/RLS เป็น authority) และยังไม่มีผลจนกว่าจะมี role assignment จริง · แผน: ใช้ `loadGangPermissionContext` ใน 6.6a / 6.6b สำหรับหน้าที่แตะ และส่วนที่เหลือทำก่อนหรือพร้อม R-roles-4
+- [ ] 🟢 **[test-strength · R-roles-3]** coverage test (`tests/security/permission-context-coverage.test.ts` ราว บรรทัด 335) ตรวจ `loadGangPermissionContext(` ระดับไฟล์ ไม่ใช่ต่อ guard site ⇒ ถ้า wire แค่บาง call ก็ยังผ่าน · ควรทำเป็น AST / ตรวจต่อ call site
+- [ ] 🟢 **[flake · R-roles-3]** หาสาเหตุ `template-generate.test.ts` ที่ล้มเฉพาะตอนรัน full sweep (510/511) · รันเดี่ยวผ่าน 13/13 · ยัง UNVERIFIED (ไม่มี raw log)
+
+
+## จาก gap ดีไซน์ 6.6a (HC11–HC16 + ปุ่มออกจากก๊วน) — ดีไซน์มี แต่ระบบยังไม่มี (รับเข้าจาก planner)
+
+- [ ] 🟢 **[HC11/HC12 · โปรไฟล์สมาชิก]** ยังไม่มี skill / สถิติการมา / ยอดค้างต่อคน / วันเข้าก๊วน / เบอร์โทร (members loader ตอนนี้มีแค่ role / รายเดือน / ชื่อ)
+- [ ] 🟢 **[HC13 · ระดับฝีมือ]** ยังไม่มี drag เพื่อเรียงลำดับ / คำอธิบาย / จำนวนคนต่อระดับ (ตอนนี้มีแค่ add / remove + rank)
+- [ ] 🟢 **[HC14 · โมเดลคิดเงิน]** ค่าคอร์ทต่อชั่วโมง (ระบบใช้ `courtFeeTotal` ต่อนัด) · ตัวอย่างค่าใช้จ่ายต่อคน (ห้ามคำนวณใน UI — ถ้าทำต้องให้ server คำนวณ) · 14b หารค่าลูก · ⚠️ **ต้องให้เจ้าของงานตัดสินกติกาเงินก่อน**
+- [ ] 🟡 **[HC15 · กติกายกเลิก]** ค่าปรับแบบ fixed / percent แยก late กับ no-show ยัง implement ไม่ได้ · toggle waitlist ยังไม่มี ⚠️ **กติกาเงิน เจ้าของงานตัดสิน**
+- [ ] 🟢 **[HC16 · ตั้งค่าก๊วน]** feature toggle guest / stats / Elo และปุ่มลบก๊วน ยังไม่มีใน `updateGangSettings`
+- [ ] 🟡 **[6.6a DoD · ออกจากก๊วน]** `ApiFailure` ยังไม่มีช่อง `detail` ⇒ ส่ง reason จาก `leave_gang` (0049 `VALIDATION_ERROR` "เจ้าของก๊วนคนสุดท้ายออกไม่ได้") ไปถึง UI ไม่ได้ ⇒ จะเปิด **WO-B2.2** (backend เพิ่ม `detail.reason` แบบ additive) แล้วทำ UI ใน 6.6b
+
+## จาก QA 6.5c (static)
+
+- [ ] 🟢 **[dashboard · สิทธิ์เครดิต]** ยอดเครดิตคงค้างสำหรับคนที่มีแค่ `gang.finance.view` (ไม่มี `credit.read.other`) — ตอนนี้ซ่อนกล่อง (null) เพราะ RLS `credit_balances` (0051:256-264) · ถ้าต้องการ ให้ทำ RPC aggregate-only (security definer + `can` check) ใน WO แยก · **ห้ามใช้ service-role ใน loader · ตอนนี้ widget เงินทุกตัวใช้ gate `canSeeGangMoney` = `finance.view` + `payment.verify` + `credit.read.other`**
+
+- [ ] 🟡 **[security · event_logs RLS privacy drift]** SQL `0039:44-47` ยังไม่ได้จัด `line.*` / `gang.join_*` / `session.closed_with_charges` เป็น admin-only ตาม DESCRIPTORS ใหม่ (`timeline.ts`, 6.5c) ⇒ สมาชิกอ่าน raw event ผ่าน API ได้ แม้ dashboard จะกรองไว้แล้ว · ต้องทำเป็น **WO แยก** พร้อม migration ใหม่ (ต่อคิวหลัง 0053) และทำให้ RLS ตรงกับ DESCRIPTORS พร้อมเทสต์ `event-log-privacy` · ที่มา: QA static 6.5c (RLS chain review)
+
+## จาก backend 6.5c (`5f35b56`)
+
+- [ ] 🟢 **[timeline · หน้า session detail]** `features/sessions/SessionDetailPage.tsx:159` ยังเรียก `buildTimeline()` แบบ 2-arg เดิม (`canSeeOtherAdminOnly = canSeeMoney`) ⇒ ต้องย้ายไปใช้ 2 แกนแบบเดียวกับ dashboard 6.5c (event เงินใช้ `finance.view` · adminOnly อื่นใช้ `gang.member.manage`) · ทำใน frontend ตอนแก้หน้า session (6.6b) หรือ 6.9
+
+## จาก backend 59c406b
+
+- [ ] 🟢 **[test · Windows path] `tests/security/rate-limit.test.ts` drift test fail บน Windows** เพราะ path separator (`\` กับ `/`) ใน `sourceFiles()` ⇒ ต้อง normalize path ก่อนเทียบ · **ห้ามลด assert** เพื่อให้ผ่าน
+
+## ตัดสินแล้ว — ออกจากก๊วนเมื่อมีนัดเลย cutoff
+
+- [x] 🟡 **ตัดสินแล้ว 12 พ.ย.: ★ก** — ไม่มี ADR / migration · สมาชิกที่มีนัดเลย cutoff ออกจากก๊วนไม่ได้จนกว่านัดจะผ่านไปหรือแอดมินยกเลิกให้ (`cancel_registration` raise `CANCEL_CUTOFF_PASSED` `0052:358-366` · `leave_gang` rollback ทั้งก้อน) · ระบบไม่เปลี่ยนพฤติกรรม · UI แสดงเหตุผลกับนัดที่ติด (WO-B2.2 · ไม่แตะกติกาเงิน)
+
+## จาก 6.5c UI dashboard
+
+- [ ] 🟢 **[H10 · กราฟเงินเข้า/เงินออก 6 เดือน]** ตอนนี้แสดงเป็นตาราง เพราะ UI ห้าม parse เงินมาวาดกราฟ ⇒ ต้องให้ loader `dashboardOverview` ส่ง **ratio 0..1 ที่คำนวณบน server** มาด้วย
+- [ ] 🟢 **[H10 · DTO ขาด field ตามดีไซน์]** ยังขาด `maxPlayers` ของนัดถัดไป · ชื่อหรือเลขคอร์ท · นัดลำดับที่สอง · ชื่อผู้ใช้สำหรับ greeting ⇒ ตอนนี้ UI แสดงเฉพาะที่มีจริงและ **ไม่มีค่าปลอม**
+
+## จาก frontend 6.5c UI runtime
+
+- [ ] 🟢 **[theme · --check] `theme --check` FAIL: 4 outputs stale** (คำสั่งเดียวกับ `theme:build` + `--check`) ที่ HEAD `f4aefc3` · ยังไม่รู้สาเหตุ ⇒ **ต้องหา diff ก่อน ห้าม rebuild theme เพื่อให้ผ่านโดยไม่รู้สาเหตุ** (ที่มา: frontend 6.5c UI runtime)
+
+## จาก WO-6.6b gap (ตัดออกเพราะ backend ยังไม่รองรับ)
+
+- [ ] 🟢 **[H18]** เลือกคอร์ทรายตัว / ราคา / สถานะปิดซ่อมต่อคอร์ท, waitlist limit, pricing picker, ปุ่มทำซ้ำนัดล่าสุด
+- [ ] 🟢 **[H52]** preview ผลราคา/จำนวนรับจากจำนวนคอร์ท, "บันทึกแล้วแจ้งทุกคน"
+- [ ] 🟢 **[H52b]** มัดจำ/คืนอัตโนมัติ, เหตุผลการยกเลิก (action ไม่รับ), ลบออกจากปฏิทินถาวร, แจ้งทุกคน
+- [ ] 🟢 **[H53]** ทุก 2 สัปดาห์หรือกำหนดเอง, วันสิ้นสุด, เลือกระยะสร้างล่วงหน้า (ตอนนี้ fixed 14 วัน), preview จำนวนนัดก่อนสร้าง
+- [ ] 🟢 **[H53b]** ตาราง occurrences เต็ม / ยอดที่สร้างทั้งหมด / next date (loader ไม่มี) · skip-unskip วันในอนาคต — ตอนนี้ใช้ยกเลิกนัดที่ generate แล้วแทนได้ แต่ย้อนคืนไม่ได้ เพราะ unique `(template_id, starts_at)` ของ 0027 ไม่กรอง `deleted_at`
+- [ ] 🟢 **[H55]** leave-preview ยอดก่อนออก (ไม่มี contract ตอนนี้ ใช้ summary หลังออก)
+- [ ] 🟢 **[H55b]** UI โอน owner (มี action `transferGangOwnership` แล้ว) ตอนนี้แสดงแค่ข้อความ `OWNER_MUST_TRANSFER`
+
+## จาก WO-6.7 gap
+
+- [ ] 🟢 **[onboarding checklist #51 · WO-6.7]** ข้อ "เพิ่มคอร์ท" **ตัดทิ้ง** เพราะ baseline v3 ไม่มีตาราง `courts` (`court_count` / `court_labels` อยู่ที่ `sessions`) ⇒ checklist เหลือ 2 ข้อ (ตั้งราคา, สร้างนัดแรก) แบบ computed ไม่มี dismiss ถาวร ตามดีไซน์ `wf/g-l.jsx:10`
+
+## จาก WO-6.8 gap (เจ้าของยืนยัน ★ก → v1.2 · CSV อยู่ใน v1.1.0)
+
+- [ ] 🟢 **[#36]** ประกาศ like / comment / read receipt — ต้องเพิ่มตารางใหม่
+- [ ] 🟢 **[#39a]** tab "จ่ายตรงเวลา" — ต้องเพิ่ม metric ใน `member_statistics` + rollup
+- [ ] 🟢 **[#41]** คู่หูที่เล่นด้วยบ่อย + กราฟ 12 สัปดาห์ — ต้องมี rollup per-pair / per-week
+- [ ] 🟢 **[#42]** ระยะทาง กม. — `gangs` ไม่มี lat/lng + ต้องใช้ geolocation
+- [ ] 🟡 **[#38 · คำศัพท์การเงิน]** ดีไซน์ `h-gh.jsx:65` ใช้คำว่า "กำไร" ⇒ ต้องเป็น **"เงินสดสุทธิ"** (กฎ CLAUDE.md) · CSV export ของ #38 ทำใน 6.8

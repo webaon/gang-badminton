@@ -5,9 +5,8 @@ import { headers } from 'next/headers';
 
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { supabaseServer } from '@/lib/supabase/server';
 import { assertCan } from '@/domain/permissions/can';
-import type { GangRole } from '@/domain/permissions/types';
+import { loadGangPermissionContext } from '@/server/permissions/gang-context';
 import { fromJson as cancellationFromJson } from '@/domain/policies/cancellation';
 import {
   courtPlusShuttleFromJson,
@@ -15,6 +14,7 @@ import {
   roundingFromJson,
 } from '@/domain/policies/pricing';
 import { fromSatang, sumSatang, toSatang } from '@/domain/billing/money';
+import { breakdownCharges } from '@/domain/billing/charge-breakdown';
 import { assertUsableSnapshot } from '@/domain/sessions/snapshot';
 import {
   calculateSessionCharges,
@@ -66,7 +66,7 @@ async function loadBillingContext(sessionId: string) {
 
   const { data: registrations } = await admin
     .from('session_registrations')
-    .select('id, user_id, status, cancelled_at')
+    .select('id, user_id, status, cancelled_at, cancel_waiver')
     .eq('session_id', sessionId)
     .is('deleted_at', null);
 
@@ -94,6 +94,7 @@ async function loadBillingContext(sessionId: string) {
     registrationId: r.id,
     status: r.status as ParticipantStatus,
     cancelledAt: r.cancelled_at ? new Date(r.cancelled_at) : null,
+    cancelPenaltyWaived: r.cancel_waiver !== null && r.cancel_waiver !== undefined,
     isMonthlyMember: r.user_id !== null && monthly.has(r.user_id),
   }));
 
@@ -163,6 +164,12 @@ export type ChargePreviewRow = {
   reason: string;
   amount: string;
   isMonthlyMember: boolean;
+  /**
+   * **[WO-B12]** แยกยอดต่อคน: `court + shuttle + penalty + rounding = amount` (string `numeric(12,2)`)
+   * คนที่ไม่ถูกเก็บเงินเป็น `0.00` ทุกช่อง · `flat_rate` ราคาต่อหัวทั้งก้อนอยู่ช่อง `court`
+   * ค่าปรับ (no_check_in / no_show / late_cancel) ย้ายทั้งก้อนมาช่อง `penalty` ไม่นับซ้ำ
+   */
+  breakdown: { court: string; shuttle: string; penalty: string; rounding: string };
 };
 
 export type BillingPreview = {
@@ -177,6 +184,14 @@ export type BillingPreview = {
   total: string;
   chargedCount: number;
   checkedInCount: number;
+  /** **[WO-B12]** ผลรวมแต่ละหมวดของทุกแถว: court + shuttle + penalty + rounding = `total` */
+  courtCostTotal: string;
+  shuttleCostTotal: string;
+  penaltyTotal: string;
+  /** ผลรวมเศษรายคน (ปกติเท่ากับ `roundingSurplus`) */
+  roundingTotal: string;
+  /** ต้นทุนที่ไม่มีใครหาร (เช่นทุกคนเป็นสมาชิกรายเดือน) — ปกติ `0.00` · `roundingSurplus = roundingTotal − absorbedCostTotal` */
+  absorbedCostTotal: string;
   /** true = ต้องติ๊กยืนยันก่อน ไม่งั้น `closeSessionWithBilling()` จะปฏิเสธ */
   needsConfirmation: boolean;
   /** เรื่องที่ต้องอ่านก่อนกดยืนยัน — ไม่ใช่ error แต่ปล่อยผ่านแล้วเก็บเงินผิด */
@@ -198,19 +213,10 @@ export async function previewSessionCharges(
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    const supabase = await supabaseServer();
 
     const context = await loadBillingContext(sessionId);
 
-    const { data: membership } = await supabase
-      .from('gang_members')
-      .select('role')
-      .eq('gang_id', context.session.gang_id)
-      .eq('user_id', user.id)
-      .is('deleted_at', null)
-      .maybeSingle();
-
-    assertCan({ role: (membership?.role as GangRole | undefined) ?? null }, 'billing.close');
+    assertCan(await loadGangPermissionContext(context.session.gang_id, user.id), 'billing.close');
 
     const toStatus = input.toStatus ?? 'billing';
     const result = calculateSessionCharges({
@@ -228,11 +234,18 @@ export async function previewSessionCharges(
 
     const names = await displayNames(sessionId);
     const chargeOf = new Map(result.charges.map((c) => [c.registrationId, c]));
+    // [WO-B12] แยกยอดต่อคนจากผลเดียวกัน — ไม่มีสูตรใหม่ (ดู domain/billing/charge-breakdown.ts)
+    const split = breakdownCharges({
+      result,
+      snapshot: context.billingSnapshot,
+      shuttlesUsedTotal: context.shuttlesUsedTotal,
+    });
 
-    // แสดง**ทุกคน**ที่ลงชื่อไว้ ไม่ใช่เฉพาะคนที่มียอด — คนที่ "ไม่ถูกเก็บ"
+    // แสดงทุกคนที่ลงชื่อไว้ ไม่ใช่เฉพาะคนที่มียอด — คนที่ไม่ถูกเก็บ
     // คือสิ่งที่แอดมินต้องตรวจมากที่สุด (เช่นลืมเช็คอินให้ หรือ no-show ผิดคน)
     const rows: ChargePreviewRow[] = context.participants.map((p) => {
       const charge = chargeOf.get(p.registrationId);
+      const parts = split.parts.get(p.registrationId);
       return {
         registrationId: p.registrationId,
         displayName: names.get(p.registrationId) ?? 'ไม่ทราบชื่อ',
@@ -240,6 +253,12 @@ export async function previewSessionCharges(
         reason: String(charge?.breakdown.reason ?? reasonWhenFree(p)),
         amount: charge?.amount ?? '0.00',
         isMonthlyMember: p.isMonthlyMember,
+        breakdown: {
+          court: parts?.court ?? '0.00',
+          shuttle: parts?.shuttle ?? '0.00',
+          penalty: parts?.penalty ?? '0.00',
+          rounding: parts?.rounding ?? '0.00',
+        },
       };
     });
 
@@ -271,6 +290,11 @@ export async function previewSessionCharges(
       total: result.totalCollected,
       chargedCount: result.charges.length,
       checkedInCount,
+      courtCostTotal: split.courtCostTotal,
+      shuttleCostTotal: split.shuttleCostTotal,
+      penaltyTotal: split.penaltyTotal,
+      roundingTotal: split.roundingTotal,
+      absorbedCostTotal: split.absorbedCostTotal,
       needsConfirmation,
       warnings,
     };
@@ -312,19 +336,10 @@ export async function closeSessionWithBilling(
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    const supabase = await supabaseServer();
 
     const first = await loadBillingContext(sessionId);
 
-    const { data: membership } = await supabase
-      .from('gang_members')
-      .select('role')
-      .eq('gang_id', first.session.gang_id)
-      .eq('user_id', user.id)
-      .is('deleted_at', null)
-      .maybeSingle();
-
-    assertCan({ role: (membership?.role as GangRole | undefined) ?? null }, 'billing.close');
+    assertCan(await loadGangPermissionContext(first.session.gang_id, user.id), 'billing.close');
 
     const toStatus = input.toStatus ?? 'billing';
 

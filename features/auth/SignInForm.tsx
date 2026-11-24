@@ -1,5 +1,6 @@
 'use client';
 
+import { errorText } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
@@ -7,25 +8,51 @@ import { Button } from '@astryxdesign/core/Button';
 import { FormLayout } from '@astryxdesign/core/FormLayout';
 import { TextInput } from '@astryxdesign/core/TextInput';
 
-import { signInWithMagicLink, signInWithPassword } from '@/server/actions/auth';
+import { signInWithMagicLink, signInWithPassword, startLineSignIn } from '@/server/actions/auth';
 
 /**
  * ⚠️ Astryx `TextInput` **ไม่มี prop `autoComplete`** และไม่มีช่องส่ง attribute ดิบ
  *    ⇒ ใช้ `htmlName` ให้เบราว์เซอร์เดาเอาแทน ซึ่งอ่อนกว่า `autocomplete` จริง
  *    (password manager บางตัวจะไม่เติมรหัสให้อัตโนมัติ) — จดไว้ใน BACKLOG แล้ว
  *
- * ⚠️ ข้อความ error ที่โชว์มาจาก `message` ของ response contract
- *    ซึ่ง server เป็นคนตัดสินว่าจะบอกอะไร — หน้าจอไม่ตีความ `code` เอง
- *    (Phase 2 ค่อยทำ mapping code → ข้อความไทยรวมศูนย์ตาม CLAUDE.md §4)
+ * ⚠️ ข้อความ error ผ่าน `errorText()` (code → ไทย) [WO-6.1b] — ไม่อ่าน `message` ของ server ตรงๆ
+ *
+ * **[WO-B1.a · ADR-013]** `lineEnabled` = flag ฝั่ง server (ส่งมาจาก page) · `initialError` = ข้อความตายตัวที่ page แปลงจาก `?error=` แล้ว
+ * 🔴 ปุ่ม LINE ต้องเป็น `onClick → window.location.href` เท่านั้น ห้ามทำเป็น `<form action>`
+ *    (CSP `form-action 'self'` — ดู ADR-013 §6.1)
  */
-export function SignInForm({ next }: { next?: string }) {
+export function SignInForm({
+  next,
+  initialError,
+  lineEnabled = false,
+}: {
+  next?: string;
+  initialError?: string;
+  lineEnabled?: boolean;
+}) {
   const router = useRouter();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError ?? null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  async function onLineSignIn() {
+    setPending(true);
+    setError(null);
+    setNotice(null);
+
+    const result = await startLineSignIn(next);
+
+    if (result.success) {
+      // ไม่ปลด pending — กำลังพาออกไปหน้า LINE
+      window.location.href = result.data.url;
+    } else {
+      setError(errorText(result.error));
+      setPending(false);
+    }
+  }
 
   async function onPasswordSubmit(event: FormEvent) {
     event.preventDefault();
@@ -39,7 +66,13 @@ export function SignInForm({ next }: { next?: string }) {
       router.replace(next ?? '/profile');
       router.refresh();
     } else {
-      setError(result.error.message);
+      // `UNAUTHENTICATED` ที่นี่แปลว่า "อีเมลหรือรหัสผ่านไม่ถูกต้อง" (server/actions/auth.ts ใช้ code นี้กับการล็อกอินพลาด)
+      // ไม่ใช่เซสชันหมดอายุ ⇒ ใช้ `errorText` ล้วน (ไม่ redirect ไป /session-expired) และบอกตามบริบทของฟอร์ม
+      setError(
+        result.error.code === 'UNAUTHENTICATED'
+          ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
+          : errorText(result.error),
+      );
       setPending(false);
     }
   }
@@ -54,13 +87,26 @@ export function SignInForm({ next }: { next?: string }) {
     if (result.success) {
       setNotice('ส่งลิงก์เข้าสู่ระบบไปที่อีเมลแล้ว — เปิดลิงก์ในอีเมลเพื่อเข้าใช้งาน');
     } else {
-      setError(result.error.message);
+      setError(errorText(result.error));
     }
     setPending(false);
   }
 
   return (
-    <form onSubmit={onPasswordSubmit} noValidate>
+    <>
+      {lineEnabled ? (
+        <div className="mb-4">
+          <Button
+            type="button"
+            variant="primary"
+            label="เข้าสู่ระบบด้วย LINE"
+            onClick={onLineSignIn}
+            isLoading={pending}
+          />
+          <p className="mt-3 text-center text-sm">หรือเข้าสู่ระบบด้วยอีเมล</p>
+        </div>
+      ) : null}
+      <form onSubmit={onPasswordSubmit} noValidate>
       <FormLayout direction="vertical">
         <TextInput
           type="email"
@@ -102,5 +148,6 @@ export function SignInForm({ next }: { next?: string }) {
         />
       </div>
     </form>
+    </>
   );
 }

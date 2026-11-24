@@ -7,7 +7,7 @@ import { requireUser } from '@/lib/supabase/auth';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
 import { assertCan } from '@/domain/permissions/can';
-import type { GangRole } from '@/domain/permissions/types';
+import { loadGangPermissionContext } from '@/server/permissions/gang-context';
 import { planMatches } from '@/domain/matching/pipeline';
 import type { MatchPlayer } from '@/domain/matching/types';
 import { textQrDataUrl } from '@/lib/promptpay/qr';
@@ -43,15 +43,9 @@ async function sessionContext(sessionId: string, userId: string) {
 
   if (!session) throw new AppError('NOT_FOUND', 'ไม่พบนัดนี้');
 
-  const { data: membership } = await supabase
-    .from('gang_members')
-    .select('role')
-    .eq('gang_id', session.gang_id)
-    .eq('user_id', userId)
-    .is('deleted_at', null)
-    .maybeSingle();
+  const ctx = await loadGangPermissionContext(session.gang_id, userId);
 
-  return { session, role: (membership?.role as GangRole | undefined) ?? null };
+  return { session, ctx };
 }
 
 async function registrationSession(registrationId: string) {
@@ -79,9 +73,9 @@ export async function checkIn(registrationId: string): Promise<ApiResponse<{ sta
   return runAction(correlationId, async () => {
     const user = await requireUser();
     const reg = await registrationSession(registrationId);
-    const { session, role } = await sessionContext(reg.session_id, user.id);
+    const { session, ctx } = await sessionContext(reg.session_id, user.id);
 
-    assertCan({ role }, 'registration.checkin');
+    assertCan(ctx, 'registration.checkin');
 
     const { data, error } = await supabaseAdmin().rpc('check_in_registration', {
       p_registration_id: registrationId,
@@ -109,9 +103,9 @@ export async function markNoShow(registrationId: string): Promise<ApiResponse<{ 
   return runAction(correlationId, async () => {
     const user = await requireUser();
     const reg = await registrationSession(registrationId);
-    const { session, role } = await sessionContext(reg.session_id, user.id);
+    const { session, ctx } = await sessionContext(reg.session_id, user.id);
 
-    assertCan({ role }, 'registration.no_show');
+    assertCan(ctx, 'registration.no_show');
 
     const { data, error } = await supabaseAdmin().rpc('mark_no_show', {
       p_registration_id: registrationId,
@@ -140,9 +134,9 @@ export async function checkInEveryone(
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    const { session, role } = await sessionContext(sessionId, user.id);
+    const { session, ctx } = await sessionContext(sessionId, user.id);
 
-    assertCan({ role }, 'registration.checkin');
+    assertCan(ctx, 'registration.checkin');
 
     const { data, error } = await supabaseAdmin().rpc('check_in_all', {
       p_session_id: sessionId,
@@ -184,9 +178,9 @@ export async function generateGames(
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    const { session, role } = await sessionContext(sessionId, user.id);
+    const { session, ctx } = await sessionContext(sessionId, user.id);
 
-    assertCan({ role }, 'game.manage');
+    assertCan(ctx, 'game.manage');
 
     const admin = supabaseAdmin();
 
@@ -289,8 +283,8 @@ export async function finishGame(
 
     if (!game) throw new AppError('NOT_FOUND', 'ไม่พบเกมนี้');
 
-    const { session, role } = await sessionContext(game.session_id, user.id);
-    assertCan({ role }, 'game.manage');
+    const { session, ctx } = await sessionContext(game.session_id, user.id);
+    assertCan(ctx, 'game.manage');
 
     if (game.ended_at) throw new AppError('VALIDATION_ERROR', 'เกมนี้จบไปแล้ว');
 
@@ -342,8 +336,8 @@ export async function updateGameShuttles(
 
     if (!game) throw new AppError('NOT_FOUND', 'ไม่พบเกมนี้');
 
-    const { session, role } = await sessionContext(game.session_id, user.id);
-    assertCan({ role }, 'game.manage');
+    const { session, ctx } = await sessionContext(game.session_id, user.id);
+    assertCan(ctx, 'game.manage');
 
     const shuttles = Number(shuttlesUsed);
     if (!Number.isFinite(shuttles) || shuttles < 0) {
@@ -386,8 +380,8 @@ export async function substitutePlayer(
 
     if (!game) throw new AppError('NOT_FOUND', 'ไม่พบเกมนี้');
 
-    const { session, role } = await sessionContext(game.session_id, user.id);
-    assertCan({ role }, 'game.manage');
+    const { session, ctx } = await sessionContext(game.session_id, user.id);
+    assertCan(ctx, 'game.manage');
 
     const { data, error } = await admin.rpc('substitute_game_player', {
       p_game_id: gameId,
@@ -420,11 +414,11 @@ export async function issueCheckinQr(
   return runAction(correlationId, async () => {
     const user = await requireUser();
     const reg = await registrationSession(registrationId);
-    const { session, role } = await sessionContext(reg.session_id, user.id);
+    const { session, ctx } = await sessionContext(reg.session_id, user.id);
 
     // เจ้าตัวขอ QR ของตัวเองได้ · แอดมินขอแทนคนอื่นได้ (เช่นแขกที่ไม่มีบัญชี)
     const isMine = await ownsRegistration(registrationId, user.id);
-    if (!isMine) assertCan({ role }, 'registration.checkin');
+    if (!isMine) assertCan(ctx, 'registration.checkin');
 
     const { data, error } = await supabaseAdmin().rpc('issue_checkin_token', {
       p_registration_id: registrationId,
@@ -471,9 +465,9 @@ export async function checkInByQr(
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    const { session, role } = await sessionContext(sessionId, user.id);
+    const { session, ctx } = await sessionContext(sessionId, user.id);
 
-    assertCan({ role }, 'registration.checkin');
+    assertCan(ctx, 'registration.checkin');
 
     const { data, error } = await supabaseAdmin().rpc('check_in_by_token', {
       p_session_id: sessionId,

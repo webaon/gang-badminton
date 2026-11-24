@@ -59,6 +59,7 @@ RAISE EXCEPTION USING
 | `PAYMENT_NOT_FOUND` | 404 | ไม่พบ payment | server action |
 | `ALLOCATION_EXCEEDS_PAYMENT` | 409 | `sum(allocations) > payment.amount` — ผิด invariant | CHECK/trigger บน `payment_allocations` |
 | `CHARGE_NOT_FOUND` | 404 | ไม่พบ `session_charge` ที่ adjustment อ้างถึง | `payment_adjustments` FK |
+| `INSUFFICIENT_CREDIT` | 409 | **[WO-B5b-2 · ADR-010]** เครดิตคงเหลือของสมาชิกไม่พอสำหรับรายการที่ขอ (จ่ายคืนเงินสดเกินยอดคงเหลือ) | `credit_cash_payout()` ✅ |
 | `CHARGES_ALREADY_COMMITTED` | 409 | session นี้ commit charges ไปแล้ว — เรียก `close_session_with_charges()` ซ้ำไม่ได้ | `close_session_with_charges()` ✅ |
 | `MONTHLY_FEE_ALREADY_GENERATED` | 409 | สมาชิก+เดือนนี้ generate `monthly_fee` ไปแล้ว (idempotency guard) | MembershipBilling function — ⚠️ **[WO-2.5-C] ยังไม่ถูก raise ที่ไหน**: `commit_monthly_fees()` เลือก `on conflict do nothing` แล้วคืนจำนวน `skipped` แทน เพราะ cron รันซ้ำเป็นเรื่องปกติ ไม่ใช่ความผิดพลาดที่ต้องแจ้งเป็น error · เก็บ code ไว้ให้เส้นทาง "สั่งออกบิลรายคน" ในอนาคตที่การซ้ำคือความผิดพลาดจริง |
 
@@ -139,3 +140,36 @@ server ที่ตีความเอง:
 จะ **สำเร็จโดยไม่ error** และคืน `rowCount = 0` ⇒ ถ้าไม่เช็ค `rowCount` จะตอบผู้ใช้ว่า
 "บันทึกแล้ว" ทั้งที่ไม่มีอะไรเปลี่ยน — มีเทสต์คุมเคสนี้ใน `tests/rls/write-guards.test.ts`
 - TypeScript `ErrorCode` union จะถูก generate/เขียนที่ `shared/` ตอน WO ที่ต้องใช้จริงครั้งแรก
+
+### ✅ ผลการยืนยันจาก WO-B2.2 (31 ต.ค. 2026) — `reason`/`reasonMeta` ไม่ใช่ `ErrorCode` ใหม่
+
+🔴 **ไม่ใช่การเพิ่ม code ใหม่ในตารางนี้** — ตารางด้านบนยังเป็น single source of `error.code` เหมือนเดิม
+100% การเปลี่ยนนี้คือฟิลด์ **เสริม** (`error.reason?`/`error.reasonMeta?`) ใน `ApiFailure` สำหรับตอนที่
+`code` เดียวแปลความหมายได้สองอย่าง (เช่น `VALIDATION_ERROR` ของ `leave_gang()` มีทั้ง "ลืมส่ง field"
+กับ "เจ้าของคนสุดท้ายออกไม่ได้" ซึ่ง code เดิมแยกไม่ได้เลย)
+
+- `ApiFailure<R extends string = never>` (`shared/api.ts`) — generic เสริม default เป็น `never` ⇒
+  action ที่ไม่ประกาศ `R` ของตัวเอง (ของเดิมทุกตัว) **ไม่มีทางได้ reason ที่มีค่าจริงที่ type-level เลย**
+- action แรกที่ใช้: `leaveGang()` (`server/actions/members.ts`) → `ApiResponse<LeaveGangResult,
+  LeaveGangFailureReason>` — mapping อยู่ที่ `domain/gangs/leave-gang-error.ts`'s `mapLeaveGangError()`
+  (pure function, มี doc comment ตารางเต็มในไฟล์นั้นเอง ไม่ซ้ำที่นี่)
+- `reasonMeta` ต้องผ่าน whitelist ของ mapping function เองเสมอ — **ห้ามส่ง PG `DETAIL` ดิบหรือ id ของ
+  resource อื่น (เช่น `registration_id`) ไปให้ client เด็ดขาด** แม้ตัว `DETAIL` เองจะมีข้อมูลนั้นอยู่แล้ว
+- ถ้า action ถัดไปต้องการ `reason` แบบนี้ด้วย ให้สร้าง mapping function แยกต่างหากของตัวเอง (เหมือน
+  `mapLeaveGangError()`) อย่าพยายามทำ mapping ทั่วไปแบบ dynamic ที่อ่าน `DETAIL` ตรงๆใน `shared/` —
+  จะทำให้ whitelist หลุดง่ายเมื่อ action ใหม่มี shape ของ `DETAIL` ต่างกัน
+- **[QA, WO-B2.2]** `NOT_A_MEMBER` (reason ของ `leaveGang()`) ปกติจะไม่เกิดขึ้นเลยจากการใช้งานจริงผ่าน UI
+  ปกติ — `assertCan(ctx, 'gang.leave.self')` กันไว้ตั้งแต่ชั้น TS ก่อน call `leave_gang()` RPC อยู่แล้ว
+  (ผู้ใช้ที่ไม่ใช่สมาชิกก๊วนนี้จะถูกบล็อกตรงนั้นก่อนถึง DB) ⇒ reason นี้เกิดได้จริงเฉพาะกรณี **race
+  condition** เท่านั้น (เช่น สมาชิกถูกเตะออกจากก๊วนไปแล้วในช่วงเสี้ยววินาทีระหว่างที่ TS เช็คสิทธิ์ผ่าน
+  ไปแล้วจนถึงตอนที่ RPC ทำงานจริงภายใต้ lock)
+- **[QA, WO-B2.2 static review `c159bd3`]** `GANG_NOT_FOUND` (reason เดียวกัน) เกิดได้โดย**ไม่ต้องมี
+  race เลยก็ได้** — `roleInGang()` (`server/actions/members.ts:21-31`) query เฉพาะตาราง `gang_members`
+  (เอา role ของผู้ใช้) และ RLS policy ของ `gang_members` ก็ไม่ join `gangs` เพื่อเช็ค `deleted_at` ด้วย
+  เช่นกัน ⇒ ถ้าก๊วนถูก soft-delete ไปแล้ว แต่ยังมีแถว `gang_members` ของสมาชิกค้างเป็น active อยู่ (เช่น
+  กระบวนการลบก๊วนไม่ cascade ไปที่ membership) ผู้ใช้คนนั้นจะผ่าน `assertCan()` ที่ชั้น TS ได้**ทุกครั้ง**
+  ไม่ใช่แค่ช่วงเสี้ยววินาที แล้วไปโดน `NOT_FOUND` ที่ `leave_gang:147-150` (ที่เช็ค `gangs.deleted_at is
+  null` จริง) ซ้ำๆไปเรื่อยๆจนกว่าจะมีคนเคลียร์ membership row ที่ค้างอยู่ — UI ที่ได้ reason นี้ก็ยังไม่ควร
+  ถือเป็นบั๊กของ `leaveGang()`/`mapLeaveGangError()` เอง (ข้อมูลไม่สอดคล้องกันของระบบ ไม่ใช่ error ใน
+  mapping นี้) แต่**ไม่ควรสื่อสารว่าเป็นแค่ "race ชั่วคราว ลองใหม่เดี๋ยวก็หาย"** เพราะกรณีนี้ลองใหม่กี่
+  ครั้งก็ไม่หายไปเอง

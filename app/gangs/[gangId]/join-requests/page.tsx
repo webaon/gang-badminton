@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
 import { requireUser } from '@/lib/supabase/auth';
@@ -93,18 +92,15 @@ export default async function JoinRequestsPage({
   const pendingCount = requests.filter((r) => r.status === 'pending').length;
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
+    <section className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">
           คำขอเข้าก๊วน · {gang.name}
           {pendingCount > 0 ? ` (${pendingCount})` : ''}
         </h1>
-        <Link href={`/gangs/${gangId}/members`} className="underline">
-          สมาชิก
-        </Link>
       </div>
 
       <JoinRequestsPanel gangId={gangId} requests={requests} />
-    </main>
+    </section>
   );
 }

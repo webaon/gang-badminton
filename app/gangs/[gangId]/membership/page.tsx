@@ -1,9 +1,8 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Card } from '@astryxdesign/core/Card';
-import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 
+import { SimpleTable } from '@/components/ui/SimpleTable';
 import { requireUser } from '@/lib/supabase/auth';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { supabaseServer } from '@/lib/supabase/server';
@@ -99,6 +98,7 @@ export default async function MembershipPage({
   const billed = new Map((charges ?? []).map((c) => [c.gang_member_id, c.amount]));
 
   const rows = ((members ?? []) as unknown as MemberRow[]).map((m) => ({
+    id: m.id,
     name: m.profiles.display_name,
     since: m.monthly_member_since ?? '—',
     status: billed.has(m.id) ? `${billed.get(m.id)} ฿` : 'ยังไม่ออกบิล',
@@ -108,12 +108,9 @@ export default async function MembershipPage({
   const monthLabel = billingMonth.slice(0, 7);
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
+    <section className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">บิลรายเดือน · {gang.name}</h1>
-        <Link href={`/gangs/${gangId}/members`} className="underline">
-          สมาชิก
-        </Link>
       </div>
 
       {!plan ? (
@@ -138,14 +135,12 @@ export default async function MembershipPage({
               ยังไม่มีสมาชิกรายเดือน — ติ๊ก “รายเดือน” ให้สมาชิกในหน้าสมาชิกก่อน
             </p>
           ) : (
-            <Table
-              data={rows}
-              idKey={(row) => row.name}
-              density="compact"
+            <SimpleTable
+              rows={rows}
               columns={[
-                { key: 'name', header: 'ชื่อ', width: proportional(1) },
-                { key: 'since', header: 'เริ่มเป็นสมาชิก', width: pixel(140) },
-                { key: 'status', header: 'บิลเดือนนี้', width: pixel(120), align: 'end' },
+                { key: 'name', header: 'ชื่อ' },
+                { key: 'since', header: 'เริ่มเป็นสมาชิก', widthPx: 140 },
+                { key: 'status', header: 'บิลเดือนนี้', widthPx: 120, align: 'end' },
               ]}
             />
           )}
@@ -161,6 +156,6 @@ export default async function MembershipPage({
       <p className="mt-3 text-sm opacity-70">
         ระบบออกบิลให้อัตโนมัติ · กดออกบิลซ้ำได้ ไม่สร้างใบซ้ำ (หนึ่งใบต่อสมาชิกต่อเดือน)
       </p>
-    </main>
+    </section>
   );
 }

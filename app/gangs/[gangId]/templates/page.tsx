@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { Card } from '@astryxdesign/core/Card';
 
@@ -86,12 +85,9 @@ export default async function TemplatesPage({ params }: { params: Promise<{ gang
   }));
 
   return (
-    <main className="mx-auto max-w-2xl p-4">
+    <section className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">ตารางประจำ · {gang.name}</h1>
-        <Link href={`/gangs/${gangId}/sessions`} className="underline">
-          นัด
-        </Link>
       </div>
 
       <Card padding={4} variant="muted">
@@ -104,6 +100,6 @@ export default async function TemplatesPage({ params }: { params: Promise<{ gang
       <div className="mt-4">
         <TemplatesPanel gangId={gangId} templates={rows} />
       </div>
-    </main>
+    </section>
   );
 }

@@ -1,0 +1,65 @@
+{
+  "artifact_type": "DOCUMENTATION-ONLY destination contract;NOT implemented firewall/launcher",
+  "network_policy": "only two proposed internal networks;one per service",
+  "application_alias_port_allowlist_TCP": {
+    "studio": [
+      3000
+    ],
+    "api-gw": [
+      8000
+    ],
+    "auth": [
+      9999
+    ],
+    "rest": [
+      3000
+    ],
+    "realtime": [
+      4000
+    ],
+    "storage": [
+      5000
+    ],
+    "imgproxy": [
+      5001
+    ],
+    "meta": [
+      8080
+    ],
+    "functions": [
+      9000
+    ],
+    "db": [
+      5432
+    ],
+    "supavisor": [
+      4000,
+      5432,
+      6543
+    ],
+    "smtp-sink": [
+      1025,
+      8025
+    ],
+    "probe": [
+      8081
+    ]
+  },
+  "DNS_policy": "only frozen internal aliases via embedded resolver;reject external alias BEFORE application DNS lookup",
+  "forbidden_without_network_attempt": [
+    "shared543xx",
+    "historical554xx",
+    "cloud",
+    "public provider URLs",
+    "host.docker.internal",
+    "host gateway/daemon API",
+    "HTTP redirects outside frozen set",
+    "proxy variables",
+    "unapproved DNS aliases/resolved IPs"
+  ],
+  "private_service_libraries": "do not inherit application URL guard;network/source-config/runtime negative proof required",
+  "real_network_negative_only": "exact new deny-sentinel address:8080 on separate owned internal network,host positive127.0.0.1:56325",
+  "external_DNS_forwarding_enforcement": "UNKNOWN until V3;not claimed solved by source internal:true",
+  "host_image_acquisition": "frozen image digests only;CDN redirect destination allowlist UNKNOWN",
+  "actual_internal_ports_and_platform_compatibility": "intended service contract;must verify source flags/effective config before execution,not open arbitrary ports"
+}

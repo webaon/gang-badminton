@@ -13,15 +13,30 @@
 import { ERROR_HTTP_STATUS, toErrorCode, type ErrorCode } from './errors';
 
 export type ApiSuccess<T> = { success: true; data: T };
-export type ApiFailure = { success: false; error: { code: ErrorCode; message: string } };
-export type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
+/**
+ * [WO-B2.2] `R` เป็น generic เสริมแบบ additive (default `never`) — `error.reason`/`error.reasonMeta`
+ * มีค่าได้จริงเฉพาะ action ที่ประกาศ `ApiResponse<T, SpecificReasonUnion>` ตรงๆ (เช่น leaveGang)
+ * action อื่นทั้งหมดที่เขียน `ApiResponse<T>` เฉยๆ ยังคง `reason` เป็น `never` ที่ type-level
+ * (รับประกันว่าไม่มี action อื่นแอบส่ง reason ออกไปโดยไม่ได้ตั้งใจ) ตัว `reasonMeta` ต้องผ่าน whitelist
+ * ของ caller เองมาก่อนแล้วเท่านั้น (ห้ามเป็น PG detail ดิบ/มี id ของคนอื่น)
+ */
+export type ApiFailure<R extends string = never> = {
+  success: false;
+  error: { code: ErrorCode; message: string; reason?: R; reasonMeta?: Record<string, unknown> };
+};
+export type ApiResponse<T, R extends string = never> = ApiSuccess<T> | ApiFailure<R>;
 
 export function ok<T>(data: T): ApiSuccess<T> {
   return { success: true, data };
 }
 
-export function fail(code: ErrorCode, message?: string): ApiFailure {
-  return { success: false, error: { code, message: message ?? code } };
+export function fail<R extends string = never>(
+  code: ErrorCode,
+  message?: string,
+  reason?: R,
+  reasonMeta?: Record<string, unknown>,
+): ApiFailure<R> {
+  return { success: false, error: { code, message: message ?? code, reason, reasonMeta } };
 }
 
 export function httpStatusFor(code: ErrorCode): number {

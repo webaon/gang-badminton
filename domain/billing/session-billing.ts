@@ -34,6 +34,13 @@ export type Participant = {
   /** เวลาที่กดยกเลิก — ใช้เทียบกับ cutoff เพื่อรู้ว่ายกเลิกช้าหรือไม่ */
   cancelledAt: Date | null;
   /**
+   * **[ADR-011]** ยกเลิกแล้วถูก "ยกเว้นค่าปรับ" — คนที่ถูกเลื่อนคิวแล้วสละสิทธิ์ภายใน grace หรือ
+   * แอดมินยกเลิกแทนแบบไม่คิดค่าปรับ · `cancel_registration()` เป็นคนตัดสินแล้วเขียนลง
+   * `session_registrations.cancel_waiver` (null = ไม่ได้รับการยกเว้น) — ที่นี่แค่อ่านผล ไม่คำนวณ grace เอง
+   * ไม่ส่ง = ไม่ได้รับการยกเว้น (พฤติกรรมเดิมก่อน ADR-011)
+   */
+  cancelPenaltyWaived?: boolean;
+  /**
    * สมาชิกรายเดือนหรือไม่
    *
    * ⚠️ ค่านี้อ่านจาก `gang_members` **ตอนปิดรอบ** ไม่ได้อยู่ใน snapshot
@@ -116,6 +123,8 @@ function isLateCancel(
   policy: CancellationPolicy,
 ): boolean {
   if (participant.status !== 'cancelled' || participant.cancelledAt === null) return false;
+  // [ADR-011] ได้รับการยกเว้นแล้ว = ไม่นับเป็นยกเลิกช้า ไม่ว่าเวลาจะเลย cutoff หรือไม่
+  if (participant.cancelPenaltyWaived === true) return false;
 
   const cutoff = new Date(startsAt.getTime() - policy.cutoffHours * 60 * 60 * 1000);
   return participant.cancelledAt.getTime() > cutoff.getTime();

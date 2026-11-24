@@ -41,9 +41,21 @@ export const ACTIONS = [
   'gang.finance.view',
   'gang.finance.manage',
   'statistics.view',
+  // ADR-015 Q6: delegated gang-wide statistics, distinct from self-view.
+  'statistics.view.all',
   'gang.join_request.manage',
   'gang.line.manage',
   'line.link.self',
+  // [WO-B2 · ADR-012] ออกจากก๊วนเอง (ทุก role) / โอนความเป็นเจ้าของ (owner เท่านั้น)
+  'gang.leave.self',
+  'gang.ownership.transfer',
+  // [WO-B5a · ADR-010] เครดิตสมาชิก: ดูของตัวเอง / ดูของคนอื่น (แอดมิน) / บันทึกยอดโอนเกิน (แอดมิน)
+  'credit.read.self',
+  'credit.read.other',
+  'credit.overpayment.record',
+  'credit.topup',
+  'credit.payout.record',
+  'credit.return_charge',
 
   // นัดเล่น
   'session.view',
@@ -58,6 +70,8 @@ export const ACTIONS = [
   'registration.create.guest',
   'registration.cancel.self',
   'registration.cancel.other',
+  // [WO-B11 · ADR-011] แอดมินเลือกเลื่อนคนจาก waitlist เอง (ข้ามลำดับคิว)
+  'registration.promote.other',
   'registration.checkin',
   'registration.no_show',
 
@@ -88,4 +102,10 @@ export type PermissionContext = {
   role: GangRole | null;
   orgRole?: OrgRole | null;
   features?: Partial<GangFeatures>;
+  /**
+   * [ADR-015] สิทธิ์จาก "ชุดสิทธิ์" ที่สมาชิกถืออยู่ (เช่น เหรัญญิก/ผู้จัดคิว) — ใช้เฉพาะ role='member'
+   * และนับเฉพาะ action ที่ delegate ได้ (`domain/permissions/delegable.ts`) · ไม่ส่ง = ไม่มีชุดสิทธิ์ (พฤติกรรมเดิมทุกประการ)
+   * 🔴 ต้องตรงกับ `public.has_gang_permission()` ใน DB (เทสต์ยิงเทียบทุก action)
+   */
+  extra?: readonly Action[];
 };

@@ -1,11 +1,15 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
 import { CheckboxInput } from '@astryxdesign/core/CheckboxInput';
+import { Heading } from '@astryxdesign/core/Heading';
+import { HStack, VStack } from '@astryxdesign/core/Stack';
 import { Selector } from '@astryxdesign/core/Selector';
+import { Text } from '@astryxdesign/core/Text';
 import { TextInput } from '@astryxdesign/core/TextInput';
 
 import { GANG_ROLES, type GangRole } from '@/domain/permissions/types';
@@ -17,6 +21,8 @@ const ROLE_LABELS: Record<GangRole, string> = {
   admin: 'แอดมิน',
   member: 'สมาชิก',
 };
+
+const ROLE_OPTIONS = GANG_ROLES.map((role) => ({ value: role, label: ROLE_LABELS[role] }));
 
 export type MemberRow = {
   id: string;
@@ -31,31 +37,54 @@ export function MembersPanel({
   gangId,
   members,
   canManage,
+  currentUserId,
 }: {
   gangId: string;
   members: MemberRow[];
   canManage: boolean;
+  currentUserId?: string;
 }) {
   const router = useRouter();
+  const busy = useRef(false);
   const [email, setEmail] = useState('');
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'all' | 'monthly'>('all');
+  const [removeId, setRemoveId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  async function run(fn: () => Promise<{ success: boolean; error?: { message: string } }>) {
+  const query = search.trim().toLocaleLowerCase('th');
+  const visibleMembers = members.filter(
+    (member) =>
+      member.displayName.toLocaleLowerCase('th').includes(query) &&
+      (filter === 'all' || member.isMonthlyMember),
+  );
+
+  async function run(
+    fn: () => Promise<{ success: boolean; error?: { code?: string; message: string } }>,
+  ) {
+    if (busy.current || !canManage) return false;
+    busy.current = true;
     setPending(true);
     setError(null);
     setNotice(null);
 
-    const result = await fn();
-
-    if (result.success) {
+    try {
+      const result = await fn();
+      if (!result.success) {
+        setError(actionError(result.error));
+        return false;
+      }
       router.refresh();
-    } else {
-      setError(result.error?.message ?? 'ทำรายการไม่สำเร็จ');
+      return true;
+    } catch {
+      setError(actionError(undefined));
+      return false;
+    } finally {
+      busy.current = false;
+      setPending(false);
     }
-    setPending(false);
-    return result.success;
   }
 
   async function onAdd(event: FormEvent) {
@@ -67,81 +96,179 @@ export function MembersPanel({
     }
   }
 
+  async function onRemove(memberId: string) {
+    const ok = await run(() => removeMember(gangId, memberId));
+    if (ok) {
+      setRemoveId(null);
+      setNotice('เอาสมาชิกออกแล้ว');
+    }
+  }
+
   return (
-    <div>
+    <VStack gap={6}>
+      <VStack gap={2}>
+        <Heading level={2}>สมาชิก {members.length} คน</Heading>
+        <Text color="secondary">
+          {canManage ? 'จัดการบทบาทพื้นฐานและสมาชิกรายเดือน' : 'รายชื่อและบทบาทพื้นฐานของสมาชิกในก๊วน'}
+        </Text>
+      </VStack>
+
       {canManage ? (
-        <form onSubmit={onAdd} noValidate className="mb-6">
-          <div className="flex items-end gap-2">
-            <div className="flex-1">
+        <form onSubmit={onAdd} noValidate>
+          <HStack gap={3} vAlign="end" wrap="wrap">
+            <VStack className="min-w-0 w-full sm:flex-1">
               <TextInput
                 type="email"
                 label="เพิ่มสมาชิกด้วยอีเมล"
                 value={email}
                 onChange={setEmail}
                 description="ต้องเป็นอีเมลของคนที่สมัครสมาชิกไว้แล้ว"
+                size="md"
+                isDisabled={pending}
               />
-            </div>
+            </VStack>
             <Button
               type="submit"
               variant="primary"
+              size="md"
               label="เพิ่ม"
               isLoading={pending}
-              isDisabled={email.trim() === ''}
+              isDisabled={pending || email.trim() === ''}
             />
-          </div>
+          </HStack>
         </form>
       ) : null}
 
       {error ? <Banner status="error" title={error} /> : null}
-      {notice ? (
-        <Banner status="success" title={notice} isDismissable onDismiss={() => setNotice(null)} />
-      ) : null}
+      {notice ? <Banner status="success" title={notice} /> : null}
 
-      <ul className="mt-4 divide-y">
-        {members.map((m) => (
-          <li key={m.id} className="flex items-center justify-between gap-3 py-3">
-            <span className="min-w-0 flex-1 truncate">{m.displayName}</span>
+      <VStack gap={3}>
+        <HStack gap={3} vAlign="end" wrap="wrap">
+          <VStack className="min-w-0 w-full sm:flex-1">
+            <TextInput
+              label="ค้นหาชื่อสมาชิก"
+              placeholder="พิมพ์ชื่อสมาชิก"
+              value={search}
+              onChange={setSearch}
+              size="md"
+            />
+          </VStack>
+          <HStack gap={2} role="group" aria-label="กรองสมาชิก">
+            <Button
+              label="ทั้งหมด"
+              variant="secondary"
+              size="md"
+              aria-pressed={filter === 'all'}
+              onClick={() => setFilter('all')}
+            >
+              <Text color="primary">{filter === 'all' ? '✓ ทั้งหมด' : 'ทั้งหมด'}</Text>
+            </Button>
+            <Button
+              label="รายเดือน"
+              variant="secondary"
+              size="md"
+              aria-pressed={filter === 'monthly'}
+              onClick={() => setFilter('monthly')}
+            >
+              <Text color="primary">{filter === 'monthly' ? '✓ รายเดือน' : 'รายเดือน'}</Text>
+            </Button>
+          </HStack>
+        </HStack>
+        <Text size="sm" color="secondary" role="status">
+          แสดง {visibleMembers.length} จาก {members.length} คน
+        </Text>
+      </VStack>
 
-            {canManage ? (
-              <>
-                {/*
-                  [WO-2.5-C] ติ๊กแล้วมีผลสองอย่าง: ค่าสนามเป็น 0 ตอนปิดรอบ (ADR-005)
-                  และถูกออกบิลรายเดือนตั้งแต่เดือนนี้ (เก็บเต็มเดือน)
-                */}
-                <CheckboxInput
-                  label="รายเดือน"
-                  size="sm"
-                  value={m.isMonthlyMember}
-                  isDisabled={pending}
-                  onChange={(next) => run(() => setMonthlyMembership(gangId, m.id, next))}
-                />
-                <div className="w-40">
-                  <Selector
-                    label="บทบาท"
-                    isLabelHidden
-                    size="sm"
-                    options={GANG_ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] }))}
-                    value={m.role}
-                    onChange={(role) => run(() => changeMemberRole(gangId, m.id, role as GangRole))}
+      <VStack as="ul" gap={0} aria-label="รายชื่อสมาชิก" className="m-0 list-none p-0">
+        {visibleMembers.map((member) => (
+          <VStack as="li" key={member.id} gap={3} paddingBlock={4} className="border-b border-border">
+            <HStack gap={4} className="flex-col lg:flex-row lg:items-center">
+              <VStack gap={1} className="min-w-0 flex-1">
+                <Text weight="semibold" className="break-words">
+                  {member.displayName}{member.userId === currentUserId ? ' (คุณ)' : ''}
+                </Text>
+                <Text size="sm" color="secondary">
+                  {ROLE_LABELS[member.role]}
+                  {member.isMonthlyMember ? ' · รายเดือน' : ''}
+                </Text>
+              </VStack>
+
+              {canManage ? (
+                <HStack gap={3} vAlign="center" wrap="wrap" className="lg:shrink-0">
+                  {/* Enlarge both the native input and its associated label, not just the outer row. */}
+                  <CheckboxInput
+                    label="รายเดือน"
+                    size="md"
+                    className="min-w-32 [&_input]:min-h-11 [&_input]:min-w-11 [&_label]:flex [&_label]:min-h-11 [&_label]:min-w-11 [&_label]:items-center [&>div>div:first-child]:min-h-11 [&>div>div:first-child]:min-w-11"
+                    value={member.isMonthlyMember}
+                    isDisabled={pending}
+                    onChange={(next) => run(() => setMonthlyMembership(gangId, member.id, next))}
                   />
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  label="เอาออก"
-                  isDisabled={pending}
-                  onClick={() => run(() => removeMember(gangId, m.id))}
-                />
-              </>
-            ) : (
-              <span className="text-sm">
-                {ROLE_LABELS[m.role]}
-                {m.isMonthlyMember ? ' · รายเดือน' : ''}
-              </span>
-            )}
-          </li>
+                  <VStack className="w-40">
+                    <Selector
+                      label="บทบาท"
+                      isLabelHidden
+                      size="md"
+                      options={ROLE_OPTIONS}
+                      value={member.role}
+                      isDisabled={pending}
+                      onChange={(role) => run(() => changeMemberRole(gangId, member.id, role as GangRole))}
+                    />
+                  </VStack>
+                  <Button
+                    variant="ghost"
+                    size="md"
+                    label="เอาออก"
+                    isDisabled={pending}
+                    aria-expanded={removeId === member.id}
+                    aria-controls={`remove-member-${member.id}`}
+                    onClick={() => setRemoveId(removeId === member.id ? null : member.id)}
+                  />
+                </HStack>
+              ) : null}
+            </HStack>
+
+            {canManage && removeId === member.id ? (
+              <VStack id={`remove-member-${member.id}`} gap={3} padding={4} className="bg-surface rounded-lg">
+                <Text weight="semibold" className="break-words">
+                  ยืนยันเอา {member.displayName} ออกจากก๊วน?
+                </Text>
+                <HStack gap={3} wrap="wrap">
+                  <Button
+                    label="ยกเลิก"
+                    variant="secondary"
+                    size="md"
+                    isDisabled={pending}
+                    onClick={() => setRemoveId(null)}
+                  />
+                  <Button
+                    label="ยืนยันเอาออก"
+                    variant="destructive"
+                    size="md"
+                    isLoading={pending}
+                    isDisabled={pending}
+                    onClick={() => onRemove(member.id)}
+                  />
+                </HStack>
+              </VStack>
+            ) : null}
+          </VStack>
         ))}
-      </ul>
-    </div>
+      </VStack>
+
+      {visibleMembers.length === 0 ? (
+        <VStack gap={3} paddingBlock={6} hAlign="start">
+          <Heading level={3}>{members.length === 0 ? 'ยังไม่มีสมาชิก' : 'ไม่พบสมาชิกที่ตรงกับตัวกรอง'}</Heading>
+          {members.length > 0 ? (
+            <Button
+              label="ล้างตัวกรอง"
+              variant="secondary"
+              size="md"
+              onClick={() => { setSearch(''); setFilter('all'); }}
+            />
+          ) : null}
+        </VStack>
+      ) : null}
+    </VStack>
   );
 }

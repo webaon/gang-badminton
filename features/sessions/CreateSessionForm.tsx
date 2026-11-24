@@ -1,5 +1,6 @@
 'use client';
 
+import { actionError } from '@/lib/i18n/error-text';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Banner } from '@astryxdesign/core/Banner';
@@ -49,7 +50,7 @@ export function CreateSessionForm({ gangId, timezone }: { gangId: string; timezo
       setEndsAtLocal('');
       router.refresh();
     } else {
-      setError(result.error.message);
+      setError(actionError(result.error));
     }
     setPending(false);
   }
@@ -85,11 +86,9 @@ export function CreateSessionForm({ gangId, timezone }: { gangId: string; timezo
         </label>
       </div>
 
-      <div className="mt-3">
-        <FormLayout direction="horizontal">
-          <TextInput label="จำนวนคอร์ท" value={courtCount} onChange={setCourtCount} />
-          <TextInput label="รับสูงสุด (คน)" value={maxPlayers} onChange={setMaxPlayers} />
-        </FormLayout>
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextInput label="จำนวนคอร์ท" value={courtCount} onChange={setCourtCount} />
+        <TextInput label="รับสูงสุด (คน)" value={maxPlayers} onChange={setMaxPlayers} />
       </div>
 
       <div className="mt-3">

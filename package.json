@@ -13,9 +13,10 @@
     "typecheck": "tsc --noEmit",
     "astryx": "node node_modules/@astryxdesign/cli/clients/cli/bin/astryx.mjs",
     "supabase": "supabase",
+    "theme:build": "npm run astryx -- theme build theme/src/badgame.ts --out theme/badgame.css",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:unit": "vitest run tests/domain tests/auth/safe-next.test.ts tests/landing tests/security/csp.test.ts",
+    "test:unit": "vitest run tests/domain tests/auth/safe-next.test.ts tests/landing tests/design tests/security/csp.test.ts",
     "test:e2e": "playwright test"
   },
   "astryx": {

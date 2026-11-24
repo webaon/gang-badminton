@@ -14,6 +14,8 @@
  */
 import { Pool, type PoolClient } from 'pg';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createHmac } from 'node:crypto';
+import { execSync } from 'node:child_process';
 
 /** connection string ผ่าน pooler — user ต้องเป็น `postgres.<tenant>` (tenant local = pooler-dev) */
 export const POOLED_URL =
@@ -22,9 +24,67 @@ export const POOLED_URL =
 
 export const API_URL = process.env.SUPABASE_API_URL ?? 'http://127.0.0.1:54321';
 
-export const SERVICE_ROLE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ??
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
+/**
+ * [planner, 31 ต.ค. 2026] **ห้าม hardcode secret/key ไว้ในไฟล์นี้** — อ่านจาก env ก่อนเสมอ ถ้าไม่มี
+ * ให้เรียก `npx supabase status -o env` สดๆตอนรัน (memoize ในหน่วยความจำ ไม่เขียนลงดิสก์/ไม่ log ค่า
+ * ออกไปที่ไหนเลย) เท่านั้น — ไม่มี fallback literal ใดๆในซอร์สโค้ด
+ *
+ * 🔴 เหตุผลที่ย้ายมาแบบนี้ (ไม่ใช่แค่ตามคำสั่ง): ไม่ว่า fallback literal เดิมของ `SERVICE_ROLE_KEY`
+ * จะใช้งานได้จริงหรือไม่ก็ตาม (เรื่องนี้มีความเห็นต่างกันระหว่างรอบตรวจ — แจ้ง planner/QA แยกแล้วให้ไป
+ * ยืนยันกันเอง ไม่ใช่สิ่งที่ต้องตัดสินในคอมเมนต์นี้) หลักการของ WO นี้คือ **ไม่ hardcode secret-shaped
+ * literal ไว้ในซอร์สเลยไม่ว่ากรณีใด** — อ่านจาก env หรือ live `supabase status` เท่านั้น ไม่มี fallback
+ * literal ใน git ให้ตรวจสอบ/โต้แย้งได้อีกต่อไป
+ */
+let cachedSupabaseStatusEnv: Readonly<Record<string, string>> | null = null;
+
+function supabaseStatusEnv(): Readonly<Record<string, string>> {
+  if (cachedSupabaseStatusEnv) return cachedSupabaseStatusEnv;
+  // execSync (ผ่าน shell) ไม่ใช่ execFileSync — Windows ต้องมี shell ถึงจะ resolve `npx` เป็น `npx.cmd`
+  // ผ่าน PATH ได้ (execFileSync เรียกตรงไม่ผ่าน shell เลย ⇒ ENOENT บน Windows)
+  const output = execSync('npx supabase status -o env', { encoding: 'utf8' });
+  const parsed: Record<string, string> = {};
+  for (const line of output.split('\n')) {
+    const m = /^([A-Z0-9_]+)="?([^"]*)"?$/.exec(line.trim());
+    if (m) parsed[m[1]] = m[2];
+  }
+  cachedSupabaseStatusEnv = parsed;
+  return parsed;
+}
+
+/** `supabase status -o env`'s legacy `SERVICE_ROLE_KEY`/`ANON_KEY` fields come back redacted in
+ *  terminal output — the newer `SECRET_KEY`/`PUBLISHABLE_KEY` fields are the full, usable value
+ *  for the same role; prefer those when reading live, exactly as used successfully for `npm run build`
+ *  earlier this session. */
+function requiredLocalSecret(envVarNames: readonly string[], statusKeys: readonly string[], label: string): string {
+  for (const name of envVarNames) {
+    const v = process.env[name];
+    if (v) return v;
+  }
+  const status = supabaseStatusEnv();
+  for (const key of statusKeys) {
+    const v = status[key];
+    if (v && !v.includes('...')) return v;
+  }
+  throw new Error(
+    `[tests/helpers/db.ts] หา ${label} ไม่ได้ — export ${envVarNames[0]} เอง หรือรัน \`npx supabase start\` ให้ \`supabase status -o env\` มีค่านี้ (ห้าม hardcode ไว้ในไฟล์)`,
+  );
+}
+
+export const SERVICE_ROLE_KEY = requiredLocalSecret(
+  ['SUPABASE_SERVICE_ROLE_KEY'],
+  ['SECRET_KEY', 'SERVICE_ROLE_KEY'],
+  'service role key',
+);
+
+/** anon key ของ local supabase — ใช้คู่กับ JWT ของ user จริงใน `userClient()` (ต่างจาก SERVICE_ROLE_KEY ที่ bypass RLS) */
+export const ANON_KEY = requiredLocalSecret(
+  ['SUPABASE_ANON_KEY'],
+  ['PUBLISHABLE_KEY', 'ANON_KEY'],
+  'anon/publishable key',
+);
+
+/** `supabase status` JWT_SECRET ของ local dev — ใช้เซ็น JWT ใน `userClient()` เท่านั้น ไม่ hardcode/ไม่ log */
+export const JWT_SECRET = requiredLocalSecret(['SUPABASE_JWT_SECRET'], ['JWT_SECRET'], 'JWT secret');
 
 /**
  * pool ที่ทุกเทสต์ใช้ร่วมกัน — max ต้องมากพอให้ request ที่ยิงพร้อมกัน
@@ -34,6 +94,32 @@ export const pool = new Pool({ connectionString: POOLED_URL, max: 20 });
 
 export function serviceClient(): SupabaseClient {
   return createClient(API_URL, SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+/**
+ * [WO-6.5c, planner 31 ต.ค. 2026] client ของ **user จริง** ที่ RLS มีผลจริง — ต่างจาก `asRole()`
+ * ข้างบนที่สวม role ที่ระดับ raw Postgres connection (ข้าม PostgREST ไปเลย) ตัวนี้เซ็น JWT ด้วย
+ * `JWT_SECRET` ของ local dev แล้วยิงผ่าน PostgREST จริงด้วย anon key + `Authorization: Bearer`
+ * — เส้นทางเดียวกับที่ production ใช้ (`supabaseServer()` คือ client ที่ตั้ง header นี้จาก session
+ * cookie) เอาไว้พิสูจน์ RLS end-to-end ให้ server action ตัวที่ไม่ได้ mock DB query เลย
+ *
+ * HS256 เซ็นมือด้วย `node:crypto` ไม่พึ่ง lib JWT เพิ่ม (payload เล็ก ไม่มี deps ให้ลดความเสี่ยง)
+ */
+function signLocalJwt(payload: Record<string, unknown>): string {
+  const b64url = (s: string) => Buffer.from(s).toString('base64url');
+  const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const body = b64url(JSON.stringify(payload));
+  const sig = createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64url');
+  return `${header}.${body}.${sig}`;
+}
+
+export function userClient(userId: string): SupabaseClient {
+  const now = Math.floor(Date.now() / 1000);
+  const jwt = signLocalJwt({ sub: userId, role: 'authenticated', aud: 'authenticated', iat: now, exp: now + 3600 });
+  return createClient(API_URL, ANON_KEY, {
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }

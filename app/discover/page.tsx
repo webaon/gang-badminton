@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { currentUser, supabaseServer } from '@/lib/supabase/server';
+import { errorText } from '@/lib/i18n/error-text';
 import { searchGangs } from '@/server/actions/discovery';
 import { DiscoverPanel, type MyJoinRequest } from '@/features/discovery/DiscoverPanel';
 
@@ -67,7 +68,7 @@ export default async function DiscoverPage({
       </div>
 
       {result.success ? null : (
-        <p className="mb-3 text-sm">ค้นหาไม่สำเร็จ — {result.error.message}</p>
+        <p className="mb-3 text-sm">ค้นหาไม่สำเร็จ — {errorText(result.error)}</p>
       )}
 
       <DiscoverPanel

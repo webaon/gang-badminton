@@ -16,6 +16,7 @@
  */
 import type { Action, Feature, PermissionContext } from './types';
 import { ACTIONS } from './types';
+import { isDelegableAction } from './delegable';
 
 /**
  * สิทธิ์ของแต่ละ role — ประกาศเป็น `readonly Action[]` ต่อ role
@@ -36,16 +37,28 @@ const MEMBER: readonly Action[] = [
   'statistics.view',
   // [WO-4.B] ผูก/เลิกผูกบัญชี LINE **ของตัวเอง** — ผูกกับ features.line
   'line.link.self',
+  // [WO-B2 · ADR-012] ออกจากก๊วนเอง — DB function `leave_gang()` ตรวจซ้ำ (owner คนสุดท้ายออกไม่ได้)
+  'gang.leave.self',
+  // [WO-B5a · ADR-010] ดูเครดิตของตัวเอง
+  'credit.read.self',
 ];
 
 const ADMIN: readonly Action[] = [
   ...MEMBER,
+  // [WO-B5a · ADR-010] เครดิตสมาชิก — RLS กรองแถวซ้ำอีกชั้น · บันทึกโอนเกิน DB ตรวจแอดมินซ้ำ
+  'credit.read.other',
+  'credit.overpayment.record',
+  // [WO-B5b · ADR-010] เติมเครดิต (ให้เครดิต ไม่ใช่เงินสดเข้า) / จ่ายคืนเงินสด / ย้ายยอดต้องคืนของ charge เข้าเครดิต — แอดมิน+โอเนอร์ · DB ตรวจแอดมินซ้ำ
+  'credit.topup',
+  'credit.payout.record',
+  'credit.return_charge',
   'gang.update',
   'gang.member.manage',
   'gang.skill.manage',
   'gang.pricing.manage',
   'gang.finance.view',
   'gang.finance.manage',
+  'statistics.view.all',
   'session.create',
   'session.update',
   'session.transition',
@@ -53,6 +66,8 @@ const ADMIN: readonly Action[] = [
   'registration.create.other',
   'registration.create.guest',
   'registration.cancel.other',
+  // [WO-B11 · ADR-011] เลือกเลื่อนคนจาก waitlist เอง — ใช้ผ่าน promote_waitlist(p_registration_id)
+  'registration.promote.other',
   'registration.checkin',
   'registration.no_show',
   'game.manage',
@@ -67,8 +82,9 @@ const ADMIN: readonly Action[] = [
   'gang.line.manage',
 ];
 
-// owner ต่างจาก admin แค่เชิงความเป็นเจ้าของ (ลบก๊วน/ย้ายเจ้าของ) ซึ่งยังไม่มีใน MVP-0
-const OWNER: readonly Action[] = [...ADMIN];
+// owner = admin + โอนความเป็นเจ้าของ (WO-B2 · ADR-012) — สิทธิ์เดียวที่ owner มีเหนือ admin
+// ยังไม่มี: ลบก๊วน
+const OWNER: readonly Action[] = [...ADMIN, 'gang.ownership.transfer'];
 
 const ROLE_ACTIONS = {
   member: new Set<Action>(MEMBER),
@@ -87,6 +103,7 @@ const FEATURE_GATED: Partial<Record<Action, Feature>> = {
   'session.invite.manage': 'guests',
   // [WO-3.C] ก๊วนที่ปิดสถิติ = ปิดจริงทั้งหน้าและ action ไม่ใช่แค่ซ่อนลิงก์
   'statistics.view': 'statistics',
+  'statistics.view.all': 'statistics',
   // [WO-3.E] ก๊วนที่ปิด discovery ไม่มีคำขอเข้าก๊วนให้จัดการตั้งแต่ต้น
   //          (`request_to_join_gang()` ตอบ FEATURE_DISABLED อยู่แล้ว — สองที่ต้องตรงกัน)
   'gang.join_request.manage': 'discovery',
@@ -112,7 +129,11 @@ export function can(ctx: PermissionContext, action: Action): boolean {
   const effectiveRole = ctx.role ?? (ctx.orgRole ? 'admin' : null);
   if (!effectiveRole) return false;
 
-  return ROLE_ACTIONS[effectiveRole].has(action);
+  if (ROLE_ACTIONS[effectiveRole].has(action)) return true;
+
+  // [ADR-015] ชุดสิทธิ์ซ้อนบน role — เฉพาะสมาชิกทั่วไป (admin/owner มีครบอยู่แล้ว · role=null ไม่เกี่ยว)
+  //   และเฉพาะ action ที่ delegate ได้ ⇒ ใส่ action อื่นมาใน extra ก็ไม่มีผล (ตรงกับ has_gang_permission ใน DB)
+  return effectiveRole === 'member' && isDelegableAction(action) && (ctx.extra?.includes(action) ?? false);
 }
 
 /** เวอร์ชันที่โยน error — ใช้ใน server action ที่อยากให้จบเลยถ้าไม่มีสิทธิ์ */
@@ -127,4 +148,16 @@ export function assertCan(ctx: PermissionContext, action: Action): void {
 /** ทุก action ที่ role นี้ทำได้ — ใช้ส่งไปให้ UI ตัดสินใจซ่อน/แสดงทีเดียว */
 export function allowedActions(ctx: PermissionContext): Action[] {
   return ACTIONS.filter((a) => can(ctx, a));
+}
+
+/**
+ * [WO-6.5c, planner G1 — 31 ต.ค. 2026] composite สำหรับ widget ที่รวมยอดจากหลายตารางที่มี RLS
+ * คนละสิทธิ์พร้อมกันในเลขเดียว — `credit_balances` (0051:256-264) ต้อง `credit.read.other`,
+ * allocations/payments ต้อง `payment.verify`, `session_charges` ต้อง `gang.finance.view`
+ * ถ้าขาดอย่างใดอย่างหนึ่ง RLS กรองแถวออกเงียบๆ (ไม่ throw) ⇒ เลขที่ได้จะไม่ครบแบบไม่มีใครรู้ตัว
+ * ⇒ ต้องมีสิทธิ์ครบทั้ง 3 เท่านั้นถึงจะคืนเลข ไม่งั้นคืน null ทั้งหมด (ไม่ใช่สิทธิ์ใหม่ — รวม `can()`
+ * ที่มีอยู่แล้ว 3 ตัว, treasurer/admin preset มีครบอยู่แล้วจึงไม่ได้รับผลกระทบ)
+ */
+export function canSeeGangMoney(ctx: PermissionContext): boolean {
+  return can(ctx, 'gang.finance.view') && can(ctx, 'payment.verify') && can(ctx, 'credit.read.other');
 }

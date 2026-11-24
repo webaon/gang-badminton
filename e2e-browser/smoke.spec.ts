@@ -42,7 +42,8 @@ test('เส้นหลัก (ส่วนที่ครอบแล้ว): 
   const { gangId, name: gangName } = await createGang(page);
 
   await page.goto(`/gangs/${gangId}/sessions`);
-  await expect(page.getByText(gangName)).toBeVisible();
+  // [WO-6.1a] ชื่อก๊วนโผล่ที่ header ของ shell ด้วย ⇒ ระบุว่าเป็นหัวข้อของหน้า (ไม่ใช่ getByText เฉยๆ ที่เจอหลายจุด)
+  await expect(page.getByRole('heading', { name: new RegExp(gangName) })).toBeVisible();
 
   // ── ตั้งราคาต่อหัว (ไม่มีแผนราคา = ปิดรอบไม่ได้) ─────────────────────────
   await page.goto(`/gangs/${gangId}/settings`);

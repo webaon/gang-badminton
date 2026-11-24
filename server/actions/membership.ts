@@ -7,6 +7,7 @@ import { requireUser } from '@/lib/supabase/auth';
 import { supabaseServer } from '@/lib/supabase/server';
 import { assertCan } from '@/domain/permissions/can';
 import type { GangRole } from '@/domain/permissions/types';
+import { loadGangPermissionContext } from '@/server/permissions/gang-context';
 import { assertBillingMonth } from '@/domain/billing/membership';
 import { monthlyToJson, validateMonthly } from '@/domain/policies/pricing';
 import { utcToZonedWallClock } from '@/domain/time/timezone';
@@ -146,7 +147,7 @@ export async function generateMonthlyFeesNow(
 
   return runAction(correlationId, async () => {
     const user = await requireUser();
-    assertCan({ role: await roleInGang(gangId, user.id) }, 'billing.close');
+    assertCan(await loadGangPermissionContext(gangId, user.id), 'billing.close');
 
     if (billingMonth !== undefined) {
       try {
