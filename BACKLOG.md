@@ -595,7 +595,7 @@
 
 - [ ] 🟢 **[onboarding checklist #51 · WO-6.7]** ข้อ "เพิ่มคอร์ท" **ตัดทิ้ง** เพราะ baseline v3 ไม่มีตาราง `courts` (`court_count` / `court_labels` อยู่ที่ `sessions`) ⇒ checklist เหลือ 2 ข้อ (ตั้งราคา, สร้างนัดแรก) แบบ computed ไม่มี dismiss ถาวร ตามดีไซน์ `wf/g-l.jsx:10`
 
-## จาก WO-6.8 gap (ตัดออกจาก v1.1.0 ชั่วคราวตาม ★ก รอเจ้าของยืนยัน)
+## จาก WO-6.8 gap (เจ้าของยืนยัน ★ก → v1.2 · CSV อยู่ใน v1.1.0)
 
 - [ ] 🟢 **[#36]** ประกาศ like / comment / read receipt — ต้องเพิ่มตารางใหม่
 - [ ] 🟢 **[#39a]** tab "จ่ายตรงเวลา" — ต้องเพิ่ม metric ใน `member_statistics` + rollup
