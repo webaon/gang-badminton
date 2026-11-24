@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { localDateTime } from './date-time';
 
 import { createGang, signUp, uniqueSuffix, watchConsole } from './helpers';
 
@@ -16,13 +17,6 @@ import { createGang, signUp, uniqueSuffix, watchConsole } from './helpers';
  * ⚠️ ไม่แตะ LINE (ต้องมี OA จริง) — ครอบใน `tests/e2e/phase4-full-path.test.ts` แทน
  */
 
-/** `datetime-local` ต้องการรูปแบบ `YYYY-MM-DDTHH:mm` */
-function localDateTime(hoursFromNow: number): string {
-  const at = new Date(Date.now() + hoursFromNow * 60 * 60 * 1000);
-  const pad = (value: number) => String(value).padStart(2, '0');
-
-  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
-}
 
 /**
  * ⚠️ **ขอบเขตที่ครอบจริงในตอนนี้**: สมัคร → สร้างก๊วน → ตั้งราคา → สร้างนัด → เปิดรับสมัคร

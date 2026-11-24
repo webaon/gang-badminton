@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { localDateTime } from './date-time';
 
 import { createGang, signUp, uniqueSuffix, watchConsole } from './helpers';
 
@@ -7,11 +8,6 @@ import { createGang, signUp, uniqueSuffix, watchConsole } from './helpers';
  * เคสสองนัดค้าง + H29 + wallet อยู่ใน my-balance.spec.ts
  */
 
-function localDateTime(hoursFromNow: number): string {
-  const at = new Date(Date.now() + hoursFromNow * 60 * 60 * 1000);
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
-}
 
 // PNG 1x1 จริง (ผ่านการตรวจชนิดไฟล์ของ bucket)
 const PNG_1X1 = Buffer.from(

@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
+import { localDateTime } from './date-time';
 
 import { createGang, signUp, uniqueSuffix } from './helpers';
 
@@ -7,11 +8,6 @@ import { createGang, signUp, uniqueSuffix } from './helpers';
  * + สมาชิกทั่วไปเปิด /close ไม่เห็นยอด · ด่าน "ไม่มีใครเช็คอิน" ยังอยู่ · 390px
  */
 
-function localDateTime(hoursFromNow: number): string {
-  const at = new Date(Date.now() + hoursFromNow * 60 * 60 * 1000);
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
-}
 
 async function setupOpenSession(page: Page) {
   const owner = await signUp(page);

@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
+import { localDateTime } from './date-time';
 
 import { createGang, signUp, uniqueSuffix } from './helpers';
 
@@ -7,11 +8,6 @@ import { createGang, signUp, uniqueSuffix } from './helpers';
  * ทุกเทสต์สมัครผู้ใช้ใหม่/สร้างก๊วนของตัวเอง ไม่แตะข้อมูลจริง
  */
 
-function localDateTime(hoursFromNow: number): string {
-  const at = new Date(Date.now() + hoursFromNow * 60 * 60 * 1000);
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
-}
 
 /** เจ้าของก๊วนสมัคร → สร้างก๊วน → ตั้งราคา → สร้างนัด → เปิดรับ ⇒ คืน url หน้านัด */
 async function setupOpenSession(page: Page, maxPlayers: number) {
